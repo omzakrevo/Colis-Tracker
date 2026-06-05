@@ -91,14 +91,11 @@ export default function ColisNouveau() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Nouveau colis</h1>
-          <p className="text-muted-foreground text-sm">
-            Enregistrement d'une nouvelle expédition
-          </p>
+          <p className="text-muted-foreground text-sm">Enregistrement d'une nouvelle expédition</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Expéditeur */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold">Expéditeur</CardTitle>
@@ -106,28 +103,15 @@ export default function ColisNouveau() {
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <Label htmlFor="exp_nom">Nom complet *</Label>
-              <Input
-                id="exp_nom"
-                required
-                value={form.expediteur_nom}
-                onChange={(e) => set("expediteur_nom", e.target.value)}
-                placeholder="Moussa Traoré"
-              />
+              <Input id="exp_nom" required value={form.expediteur_nom} onChange={(e) => set("expediteur_nom", e.target.value)} placeholder="Moussa Traoré" />
             </div>
             <div className="space-y-1">
               <Label htmlFor="exp_tel">Téléphone *</Label>
-              <Input
-                id="exp_tel"
-                required
-                value={form.expediteur_telephone}
-                onChange={(e) => set("expediteur_telephone", e.target.value)}
-                placeholder="+226 70 00 00 00"
-              />
+              <Input id="exp_tel" required value={form.expediteur_telephone} onChange={(e) => set("expediteur_telephone", e.target.value)} placeholder="+226 70 00 00 00" />
             </div>
           </CardContent>
         </Card>
 
-        {/* Destinataire */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold">Destinataire</CardTitle>
@@ -135,28 +119,15 @@ export default function ColisNouveau() {
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <Label htmlFor="dest_nom">Nom complet *</Label>
-              <Input
-                id="dest_nom"
-                required
-                value={form.destinataire_nom}
-                onChange={(e) => set("destinataire_nom", e.target.value)}
-                placeholder="Fatoumata Coulibaly"
-              />
+              <Input id="dest_nom" required value={form.destinataire_nom} onChange={(e) => set("destinataire_nom", e.target.value)} placeholder="Fatoumata Coulibaly" />
             </div>
             <div className="space-y-1">
               <Label htmlFor="dest_tel">Téléphone *</Label>
-              <Input
-                id="dest_tel"
-                required
-                value={form.destinataire_telephone}
-                onChange={(e) => set("destinataire_telephone", e.target.value)}
-                placeholder="+226 60 00 00 00"
-              />
+              <Input id="dest_tel" required value={form.destinataire_telephone} onChange={(e) => set("destinataire_telephone", e.target.value)} placeholder="+226 60 00 00 00" />
             </div>
           </CardContent>
         </Card>
 
-        {/* Trajet */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold">Trajet</CardTitle>
@@ -164,54 +135,37 @@ export default function ColisNouveau() {
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <Label>Gare de départ *</Label>
-              <Select
-                value={form.gare_depart_id}
-                onValueChange={(v) => set("gare_depart_id", v)}
-              >
+              <Select value={form.gare_depart_id || undefined} onValueChange={(v) => set("gare_depart_id", v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner" />
                 </SelectTrigger>
                 <SelectContent>
                   {gares?.map((g) => (
-                    <SelectItem key={g.id} value={String(g.id)}>
-                      {g.nom}
-                    </SelectItem>
+                    <SelectItem key={g.id} value={String(g.id)}>{g.nom}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
               <Label>Gare d'arrivée *</Label>
-              <Select
-                value={form.gare_arrivee_id}
-                onValueChange={(v) => set("gare_arrivee_id", v)}
-              >
+              <Select value={form.gare_arrivee_id || undefined} onValueChange={(v) => set("gare_arrivee_id", v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner" />
                 </SelectTrigger>
                 <SelectContent>
                   {gares?.map((g) => (
-                    <SelectItem key={g.id} value={String(g.id)}>
-                      {g.nom}
-                    </SelectItem>
+                    <SelectItem key={g.id} value={String(g.id)}>{g.nom}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1 sm:col-span-2">
               <Label htmlFor="date_envoi">Date d'envoi *</Label>
-              <Input
-                id="date_envoi"
-                type="date"
-                required
-                value={form.date_envoi}
-                onChange={(e) => set("date_envoi", e.target.value)}
-              />
+              <Input id="date_envoi" type="date" required value={form.date_envoi} onChange={(e) => set("date_envoi", e.target.value)} />
             </div>
           </CardContent>
         </Card>
 
-        {/* Détails */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold">Détails du colis</CardTitle>
@@ -219,68 +173,28 @@ export default function ColisNouveau() {
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1 sm:col-span-2">
               <Label htmlFor="description">Description *</Label>
-              <Input
-                id="description"
-                required
-                value={form.description}
-                onChange={(e) => set("description", e.target.value)}
-                placeholder="Vêtements, électronique, documents..."
-              />
+              <Input id="description" required value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Vêtements, électronique, documents..." />
             </div>
             <div className="space-y-1">
               <Label htmlFor="nombre">Nombre de pièces *</Label>
-              <Input
-                id="nombre"
-                type="number"
-                required
-                min={1}
-                value={form.nombre}
-                onChange={(e) => set("nombre", e.target.value)}
-              />
+              <Input id="nombre" type="number" required min={1} value={form.nombre} onChange={(e) => set("nombre", e.target.value)} />
             </div>
             <div className="space-y-1">
               <Label htmlFor="poids">Poids (kg)</Label>
-              <Input
-                id="poids"
-                type="number"
-                min={0}
-                step={0.1}
-                value={form.poids}
-                onChange={(e) => set("poids", e.target.value)}
-                placeholder="Optionnel"
-              />
+              <Input id="poids" type="number" min={0} step={0.1} value={form.poids} onChange={(e) => set("poids", e.target.value)} placeholder="Optionnel" />
             </div>
             <div className="space-y-1">
               <Label htmlFor="prix">Prix (FCFA) *</Label>
-              <Input
-                id="prix"
-                type="number"
-                required
-                min={1}
-                value={form.prix}
-                onChange={(e) => set("prix", e.target.value)}
-                placeholder="Ex: 2500"
-              />
+              <Input id="prix" type="number" required min={1} value={form.prix} onChange={(e) => set("prix", e.target.value)} placeholder="Ex: 2500" />
             </div>
             <div className="space-y-1 sm:col-span-2">
               <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                value={form.notes}
-                onChange={(e) => set("notes", e.target.value)}
-                rows={2}
-                placeholder="Informations complémentaires..."
-              />
+              <Textarea id="notes" value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2} placeholder="Informations complémentaires..." />
             </div>
           </CardContent>
         </Card>
 
-        <Button
-          type="submit"
-          className="w-full"
-          size="lg"
-          disabled={createColis.isPending}
-        >
+        <Button type="submit" className="w-full" size="lg" disabled={createColis.isPending}>
           {createColis.isPending ? "Enregistrement en cours..." : "Enregistrer le colis"}
         </Button>
       </form>

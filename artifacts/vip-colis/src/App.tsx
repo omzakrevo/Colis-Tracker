@@ -13,7 +13,7 @@ import {
   Search,
   LogOut,
   Menu,
-  X,
+  QrCode,
 } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import GaresList from "./pages/gares/index";
 import UsersList from "./pages/utilisateurs/index";
 import Rapports from "./pages/rapports";
 import Recherche from "./pages/recherche";
+import Scanner from "./pages/scanner";
 
 const queryClient = new QueryClient();
 
@@ -131,6 +132,7 @@ function Layout({ children }: { children: React.ReactNode }) {
   const menu: MenuItem[] = [
     { href: "/", label: "Tableau de bord", icon: LayoutDashboard },
     { href: "/colis", label: "Colis", icon: Package },
+    { href: "/scanner", label: "Scanner QR", icon: QrCode },
     { href: "/recherche", label: "Recherche", icon: Search },
     { href: "/rapports", label: "Rapports", icon: BarChart3 },
   ];
@@ -182,7 +184,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile top bar */}
-        <header className="md:hidden sticky top-0 z-30 flex items-center gap-3 bg-background border-b px-4 h-14 shrink-0">
+        <header className="md:hidden sticky top-0 z-30 flex items-center gap-3 bg-background border-b px-4 h-14 shrink-0 print:hidden">
           <Button
             variant="ghost"
             size="sm"
@@ -218,6 +220,7 @@ function Router() {
         <Route path="/colis" component={ColisList} />
         <Route path="/colis/nouveau" component={ColisNouveau} />
         <Route path="/colis/:id" component={ColisDetail} />
+        <Route path="/scanner" component={Scanner} />
         <Route path="/gares" component={GaresList} />
         <Route path="/utilisateurs" component={UsersList} />
         <Route path="/rapports" component={Rapports} />
