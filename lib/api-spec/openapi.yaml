@@ -1,22 +1,33 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: VIP Colis - API de gestion de colis
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: users
+    description: User management
+  - name: gares
+    description: Station management
+  - name: colis
+    description: Package management
+  - name: historique
+    description: Package history
+  - name: rapports
+    description: Reports and statistics
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +35,518 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /gares:
+    get:
+      operationId: listGares
+      tags: [gares]
+      summary: List all stations
+      responses:
+        "200":
+          description: List of stations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Gare"
+    post:
+      operationId: createGare
+      tags: [gares]
+      summary: Create a station
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GareInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Gare"
+
+  /gares/{id}:
+    get:
+      operationId: getGare
+      tags: [gares]
+      summary: Get a station
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Station found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Gare"
+    patch:
+      operationId: updateGare
+      tags: [gares]
+      summary: Update a station
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GareUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Gare"
+    delete:
+      operationId: deleteGare
+      tags: [gares]
+      summary: Delete a station
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /colis:
+    get:
+      operationId: listColis
+      tags: [colis]
+      summary: List packages with optional filters
+      parameters:
+        - name: statut
+          in: query
+          schema:
+            type: string
+        - name: gare_depart_id
+          in: query
+          schema:
+            type: integer
+        - name: gare_arrivee_id
+          in: query
+          schema:
+            type: integer
+        - name: date_debut
+          in: query
+          schema:
+            type: string
+        - name: date_fin
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of packages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Colis"
+    post:
+      operationId: createColis
+      tags: [colis]
+      summary: Register a new package
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ColisInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Colis"
+
+  /colis/{id}:
+    get:
+      operationId: getColis
+      tags: [colis]
+      summary: Get a package
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Package found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Colis"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateColis
+      tags: [colis]
+      summary: Update a package
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ColisUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Colis"
+
+  /colis/{id}/statut:
+    patch:
+      operationId: updateStatutColis
+      tags: [colis]
+      summary: Update package status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StatutUpdate"
+      responses:
+        "200":
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Colis"
+
+  /colis/{id}/retrait:
+    post:
+      operationId: retirerColis
+      tags: [colis]
+      summary: Record package pickup
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RetraitInput"
+      responses:
+        "200":
+          description: Pickup recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Colis"
+
+  /colis/numero/{numero}:
+    get:
+      operationId: getColisByNumero
+      tags: [colis]
+      summary: Get a package by tracking number
+      parameters:
+        - name: numero
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Package found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Colis"
+        "404":
+          description: Not found
+
+  /historique/{colis_id}:
+    get:
+      operationId: getHistoriqueColis
+      tags: [historique]
+      summary: Get history for a package
+      parameters:
+        - name: colis_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: History list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HistoriqueColis"
+
+  /rapports/dashboard:
+    get:
+      operationId: getDashboardStats
+      tags: [rapports]
+      summary: Get dashboard statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /rapports/colis-par-jour:
+    get:
+      operationId: getColisParJour
+      tags: [rapports]
+      summary: Packages sent per day
+      parameters:
+        - name: date_debut
+          in: query
+          schema:
+            type: string
+        - name: date_fin
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Daily package counts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ColisParJour"
+
+  /rapports/recettes-par-gare:
+    get:
+      operationId: getRecettesParGare
+      tags: [rapports]
+      summary: Revenue per station
+      responses:
+        "200":
+          description: Revenue by station
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RecetteParGare"
+
+  /rapports/recettes-par-agent:
+    get:
+      operationId: getRecettesParAgent
+      tags: [rapports]
+      summary: Revenue per agent
+      responses:
+        "200":
+          description: Revenue by agent
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RecetteParAgent"
+
+  /rapports/colis-non-retires:
+    get:
+      operationId: getColisNonRetires
+      tags: [rapports]
+      summary: Packages not yet picked up
+      responses:
+        "200":
+          description: Unretired packages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Colis"
+
+  /rapports/statuts-summary:
+    get:
+      operationId: getStatutsSummary
+      tags: [rapports]
+      summary: Package count grouped by status
+      responses:
+        "200":
+          description: Status summary
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StatutSummary"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +557,343 @@ components:
       required:
         - status
 
+    LoginInput:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+
+    User:
+      type: object
+      required: [id, nom, username, role, actif, created_at]
+      properties:
+        id:
+          type: integer
+        nom:
+          type: string
+        username:
+          type: string
+        role:
+          type: string
+          enum: [admin, chef_gare, agent]
+        gare_id:
+          type: ["integer", "null"]
+        gare_nom:
+          type: ["string", "null"]
+        telephone:
+          type: ["string", "null"]
+        actif:
+          type: boolean
+        created_at:
+          type: string
+
+    UserInput:
+      type: object
+      required: [nom, username, password, role]
+      properties:
+        nom:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum: [admin, chef_gare, agent]
+        gare_id:
+          type: ["integer", "null"]
+        telephone:
+          type: ["string", "null"]
+
+    UserUpdate:
+      type: object
+      properties:
+        nom:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum: [admin, chef_gare, agent]
+        gare_id:
+          type: ["integer", "null"]
+        telephone:
+          type: ["string", "null"]
+        actif:
+          type: boolean
+
+    Gare:
+      type: object
+      required: [id, nom, ville, adresse, created_at]
+      properties:
+        id:
+          type: integer
+        nom:
+          type: string
+        ville:
+          type: string
+        adresse:
+          type: string
+        responsable:
+          type: ["string", "null"]
+        telephone:
+          type: ["string", "null"]
+        created_at:
+          type: string
+
+    GareInput:
+      type: object
+      required: [nom, ville, adresse]
+      properties:
+        nom:
+          type: string
+        ville:
+          type: string
+        adresse:
+          type: string
+        responsable:
+          type: ["string", "null"]
+        telephone:
+          type: ["string", "null"]
+
+    GareUpdate:
+      type: object
+      properties:
+        nom:
+          type: string
+        ville:
+          type: string
+        adresse:
+          type: string
+        responsable:
+          type: ["string", "null"]
+        telephone:
+          type: ["string", "null"]
+
+    Colis:
+      type: object
+      required: [id, numero, expediteur_nom, expediteur_telephone, destinataire_nom, destinataire_telephone, gare_depart_id, gare_arrivee_id, description, nombre, prix, statut, date_envoi, created_at]
+      properties:
+        id:
+          type: integer
+        numero:
+          type: string
+        expediteur_nom:
+          type: string
+        expediteur_telephone:
+          type: string
+        destinataire_nom:
+          type: string
+        destinataire_telephone:
+          type: string
+        gare_depart_id:
+          type: integer
+        gare_depart_nom:
+          type: ["string", "null"]
+        gare_arrivee_id:
+          type: integer
+        gare_arrivee_nom:
+          type: ["string", "null"]
+        description:
+          type: string
+        nombre:
+          type: integer
+        poids:
+          type: ["number", "null"]
+        prix:
+          type: number
+        statut:
+          type: string
+          enum: [enregistre, charge, en_route, arrive, retire, annule]
+        date_envoi:
+          type: string
+        agent_id:
+          type: ["integer", "null"]
+        agent_nom:
+          type: ["string", "null"]
+        retrait_nom:
+          type: ["string", "null"]
+        retrait_telephone:
+          type: ["string", "null"]
+        retrait_piece_identite:
+          type: ["string", "null"]
+        retrait_date:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        created_at:
+          type: string
+
+    ColisInput:
+      type: object
+      required: [expediteur_nom, expediteur_telephone, destinataire_nom, destinataire_telephone, gare_depart_id, gare_arrivee_id, description, nombre, prix, date_envoi]
+      properties:
+        expediteur_nom:
+          type: string
+        expediteur_telephone:
+          type: string
+        destinataire_nom:
+          type: string
+        destinataire_telephone:
+          type: string
+        gare_depart_id:
+          type: integer
+        gare_arrivee_id:
+          type: integer
+        description:
+          type: string
+        nombre:
+          type: integer
+        poids:
+          type: ["number", "null"]
+        prix:
+          type: number
+        date_envoi:
+          type: string
+        notes:
+          type: ["string", "null"]
+
+    ColisUpdate:
+      type: object
+      properties:
+        expediteur_nom:
+          type: string
+        expediteur_telephone:
+          type: string
+        destinataire_nom:
+          type: string
+        destinataire_telephone:
+          type: string
+        description:
+          type: string
+        nombre:
+          type: integer
+        poids:
+          type: ["number", "null"]
+        prix:
+          type: number
+        notes:
+          type: ["string", "null"]
+
+    StatutUpdate:
+      type: object
+      required: [statut]
+      properties:
+        statut:
+          type: string
+          enum: [enregistre, charge, en_route, arrive, retire, annule]
+        notes:
+          type: ["string", "null"]
+
+    RetraitInput:
+      type: object
+      required: [retrait_nom, retrait_telephone]
+      properties:
+        retrait_nom:
+          type: string
+        retrait_telephone:
+          type: string
+        retrait_piece_identite:
+          type: ["string", "null"]
+
+    HistoriqueColis:
+      type: object
+      required: [id, colis_id, statut, date_changement, created_at]
+      properties:
+        id:
+          type: integer
+        colis_id:
+          type: integer
+        statut:
+          type: string
+        notes:
+          type: ["string", "null"]
+        agent_id:
+          type: ["integer", "null"]
+        agent_nom:
+          type: ["string", "null"]
+        date_changement:
+          type: string
+        created_at:
+          type: string
+
+    DashboardStats:
+      type: object
+      required: [total_colis, colis_aujourd_hui, colis_en_route, colis_arrives, colis_non_retires, recette_totale, recette_aujourd_hui, total_gares, total_agents]
+      properties:
+        total_colis:
+          type: integer
+        colis_aujourd_hui:
+          type: integer
+        colis_en_route:
+          type: integer
+        colis_arrives:
+          type: integer
+        colis_non_retires:
+          type: integer
+        recette_totale:
+          type: number
+        recette_aujourd_hui:
+          type: number
+        total_gares:
+          type: integer
+        total_agents:
+          type: integer
+
+    ColisParJour:
+      type: object
+      required: [date, total, recette]
+      properties:
+        date:
+          type: string
+        total:
+          type: integer
+        recette:
+          type: number
+
+    RecetteParGare:
+      type: object
+      required: [gare_id, gare_nom, total_colis, recette_totale]
+      properties:
+        gare_id:
+          type: integer
+        gare_nom:
+          type: string
+        total_colis:
+          type: integer
+        recette_totale:
+          type: number
+
+    RecetteParAgent:
+      type: object
+      required: [agent_id, agent_nom, total_colis, recette_totale]
+      properties:
+        agent_id:
+          type: integer
+        agent_nom:
+          type: string
+        total_colis:
+          type: integer
+        recette_totale:
+          type: number
+
+    StatutSummary:
+      type: object
+      required: [statut, total]
+      properties:
+        statut:
+          type: string
+        total:
+          type: integer
