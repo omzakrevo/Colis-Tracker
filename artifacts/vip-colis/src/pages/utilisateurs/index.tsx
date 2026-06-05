@@ -9,37 +9,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -125,11 +98,7 @@ export default function UsersList() {
       updateUser.mutate(
         { id: editId, data },
         {
-          onSuccess: () => {
-            toast({ title: "Utilisateur mis à jour" });
-            setDialogOpen(false);
-            refetch();
-          },
+          onSuccess: () => { toast({ title: "Utilisateur mis à jour" }); setDialogOpen(false); refetch(); },
           onError: () => toast({ title: "Erreur", variant: "destructive" }),
         }
       );
@@ -141,11 +110,7 @@ export default function UsersList() {
       createUser.mutate(
         { data: { ...data, password: form.password } },
         {
-          onSuccess: () => {
-            toast({ title: "Utilisateur créé avec succès" });
-            setDialogOpen(false);
-            refetch();
-          },
+          onSuccess: () => { toast({ title: "Utilisateur créé avec succès" }); setDialogOpen(false); refetch(); },
           onError: () => toast({ title: "Erreur", variant: "destructive" }),
         }
       );
@@ -157,13 +122,8 @@ export default function UsersList() {
     deleteUser.mutate(
       { id: deleteId },
       {
-        onSuccess: () => {
-          toast({ title: "Utilisateur supprimé" });
-          setDeleteId(null);
-          refetch();
-        },
-        onError: () =>
-          toast({ title: "Erreur lors de la suppression", variant: "destructive" }),
+        onSuccess: () => { toast({ title: "Utilisateur supprimé" }); setDeleteId(null); refetch(); },
+        onError: () => toast({ title: "Erreur lors de la suppression", variant: "destructive" }),
       }
     );
   };
@@ -173,9 +133,7 @@ export default function UsersList() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Utilisateurs</h1>
-          <p className="text-muted-foreground">
-            Gérez les comptes du personnel.
-          </p>
+          <p className="text-muted-foreground">Gérez les comptes du personnel.</p>
         </div>
         <Button onClick={openCreate}>
           <Plus className="w-4 h-4 mr-2" /> Nouvel utilisateur
@@ -202,57 +160,25 @@ export default function UsersList() {
                 <TableCell className="font-medium">{u.nom}</TableCell>
                 <TableCell className="font-mono text-sm">{u.username}</TableCell>
                 <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={`${ROLE_COLORS[u.role]} border-0`}
-                  >
-                    {ROLES[u.role]}
-                  </Badge>
+                  <Badge variant="outline" className={`${ROLE_COLORS[u.role]} border-0`}>{ROLES[u.role]}</Badge>
                 </TableCell>
                 <TableCell>{u.gare_nom ?? "—"}</TableCell>
                 <TableCell>{u.telephone ?? "—"}</TableCell>
                 <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={
-                      u.actif
-                        ? "bg-green-100 text-green-800 border-0"
-                        : "bg-red-100 text-red-800 border-0"
-                    }
-                  >
+                  <Badge variant="outline" className={u.actif ? "bg-green-100 text-green-800 border-0" : "bg-red-100 text-red-800 border-0"}>
                     {u.actif ? "Actif" : "Inactif"}
                   </Badge>
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => openEdit(u)}
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => setDeleteId(u.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(u)}><Pencil className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteId(u.id)}><Trash2 className="w-4 h-4" /></Button>
                   </div>
                 </TableCell>
               </TableRow>
             ))}
             {(!users || users.length === 0) && (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="text-center py-8 text-muted-foreground"
-                >
-                  Aucun utilisateur trouvé.
-                </TableCell>
-              </TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Aucun utilisateur trouvé.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
@@ -270,45 +196,23 @@ export default function UsersList() {
                   </div>
                   <div className="min-w-0">
                     <p className="font-semibold">{u.nom}</p>
-                    <p className="text-sm font-mono text-muted-foreground">
-                      @{u.username}
-                    </p>
+                    <p className="text-sm font-mono text-muted-foreground">@{u.username}</p>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <Badge
-                        variant="outline"
-                        className={`${ROLE_COLORS[u.role]} border-0 text-xs`}
-                      >
-                        {ROLES[u.role]}
-                      </Badge>
-                      {u.gare_nom && (
-                        <span className="text-xs text-muted-foreground">
-                          {u.gare_nom}
-                        </span>
-                      )}
+                      <Badge variant="outline" className={`${ROLE_COLORS[u.role]} border-0 text-xs`}>{ROLES[u.role]}</Badge>
+                      {u.gare_nom && <span className="text-xs text-muted-foreground">{u.gare_nom}</span>}
                     </div>
                   </div>
                 </div>
                 <div className="flex gap-1 shrink-0">
-                  <Button variant="ghost" size="sm" onClick={() => openEdit(u)}>
-                    <Pencil className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive"
-                    onClick={() => setDeleteId(u.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => openEdit(u)}><Pencil className="w-4 h-4" /></Button>
+                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleteId(u.id)}><Trash2 className="w-4 h-4" /></Button>
                 </div>
               </div>
             </CardContent>
           </Card>
         ))}
         {(!users || users.length === 0) && (
-          <p className="text-center py-8 text-muted-foreground">
-            Aucun utilisateur trouvé.
-          </p>
+          <p className="text-center py-8 text-muted-foreground">Aucun utilisateur trouvé.</p>
         )}
       </div>
 
@@ -316,45 +220,25 @@ export default function UsersList() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {editId ? "Modifier l'utilisateur" : "Nouvel utilisateur"}
-            </DialogTitle>
+            <DialogTitle>{editId ? "Modifier l'utilisateur" : "Nouvel utilisateur"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1">
               <Label>Nom complet *</Label>
-              <Input
-                required
-                value={form.nom}
-                onChange={(e) => set("nom", e.target.value)}
-                placeholder="Prénom Nom"
-              />
+              <Input required value={form.nom} onChange={(e) => set("nom", e.target.value)} placeholder="Prénom Nom" />
             </div>
             <div className="space-y-1">
               <Label>Identifiant *</Label>
-              <Input
-                required
-                value={form.username}
-                onChange={(e) => set("username", e.target.value)}
-                placeholder="ex: agent_bobo"
-              />
+              <Input required value={form.username} onChange={(e) => set("username", e.target.value)} placeholder="ex: agent_bobo" />
             </div>
             <div className="space-y-1">
               <Label>{editId ? "Nouveau mot de passe (laisser vide pour garder)" : "Mot de passe *"}</Label>
-              <Input
-                type="password"
-                required={!editId}
-                value={form.password}
-                onChange={(e) => set("password", e.target.value)}
-                placeholder="••••••••"
-              />
+              <Input type="password" required={!editId} value={form.password} onChange={(e) => set("password", e.target.value)} placeholder="••••••••" />
             </div>
             <div className="space-y-1">
               <Label>Rôle *</Label>
               <Select value={form.role} onValueChange={(v) => set("role", v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Administrateur</SelectItem>
                   <SelectItem value="chef_gare">Chef de gare</SelectItem>
@@ -365,18 +249,11 @@ export default function UsersList() {
             {form.role !== "admin" && (
               <div className="space-y-1">
                 <Label>Gare</Label>
-                <Select
-                  value={form.gare_id}
-                  onValueChange={(v) => set("gare_id", v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner une gare" />
-                  </SelectTrigger>
+                <Select value={form.gare_id || undefined} onValueChange={(v) => set("gare_id", v)}>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner une gare" /></SelectTrigger>
                   <SelectContent>
                     {gares?.map((g) => (
-                      <SelectItem key={g.id} value={String(g.id)}>
-                        {g.nom}
-                      </SelectItem>
+                      <SelectItem key={g.id} value={String(g.id)}>{g.nom}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -384,44 +261,24 @@ export default function UsersList() {
             )}
             <div className="space-y-1">
               <Label>Téléphone</Label>
-              <Input
-                value={form.telephone}
-                onChange={(e) => set("telephone", e.target.value)}
-                placeholder="+226..."
-              />
+              <Input value={form.telephone} onChange={(e) => set("telephone", e.target.value)} placeholder="+226..." />
             </div>
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={createUser.isPending || updateUser.isPending}
-            >
-              {createUser.isPending || updateUser.isPending
-                ? "En cours..."
-                : editId
-                ? "Enregistrer les modifications"
-                : "Créer l'utilisateur"}
+            <Button type="submit" className="w-full" disabled={createUser.isPending || updateUser.isPending}>
+              {createUser.isPending || updateUser.isPending ? "En cours..." : editId ? "Enregistrer les modifications" : "Créer l'utilisateur"}
             </Button>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer cet utilisateur ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Cette action est irréversible.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Cette action est irréversible.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={handleDelete}
-            >
-              Supprimer
-            </AlertDialogAction>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleDelete}>Supprimer</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
