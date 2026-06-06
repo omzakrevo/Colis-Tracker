@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db } from "@workspace/db";
+import { db, usersTable } from "@workspace/db";
 import { companySettings } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -23,8 +23,12 @@ router.get("/settings/company", async (req, res) => {
 });
 
 router.put("/settings/company", async (req, res) => {
-  const user = (req.session as any);
-  if (!user?.userId || user?.role !== "admin") {
+  const sessionUserId = (req.session as any)?.userId;
+  if (!sessionUserId) {
+    return res.status(401).json({ error: "Non authentifié" });
+  }
+  const [currentUser] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, sessionUserId)).limit(1);
+  if (!currentUser || currentUser.role !== "admin") {
     return res.status(403).json({ error: "Accès refusé" });
   }
   try {
