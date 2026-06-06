@@ -734,6 +734,9 @@ components:
           description: Base64-encoded PNG of the recipient's signature
         retrait_date:
           type: ["string", "null"]
+        photo:
+          type: ["string", "null"]
+          description: Base64-encoded JPEG photo of the package
         notes:
           type: ["string", "null"]
         created_at:
@@ -765,6 +768,9 @@ components:
           type: number
         date_envoi:
           type: string
+        photo:
+          type: ["string", "null"]
+          description: Base64-encoded JPEG photo of the package
         notes:
           type: ["string", "null"]
 

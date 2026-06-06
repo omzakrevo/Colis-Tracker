@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
+import { PhotoCapture } from "@/components/photo-capture";
 
 export default function ColisNouveau() {
   const [, setLocation] = useLocation();
@@ -33,6 +34,7 @@ export default function ColisNouveau() {
     date_envoi: today,
     notes: "",
   });
+  const [photo, setPhoto] = useState<string | null>(null);
 
   const set = (key: string, value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -62,6 +64,7 @@ export default function ColisNouveau() {
           prix: Number(form.prix),
           date_envoi: form.date_envoi,
           notes: form.notes || undefined,
+          photo: photo || undefined,
         },
       },
       {
@@ -199,6 +202,18 @@ export default function ColisNouveau() {
                 onChange={(e) => set("notes", e.target.value)}
                 rows={2} placeholder="Informations complémentaires..." />
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              Photo du colis
+              <span className="text-xs font-normal text-muted-foreground">(optionnel — facilite la reconnaissance à la réception)</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PhotoCapture value={photo} onChange={setPhoto} />
           </CardContent>
         </Card>
 
