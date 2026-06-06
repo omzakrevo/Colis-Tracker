@@ -614,3 +614,46 @@ export const GetStatutsSummaryResponseItem = zod.object({
 export const GetStatutsSummaryResponse = zod.array(GetStatutsSummaryResponseItem)
 
 
+/**
+ * @summary Get company settings
+ */
+export const GetCompanySettingsResponse = zod.object({
+  "id": zod.number(),
+  "nom": zod.string(),
+  "slogan": zod.string(),
+  "telephone": zod.string(),
+  "email": zod.string(),
+  "adresse": zod.string(),
+  "ville": zod.string(),
+  "pays": zod.string(),
+  "logo": zod.string().nullish().describe('Base64-encoded logo image')
+})
+
+
+/**
+ * @summary Update company settings (admin only)
+ */
+export const UpdateCompanySettingsBody = zod.object({
+  "nom": zod.string().optional(),
+  "slogan": zod.string().optional(),
+  "telephone": zod.string().optional(),
+  "email": zod.string().optional(),
+  "adresse": zod.string().optional(),
+  "ville": zod.string().optional(),
+  "pays": zod.string().optional(),
+  "logo": zod.string().nullish()
+})
+
+export const UpdateCompanySettingsResponse = zod.object({
+  "id": zod.number(),
+  "nom": zod.string(),
+  "slogan": zod.string(),
+  "telephone": zod.string(),
+  "email": zod.string(),
+  "adresse": zod.string(),
+  "ville": zod.string(),
+  "pays": zod.string(),
+  "logo": zod.string().nullish().describe('Base64-encoded logo image')
+})
+
+

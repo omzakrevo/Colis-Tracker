@@ -6,6 +6,7 @@ import garesRouter from "./gares";
 import colisRouter from "./colis";
 import historiqueRouter from "./historique";
 import rapportsRouter from "./rapports";
+import settingsRouter from "./settings";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(garesRouter);
 router.use(colisRouter);
 router.use(historiqueRouter);
 router.use(rapportsRouter);
+router.use(settingsRouter);
 
 export default router;

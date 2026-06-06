@@ -4,6 +4,7 @@ import {
   useGetHistoriqueColis,
   useUpdateStatutColis,
   useRetirerColis,
+  useGetCompanySettings,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ export default function ColisDetail() {
   const { toast } = useToast();
   const { data: colis, refetch } = useGetColis(Number(id));
   const { data: historique, refetch: refetchHisto } = useGetHistoriqueColis(Number(id));
+  const { data: company } = useGetCompanySettings();
   const updateStatut = useUpdateStatutColis();
   const retirer = useRetirerColis();
 
@@ -143,7 +145,7 @@ export default function ColisDetail() {
 
       {/* ── PRINT RECEIPT (only visible on print) ── */}
       <div className="hidden print:block">
-        <PrintReceipt colis={colis} />
+        <PrintReceipt colis={colis} company={company} />
       </div>
 
       {/* ── Screen content (hidden on print) ── */}
@@ -351,14 +353,27 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
   );
 }
 
-function PrintReceipt({ colis }: { colis: any }) {
+function PrintReceipt({ colis, company }: { colis: any; company?: any }) {
   const printDate = new Date().toLocaleDateString("fr-FR");
+  const nom     = company?.nom     || "VIP COLIS";
+  const slogan  = company?.slogan  || "Réseau de transport express — Burkina Faso";
+  const tel     = company?.telephone;
+  const email   = company?.email;
+  const adresse = [company?.adresse, company?.ville, company?.pays].filter(Boolean).join(", ");
 
   return (
     <div style={{ fontFamily: "Arial, sans-serif", fontSize: "12px", maxWidth: "148mm", margin: "0 auto", padding: "8mm" }}>
       <div style={{ textAlign: "center", borderBottom: "2px solid #000", paddingBottom: "8px", marginBottom: "12px" }}>
-        <div style={{ fontSize: "20px", fontWeight: "bold", letterSpacing: "2px" }}>VIP COLIS</div>
-        <div style={{ fontSize: "11px", color: "#555" }}>Réseau de transport express — Burkina Faso</div>
+        {company?.logo && (
+          <img src={company.logo} alt="Logo" style={{ maxHeight: "48px", maxWidth: "120px", objectFit: "contain", marginBottom: "6px" }} />
+        )}
+        <div style={{ fontSize: "20px", fontWeight: "bold", letterSpacing: "2px" }}>{nom}</div>
+        <div style={{ fontSize: "11px", color: "#555" }}>{slogan}</div>
+        {(tel || email || adresse) && (
+          <div style={{ fontSize: "10px", color: "#777", marginTop: "3px" }}>
+            {[tel, email, adresse].filter(Boolean).join(" · ")}
+          </div>
+        )}
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
