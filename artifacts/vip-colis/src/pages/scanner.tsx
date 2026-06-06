@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import {
   useGetColisByNumero,
   useUpdateStatutColis,
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { QrCode, CheckCircle2, PackageCheck, X, RefreshCw } from "lucide-react";
+import { QrCode, CheckCircle2, PackageCheck, X, RefreshCw, Camera } from "lucide-react";
 import { Link } from "wouter";
 import { ColisBadge } from "./colis/index";
 
@@ -23,14 +23,8 @@ const STATUTS_LABELS: Record<string, string> = {
   annule: "Annulé",
 };
 
-/* ── Sub-component: only mounts when we have a numero to look up ── */
-function ColisResult({
-  numero,
-  onReset,
-}: {
-  numero: string;
-  onReset: () => void;
-}) {
+/* ── Sub-component: mounts only when we have a numero to look up ── */
+function ColisResult({ numero, onReset }: { numero: string; onReset: () => void }) {
   const { toast } = useToast();
   const { data: colis, isLoading, isError, refetch } = useGetColisByNumero(numero);
   const updateStatut = useUpdateStatutColis();
@@ -66,20 +60,9 @@ function ColisResult({
   const handleRetrait = () => {
     if (!colis || !retraitNom || !retraitTel) return;
     retirer.mutate(
+      { id: colis.id, data: { retrait_nom: retraitNom, retrait_telephone: retraitTel, retrait_piece_identite: retraitPiece || undefined } },
       {
-        id: colis.id,
-        data: {
-          retrait_nom: retraitNom,
-          retrait_telephone: retraitTel,
-          retrait_piece_identite: retraitPiece || undefined,
-        },
-      },
-      {
-        onSuccess: () => {
-          toast({ title: "Retrait enregistré !" });
-          setRetraitDialogOpen(false);
-          refetch();
-        },
+        onSuccess: () => { toast({ title: "Retrait enregistré !" }); setRetraitDialogOpen(false); refetch(); },
         onError: () => toast({ title: "Erreur", variant: "destructive" }),
       }
     );
@@ -103,9 +86,7 @@ function ColisResult({
           <p className="text-sm text-muted-foreground mt-1">
             Aucun colis avec le numéro <strong>{numero}</strong>
           </p>
-          <Button variant="outline" className="mt-4" onClick={onReset}>
-            Réessayer
-          </Button>
+          <Button variant="outline" className="mt-4" onClick={onReset}>Réessayer</Button>
         </CardContent>
       </Card>
     );
@@ -114,7 +95,6 @@ function ColisResult({
   return (
     <>
       <div className="space-y-4">
-        {/* Colis info card */}
         <Card className="border-primary/30 bg-primary/5">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
@@ -149,45 +129,32 @@ function ColisResult({
           </CardContent>
         </Card>
 
-        {/* Action buttons */}
         {colis.statut === "enregistre" && (
           <Button className="w-full" onClick={handleValiderChargement} disabled={updateStatut.isPending}>
             <PackageCheck className="w-4 h-4 mr-2" />
             {updateStatut.isPending ? "En cours…" : "Valider le chargement"}
           </Button>
         )}
-
         {colis.statut === "en_route" && (
-          <Button
-            className="w-full bg-green-600 hover:bg-green-700 text-white"
-            onClick={handleValiderArrivee}
-            disabled={updateStatut.isPending}
-          >
+          <Button className="w-full bg-green-600 hover:bg-green-700 text-white" onClick={handleValiderArrivee} disabled={updateStatut.isPending}>
             <CheckCircle2 className="w-4 h-4 mr-2" />
             {updateStatut.isPending ? "En cours…" : "Valider l'arrivée en gare"}
           </Button>
         )}
-
         {colis.statut === "arrive" && (
-          <Button
-            className="w-full bg-green-600 hover:bg-green-700 text-white"
-            onClick={() => setRetraitDialogOpen(true)}
-          >
+          <Button className="w-full bg-green-600 hover:bg-green-700 text-white" onClick={() => setRetraitDialogOpen(true)}>
             <CheckCircle2 className="w-4 h-4 mr-2" /> Enregistrer le retrait
           </Button>
         )}
-
         {(colis.statut === "retire" || colis.statut === "annule" || colis.statut === "charge") && (
           <Card className="border-muted">
             <CardContent className="py-4 text-center text-muted-foreground text-sm">
-              Ce colis est <strong>{STATUTS_LABELS[colis.statut]}</strong>.{" "}
-              {colis.statut === "charge" ? "Aucune action de scan disponible." : "Aucune action disponible."}
+              Ce colis est <strong>{STATUTS_LABELS[colis.statut]}</strong>. Aucune action disponible.
             </CardContent>
           </Card>
         )}
       </div>
 
-      {/* Retrait dialog */}
       <Dialog open={retraitDialogOpen} onOpenChange={setRetraitDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Enregistrer le retrait</DialogTitle></DialogHeader>
@@ -204,11 +171,7 @@ function ColisResult({
               <Label>Pièce d'identité (optionnel)</Label>
               <Input value={retraitPiece} onChange={(e) => setRetraitPiece(e.target.value)} placeholder="CNI, Passeport…" />
             </div>
-            <Button
-              className="w-full"
-              onClick={handleRetrait}
-              disabled={!retraitNom || !retraitTel || retirer.isPending}
-            >
+            <Button className="w-full" onClick={handleRetrait} disabled={!retraitNom || !retraitTel || retirer.isPending}>
               {retirer.isPending ? "En cours…" : "Confirmer le retrait"}
             </Button>
           </div>
@@ -218,51 +181,128 @@ function ColisResult({
   );
 }
 
-/* ── Main scanner page ── */
-export default function Scanner() {
-  const scannerRef = useRef<any>(null);
-  const [scannedNumero, setScannedNumero] = useState<string | null>(null);
-  const [manualInput, setManualInput] = useState("");
-  const [scannerActive, setScannerActive] = useState(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
+/* ── Camera scanner using native BarcodeDetector API ── */
+function CameraScanner({ onScan }: { onScan: (value: string) => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const [active, setActive] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [supported, setSupported] = useState<boolean | null>(null);
 
-  const startScanner = async () => {
-    if (scannerRef.current) return;
+  useEffect(() => {
+    setSupported("BarcodeDetector" in window);
+    return () => stopCamera();
+  }, []);
+
+  const stopCamera = useCallback(() => {
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    setActive(false);
+  }, []);
+
+  const startCamera = async () => {
+    setError(null);
     try {
-      const { Html5Qrcode } = await import("html5-qrcode");
-      const scanner = new Html5Qrcode("qr-reader-container");
-      scannerRef.current = scanner;
-      await scanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        (decoded: string) => {
-          const clean = decoded.trim().toUpperCase();
-          setScannedNumero(clean);
-          stopScanner();
-        },
-        () => {}
-      );
-      setScannerActive(true);
-      setCameraError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 640 }, height: { ideal: 480 } },
+      });
+      streamRef.current = stream;
+
+      const video = videoRef.current;
+      if (!video) { stream.getTracks().forEach((t) => t.stop()); return; }
+
+      video.srcObject = stream;
+      await video.play();
+      setActive(true);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const detector = new (window as any).BarcodeDetector({ formats: ["qr_code"] });
+
+      const tick = async () => {
+        if (!streamRef.current) return;
+        const v = videoRef.current;
+        if (v && v.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+          try {
+            const codes = await detector.detect(v);
+            if (codes.length > 0) {
+              stopCamera();
+              onScan(codes[0].rawValue as string);
+              return;
+            }
+          } catch {
+            /* frame decode failed, continue */
+          }
+        }
+        rafRef.current = requestAnimationFrame(tick);
+      };
+
+      rafRef.current = requestAnimationFrame(tick);
     } catch {
-      setCameraError("Impossible d'accéder à la caméra. Vérifiez les permissions.");
-      setScannerActive(false);
+      setError("Impossible d'accéder à la caméra. Vérifiez les permissions du navigateur.");
     }
   };
 
-  const stopScanner = () => {
-    if (!scannerRef.current) return;
-    scannerRef.current.stop().catch(() => {}).finally(() => {
-      scannerRef.current = null;
-      setScannerActive(false);
-    });
-  };
+  if (supported === false) {
+    return (
+      <div className="rounded-lg bg-muted px-4 py-5 text-sm text-muted-foreground text-center space-y-1">
+        <p className="font-medium">Scanner non disponible</p>
+        <p>Votre navigateur ne prend pas en charge le scan QR natif. Utilisez <strong>Chrome</strong> sur Android ou utilisez la saisie manuelle ci-dessous.</p>
+      </div>
+    );
+  }
 
-  useEffect(() => { return () => { stopScanner(); }; }, []);
+  return (
+    <div className="space-y-3">
+      <div className="relative w-full aspect-[4/3] bg-black rounded-lg overflow-hidden">
+        <video
+          ref={videoRef}
+          muted
+          playsInline
+          className={`w-full h-full object-cover ${active ? "opacity-100" : "opacity-0"}`}
+        />
+        {!active && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Camera className="w-10 h-10 text-white/30" />
+          </div>
+        )}
+        {active && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-48 h-48 border-2 border-primary rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
+          </div>
+        )}
+      </div>
 
-  const reset = () => {
-    setScannedNumero(null);
-    setManualInput("");
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {!active ? (
+        <Button className="w-full" onClick={startCamera}>
+          <QrCode className="w-4 h-4 mr-2" /> Activer la caméra
+        </Button>
+      ) : (
+        <Button variant="outline" className="w-full" onClick={stopCamera}>
+          <X className="w-4 h-4 mr-2" /> Arrêter
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/* ── Main page ── */
+export default function Scanner() {
+  const [scannedNumero, setScannedNumero] = useState<string | null>(null);
+  const [manualInput, setManualInput] = useState("");
+
+  const reset = () => { setScannedNumero(null); setManualInput(""); };
+
+  const handleScan = (value: string) => {
+    setScannedNumero(value.trim().toUpperCase());
   };
 
   const handleManualSubmit = (e: React.FormEvent) => {
@@ -284,38 +324,15 @@ export default function Scanner() {
 
       {!scannedNumero ? (
         <div className="space-y-4">
-          {/* Camera scanner */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold">Scanner avec la caméra</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div
-                id="qr-reader-container"
-                className="w-full rounded-lg overflow-hidden bg-black min-h-[220px] flex items-center justify-center"
-              >
-                {!scannerActive && (
-                  <p className="text-white/40 text-sm">Caméra inactive</p>
-                )}
-              </div>
-              {cameraError && (
-                <p className="text-sm text-destructive">{cameraError}</p>
-              )}
-              <div className="flex gap-2">
-                {!scannerActive ? (
-                  <Button className="flex-1" onClick={startScanner}>
-                    <QrCode className="w-4 h-4 mr-2" /> Activer la caméra
-                  </Button>
-                ) : (
-                  <Button variant="outline" className="flex-1" onClick={stopScanner}>
-                    <X className="w-4 h-4 mr-2" /> Arrêter
-                  </Button>
-                )}
-              </div>
+            <CardContent>
+              <CameraScanner onScan={handleScan} />
             </CardContent>
           </Card>
 
-          {/* Manual input fallback */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold">Saisie manuelle</CardTitle>
@@ -328,16 +345,13 @@ export default function Scanner() {
                   placeholder="Ex: COL-2026-000001"
                   className="flex-1"
                 />
-                <Button type="submit" disabled={!manualInput.trim()}>
-                  Rechercher
-                </Button>
+                <Button type="submit" disabled={!manualInput.trim()}>Rechercher</Button>
               </form>
             </CardContent>
           </Card>
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Scanned header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <QrCode className="w-4 h-4" />
@@ -348,7 +362,6 @@ export default function Scanner() {
             </Button>
           </div>
 
-          {/* Lookup result — unmounts/remounts on each new scan */}
           <ColisResult key={scannedNumero} numero={scannedNumero} onReset={reset} />
         </div>
       )}
