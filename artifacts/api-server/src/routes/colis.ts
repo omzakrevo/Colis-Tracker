@@ -51,6 +51,25 @@ router.get("/colis", async (req, res) => {
   try {
     const { statut, gare_depart_id, gare_arrivee_id, date_debut, date_fin, search } = req.query as Record<string, string>;
     const conditions = [];
+
+    // Role-based gare filtering: non-admins only see colis linked to their gare
+    const userId = (req.session as any)?.userId;
+    if (userId) {
+      const [sessionUser] = await db
+        .select({ role: usersTable.role, gare_id: usersTable.gare_id })
+        .from(usersTable)
+        .where(eq(usersTable.id, userId))
+        .limit(1);
+      if (sessionUser && sessionUser.role !== "admin" && sessionUser.gare_id) {
+        conditions.push(
+          or(
+            eq(colisTable.gare_depart_id, sessionUser.gare_id),
+            eq(colisTable.gare_arrivee_id, sessionUser.gare_id)
+          )
+        );
+      }
+    }
+
     if (statut) conditions.push(eq(colisTable.statut, statut));
     if (gare_depart_id) conditions.push(eq(colisTable.gare_depart_id, parseInt(gare_depart_id)));
     if (gare_arrivee_id) conditions.push(eq(colisTable.gare_arrivee_id, parseInt(gare_arrivee_id)));
