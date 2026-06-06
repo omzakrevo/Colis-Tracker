@@ -1,12 +1,14 @@
-import { useListColis } from "@workspace/api-client-react";
+import { useListColis, useGetMe } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { useState } from "react";
-import { Plus, Printer, Package } from "lucide-react";
+import { NativeSelect } from "@/components/ui/native-select";
+import { useState, useMemo } from "react";
+import { Plus, Printer, Package, ArrowUpDown, X } from "lucide-react";
 
 export function ColisBadge({ statut }: { statut: string }) {
   const colors: Record<string, string> = {
@@ -32,14 +34,60 @@ export function ColisBadge({ statut }: { statut: string }) {
   );
 }
 
+const STATUTS_LABELS: Record<string, string> = {
+  enregistre: "Enregistré",
+  charge: "Chargé",
+  en_route: "En route",
+  arrive: "Arrivé",
+  retire: "Retiré",
+  annule: "Annulé",
+};
+
 export default function ColisList() {
-  const [search, setSearch] = useState("");
-  const { data: colis } = useListColis({ search: search || undefined });
+  const { data: me } = useGetMe();
+
+  const [search, setSearch]       = useState("");
+  const [statut, setStatut]       = useState("");
+  const [dateDebut, setDateDebut] = useState("");
+  const [dateFin, setDateFin]     = useState("");
+  const [direction, setDirection] = useState<"" | "envoi" | "reception">("");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+
+  const gareId = me?.gare_id ?? null;
+  const hasGare = !!gareId;
+
+  const params = useMemo(() => ({
+    search:         search   || undefined,
+    statut:         statut   || undefined,
+    date_debut:     dateDebut|| undefined,
+    date_fin:       dateFin  || undefined,
+    gare_depart_id: direction === "envoi"      && gareId ? gareId : undefined,
+    gare_arrivee_id:direction === "reception"  && gareId ? gareId : undefined,
+  }), [search, statut, dateDebut, dateFin, direction, gareId]);
+
+  const { data: rawColis } = useListColis(params);
+
+  const colis = useMemo(() => {
+    if (!rawColis) return [];
+    return [...rawColis].sort((a, b) => {
+      const diff = new Date(a.date_envoi).getTime() - new Date(b.date_envoi).getTime();
+      return sortOrder === "asc" ? diff : -diff;
+    });
+  }, [rawColis, sortOrder]);
+
+  const activeFilterCount = [statut, dateDebut, dateFin, direction].filter(Boolean).length;
+
+  const clearFilters = () => {
+    setStatut("");
+    setDateDebut("");
+    setDateFin("");
+    setDirection("");
+  };
 
   const handlePrint = () => window.print();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header – hidden on print */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
         <div>
@@ -56,13 +104,78 @@ export default function ColisList() {
         </div>
       </div>
 
-      {/* Search – hidden on print */}
-      <div className="flex items-center gap-2 max-w-sm print:hidden">
-        <Input
-          placeholder="Rechercher par numéro, nom, téléphone..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      {/* Filters – hidden on print */}
+      <div className="print:hidden space-y-3">
+        {/* Row 1 — search + statut + envoi/réception */}
+        <div className="flex flex-wrap gap-3 items-end">
+          <div className="flex-1 min-w-[180px] max-w-xs">
+            <Input
+              placeholder="Rechercher…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1 min-w-[140px]">
+            <Label className="text-xs text-muted-foreground">Statut</Label>
+            <NativeSelect
+              value={statut}
+              onChange={(e) => setStatut(e.target.value)}
+              className="h-9 text-sm"
+            >
+              <option value="">Tous les statuts</option>
+              {Object.entries(STATUTS_LABELS).map(([val, label]) => (
+                <option key={val} value={val}>{label}</option>
+              ))}
+            </NativeSelect>
+          </div>
+
+          {hasGare && (
+            <div className="space-y-1 min-w-[140px]">
+              <Label className="text-xs text-muted-foreground">Direction</Label>
+              <NativeSelect
+                value={direction}
+                onChange={(e) => setDirection(e.target.value as "" | "envoi" | "reception")}
+                className="h-9 text-sm"
+              >
+                <option value="">Tous</option>
+                <option value="envoi">Envoi (départ)</option>
+                <option value="reception">Réception (arrivée)</option>
+              </NativeSelect>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Du</Label>
+            <input
+              type="date"
+              value={dateDebut}
+              onChange={(e) => setDateDebut(e.target.value)}
+              className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Au</Label>
+            <input
+              type="date"
+              value={dateFin}
+              onChange={(e) => setDateFin(e.target.value)}
+              className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          {activeFilterCount > 0 && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground h-9 self-end">
+              <X className="w-3.5 h-3.5 mr-1" /> Effacer ({activeFilterCount})
+            </Button>
+          )}
+        </div>
+
+        {/* Results count */}
+        <p className="text-xs text-muted-foreground">
+          {colis.length} colis{activeFilterCount > 0 ? " (filtré)" : ""}
+        </p>
       </div>
 
       {/* Print header – only visible on print */}
@@ -70,7 +183,11 @@ export default function ColisList() {
         <h1 className="text-2xl font-bold">VIP COLIS — Liste des expéditions</h1>
         <p className="text-sm text-gray-500">
           Imprimé le {new Date().toLocaleDateString("fr-FR")} à {new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-          {search ? ` — Filtre : "${search}"` : ""} — {colis?.length ?? 0} colis
+          {search ? ` — Filtre : "${search}"` : ""}
+          {statut ? ` — Statut : ${STATUTS_LABELS[statut]}` : ""}
+          {dateDebut ? ` — Du ${new Date(dateDebut).toLocaleDateString("fr-FR")}` : ""}
+          {dateFin ? ` — Au ${new Date(dateFin).toLocaleDateString("fr-FR")}` : ""}
+          {" "} — {colis.length} colis
         </p>
       </div>
 
@@ -80,7 +197,15 @@ export default function ColisList() {
           <TableHeader>
             <TableRow>
               <TableHead>Numéro</TableHead>
-              <TableHead>Date</TableHead>
+              <TableHead>
+                <button
+                  className="flex items-center gap-1 hover:text-foreground transition-colors"
+                  onClick={() => setSortOrder(s => s === "desc" ? "asc" : "desc")}
+                >
+                  Date <ArrowUpDown className="w-3.5 h-3.5" />
+                  <span className="text-[10px] text-muted-foreground">{sortOrder === "desc" ? "récent" : "ancien"}</span>
+                </button>
+              </TableHead>
               <TableHead>Trajet</TableHead>
               <TableHead>Expéditeur</TableHead>
               <TableHead>Destinataire</TableHead>
@@ -89,7 +214,7 @@ export default function ColisList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {colis?.map((c) => (
+            {colis.map((c) => (
               <TableRow key={c.id}>
                 <TableCell>
                   <Link href={`/colis/${c.id}`} className="font-medium text-primary hover:underline print:text-black print:no-underline">
@@ -104,7 +229,7 @@ export default function ColisList() {
                 <TableCell><ColisBadge statut={c.statut} /></TableCell>
               </TableRow>
             ))}
-            {(!colis || colis.length === 0) && (
+            {colis.length === 0 && (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   Aucun colis trouvé.
@@ -117,7 +242,7 @@ export default function ColisList() {
 
       {/* Mobile cards – hidden on print */}
       <div className="sm:hidden space-y-3 print:hidden">
-        {colis?.map((c) => (
+        {colis.map((c) => (
           <Link key={c.id} href={`/colis/${c.id}`}>
             <Card className="hover:border-primary/50 transition-colors cursor-pointer mb-3">
               <CardContent className="pt-4 pb-4">
@@ -128,6 +253,9 @@ export default function ColisList() {
                     </div>
                     <div className="min-w-0">
                       <p className="font-semibold text-primary text-sm">{c.numero}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(c.date_envoi).toLocaleDateString("fr-FR")}
+                      </p>
                       <p className="text-sm text-muted-foreground">
                         {c.expediteur_nom} → {c.destinataire_nom}
                       </p>
@@ -145,7 +273,7 @@ export default function ColisList() {
             </Card>
           </Link>
         ))}
-        {(!colis || colis.length === 0) && (
+        {colis.length === 0 && (
           <p className="text-center py-8 text-muted-foreground">Aucun colis trouvé.</p>
         )}
       </div>
