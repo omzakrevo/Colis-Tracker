@@ -19,6 +19,11 @@ export interface ColisInput {
   poids?: number | null;
   prix: number;
   date_envoi: string;
+  /**
+     * Base64-encoded JPEG photo of the package
+     * @nullable
+     */
+  photo?: string | null;
   /** @nullable */
   notes?: string | null;
 }

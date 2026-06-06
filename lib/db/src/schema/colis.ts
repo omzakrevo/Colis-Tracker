@@ -23,6 +23,7 @@ export const colisTable = pgTable("colis", {
   retrait_piece_identite: text("retrait_piece_identite"),
   retrait_signature: text("retrait_signature"),
   retrait_date: text("retrait_date"),
+  photo: text("photo"),
   notes: text("notes"),
   created_at: timestamp("created_at").notNull().defaultNow(),
 });

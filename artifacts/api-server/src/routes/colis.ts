@@ -43,6 +43,7 @@ async function formatColis(c: typeof colisTable.$inferSelect) {
     retrait_piece_identite: c.retrait_piece_identite ?? null,
     retrait_signature: c.retrait_signature ?? null,
     retrait_date: c.retrait_date ?? null,
+    photo: c.photo ?? null,
     notes: c.notes ?? null,
     created_at: c.created_at.toISOString(),
   };
@@ -108,7 +109,7 @@ router.post("/colis", async (req, res) => {
       destinataire_nom: string; destinataire_telephone: string;
       gare_depart_id: number; gare_arrivee_id: number;
       description: string; nombre: number; poids?: number | null;
-      prix: number; date_envoi: string; notes?: string | null;
+      prix: number; date_envoi: string; photo?: string | null; notes?: string | null;
     };
 
     const userId = (req.session as any)?.userId;
@@ -129,6 +130,7 @@ router.post("/colis", async (req, res) => {
       statut: "enregistre",
       date_envoi: body.date_envoi,
       agent_id: userId ?? null,
+      photo: body.photo ?? null,
       notes: body.notes ?? null,
     }).returning();
 

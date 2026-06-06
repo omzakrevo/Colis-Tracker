@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Printer, Package, User, MapPin, Clock, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Printer, Package, User, MapPin, Clock, CheckCircle2, ImageIcon } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import QRCode from "react-qr-code";
@@ -201,6 +201,23 @@ export default function ColisDetail() {
             </CardContent>
           </Card>
         </div>
+
+        {colis.photo && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-primary" /> Photo du colis
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <img
+                src={colis.photo}
+                alt="Photo du colis"
+                className="rounded-lg max-h-72 w-auto object-contain border border-border"
+              />
+            </CardContent>
+          </Card>
+        )}
 
         {colis.statut === "retire" && colis.retrait_nom && (
           <Card className="border-green-200 bg-green-50">
@@ -417,6 +434,13 @@ function PrintReceipt({ colis }: { colis: any }) {
       {colis.notes && (
         <div style={{ border: "1px dashed #ccc", padding: "6px", borderRadius: "4px", marginBottom: "10px", fontSize: "11px" }}>
           <span style={{ color: "#666" }}>Notes : </span>{colis.notes}
+        </div>
+      )}
+
+      {colis.photo && (
+        <div style={{ marginBottom: "10px" }}>
+          <div style={{ fontSize: "9px", color: "#666", marginBottom: "4px", textTransform: "uppercase", fontWeight: "bold" }}>Photo du colis</div>
+          <img src={colis.photo} alt="Photo du colis" style={{ maxHeight: "120px", maxWidth: "100%", borderRadius: "4px", border: "1px solid #ddd", objectFit: "contain" }} />
         </div>
       )}
 
