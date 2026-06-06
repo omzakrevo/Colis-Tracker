@@ -291,6 +291,34 @@ export interface StatutSummary {
   total: number;
 }
 
+export interface CompanySettings {
+  id: number;
+  nom: string;
+  slogan: string;
+  telephone: string;
+  email: string;
+  adresse: string;
+  ville: string;
+  pays: string;
+  /**
+     * Base64-encoded logo image
+     * @nullable
+     */
+  logo?: string | null;
+}
+
+export interface CompanySettingsInput {
+  nom?: string;
+  slogan?: string;
+  telephone?: string;
+  email?: string;
+  adresse?: string;
+  ville?: string;
+  pays?: string;
+  /** @nullable */
+  logo?: string | null;
+}
+
 export type ListColisParams = {
 statut?: string;
 gare_depart_id?: number;

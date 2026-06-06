@@ -14,6 +14,7 @@ import {
   LogOut,
   Menu,
   QrCode,
+  Settings,
 } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ import UsersList from "./pages/utilisateurs/index";
 import Rapports from "./pages/rapports";
 import Recherche from "./pages/recherche";
 import Scanner from "./pages/scanner";
+import Parametres from "./pages/parametres";
 
 const queryClient = new QueryClient();
 
@@ -140,6 +142,7 @@ function Layout({ children }: { children: React.ReactNode }) {
   if (user.role === "admin") {
     menu.push({ href: "/gares", label: "Gares", icon: MapPin });
     menu.push({ href: "/utilisateurs", label: "Utilisateurs", icon: Users });
+    menu.push({ href: "/parametres", label: "Paramètres", icon: Settings });
   }
 
   const handleLogout = () => {
@@ -225,6 +228,7 @@ function Router() {
         <Route path="/utilisateurs" component={UsersList} />
         <Route path="/rapports" component={Rapports} />
         <Route path="/recherche" component={Recherche} />
+        <Route path="/parametres" component={Parametres} />
         <Route>
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             Page introuvable

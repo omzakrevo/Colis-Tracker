@@ -12,6 +12,8 @@ export * from './colisInput';
 export * from './colisParJour';
 export * from './colisStatut';
 export * from './colisUpdate';
+export * from './companySettings';
+export * from './companySettingsInput';
 export * from './dashboardStats';
 export * from './gare';
 export * from './gareInput';

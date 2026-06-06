@@ -21,6 +21,8 @@ tags:
     description: Package history
   - name: rapports
     description: Reports and statistics
+  - name: settings
+    description: Company settings
 
 paths:
   /healthz:
@@ -547,6 +549,36 @@ paths:
                 items:
                   $ref: "#/components/schemas/StatutSummary"
 
+  /settings/company:
+    get:
+      operationId: getCompanySettings
+      tags: [settings]
+      summary: Get company settings
+      responses:
+        "200":
+          description: Company settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanySettings"
+    put:
+      operationId: updateCompanySettings
+      tags: [settings]
+      summary: Update company settings (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanySettingsInput"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanySettings"
+
 components:
   schemas:
     HealthStatus:
@@ -909,3 +941,47 @@ components:
           type: string
         total:
           type: integer
+
+    CompanySettings:
+      type: object
+      required: [id, nom, slogan, telephone, email, adresse, ville, pays]
+      properties:
+        id:
+          type: integer
+        nom:
+          type: string
+        slogan:
+          type: string
+        telephone:
+          type: string
+        email:
+          type: string
+        adresse:
+          type: string
+        ville:
+          type: string
+        pays:
+          type: string
+        logo:
+          type: ["string", "null"]
+          description: Base64-encoded logo image
+
+    CompanySettingsInput:
+      type: object
+      properties:
+        nom:
+          type: string
+        slogan:
+          type: string
+        telephone:
+          type: string
+        email:
+          type: string
+        adresse:
+          type: string
+        ville:
+          type: string
+        pays:
+          type: string
+        logo:
+          type: ["string", "null"]
