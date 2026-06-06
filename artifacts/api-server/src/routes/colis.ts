@@ -41,6 +41,7 @@ async function formatColis(c: typeof colisTable.$inferSelect) {
     retrait_nom: c.retrait_nom ?? null,
     retrait_telephone: c.retrait_telephone ?? null,
     retrait_piece_identite: c.retrait_piece_identite ?? null,
+    retrait_signature: c.retrait_signature ?? null,
     retrait_date: c.retrait_date ?? null,
     notes: c.notes ?? null,
     created_at: c.created_at.toISOString(),
@@ -225,8 +226,8 @@ router.patch("/colis/:id/statut", async (req, res) => {
 router.post("/colis/:id/retrait", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { retrait_nom, retrait_telephone, retrait_piece_identite } = req.body as {
-      retrait_nom: string; retrait_telephone: string; retrait_piece_identite?: string | null;
+    const { retrait_nom, retrait_telephone, retrait_piece_identite, retrait_signature } = req.body as {
+      retrait_nom: string; retrait_telephone: string; retrait_piece_identite?: string | null; retrait_signature?: string | null;
     };
     const userId = (req.session as any)?.userId;
     const now = new Date().toISOString();
@@ -236,6 +237,7 @@ router.post("/colis/:id/retrait", async (req, res) => {
       retrait_nom,
       retrait_telephone,
       retrait_piece_identite: retrait_piece_identite ?? null,
+      retrait_signature: retrait_signature ?? null,
       retrait_date: now,
     }).where(eq(colisTable.id, id)).returning();
 

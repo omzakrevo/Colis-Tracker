@@ -256,6 +256,7 @@ export const ListColisResponseItem = zod.object({
   "retrait_nom": zod.string().nullish(),
   "retrait_telephone": zod.string().nullish(),
   "retrait_piece_identite": zod.string().nullish(),
+  "retrait_signature": zod.string().nullish().describe('Base64-encoded PNG of the recipient\'s signature'),
   "retrait_date": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "created_at": zod.string()
@@ -311,6 +312,7 @@ export const GetColisResponse = zod.object({
   "retrait_nom": zod.string().nullish(),
   "retrait_telephone": zod.string().nullish(),
   "retrait_piece_identite": zod.string().nullish(),
+  "retrait_signature": zod.string().nullish().describe('Base64-encoded PNG of the recipient\'s signature'),
   "retrait_date": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "created_at": zod.string()
@@ -358,6 +360,7 @@ export const UpdateColisResponse = zod.object({
   "retrait_nom": zod.string().nullish(),
   "retrait_telephone": zod.string().nullish(),
   "retrait_piece_identite": zod.string().nullish(),
+  "retrait_signature": zod.string().nullish().describe('Base64-encoded PNG of the recipient\'s signature'),
   "retrait_date": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "created_at": zod.string()
@@ -398,6 +401,7 @@ export const UpdateStatutColisResponse = zod.object({
   "retrait_nom": zod.string().nullish(),
   "retrait_telephone": zod.string().nullish(),
   "retrait_piece_identite": zod.string().nullish(),
+  "retrait_signature": zod.string().nullish().describe('Base64-encoded PNG of the recipient\'s signature'),
   "retrait_date": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "created_at": zod.string()
@@ -414,7 +418,8 @@ export const RetirerColisParams = zod.object({
 export const RetirerColisBody = zod.object({
   "retrait_nom": zod.string(),
   "retrait_telephone": zod.string(),
-  "retrait_piece_identite": zod.string().nullish()
+  "retrait_piece_identite": zod.string().nullish(),
+  "retrait_signature": zod.string().nullish().describe('Base64-encoded PNG of the recipient\'s signature')
 })
 
 export const RetirerColisResponse = zod.object({
@@ -439,6 +444,7 @@ export const RetirerColisResponse = zod.object({
   "retrait_nom": zod.string().nullish(),
   "retrait_telephone": zod.string().nullish(),
   "retrait_piece_identite": zod.string().nullish(),
+  "retrait_signature": zod.string().nullish().describe('Base64-encoded PNG of the recipient\'s signature'),
   "retrait_date": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "created_at": zod.string()
@@ -474,6 +480,7 @@ export const GetColisByNumeroResponse = zod.object({
   "retrait_nom": zod.string().nullish(),
   "retrait_telephone": zod.string().nullish(),
   "retrait_piece_identite": zod.string().nullish(),
+  "retrait_signature": zod.string().nullish().describe('Base64-encoded PNG of the recipient\'s signature'),
   "retrait_date": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "created_at": zod.string()
@@ -581,6 +588,7 @@ export const GetColisNonRetiresResponseItem = zod.object({
   "retrait_nom": zod.string().nullish(),
   "retrait_telephone": zod.string().nullish(),
   "retrait_piece_identite": zod.string().nullish(),
+  "retrait_signature": zod.string().nullish().describe('Base64-encoded PNG of the recipient\'s signature'),
   "retrait_date": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "created_at": zod.string()

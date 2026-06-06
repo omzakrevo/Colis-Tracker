@@ -157,6 +157,11 @@ export interface Colis {
   retrait_telephone?: string | null;
   /** @nullable */
   retrait_piece_identite?: string | null;
+  /**
+     * Base64-encoded PNG of the recipient's signature
+     * @nullable
+     */
+  retrait_signature?: string | null;
   /** @nullable */
   retrait_date?: string | null;
   /** @nullable */
@@ -218,6 +223,11 @@ export interface RetraitInput {
   retrait_telephone: string;
   /** @nullable */
   retrait_piece_identite?: string | null;
+  /**
+     * Base64-encoded PNG of the recipient's signature
+     * @nullable
+     */
+  retrait_signature?: string | null;
 }
 
 export interface HistoriqueColis {
