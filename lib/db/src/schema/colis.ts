@@ -21,6 +21,7 @@ export const colisTable = pgTable("colis", {
   retrait_nom: text("retrait_nom"),
   retrait_telephone: text("retrait_telephone"),
   retrait_piece_identite: text("retrait_piece_identite"),
+  retrait_signature: text("retrait_signature"),
   retrait_date: text("retrait_date"),
   notes: text("notes"),
   created_at: timestamp("created_at").notNull().defaultNow(),

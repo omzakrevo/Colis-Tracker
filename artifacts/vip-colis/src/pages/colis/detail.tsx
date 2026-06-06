@@ -18,6 +18,7 @@ import { Link } from "wouter";
 import { useState } from "react";
 import QRCode from "react-qr-code";
 import { ColisBadge } from "./index";
+import { SignaturePad } from "@/components/signature-pad";
 
 const STATUTS_LABELS: Record<string, string> = {
   enregistre: "Enregistré",
@@ -52,6 +53,7 @@ export default function ColisDetail() {
   const [retraitNom, setRetraitNom] = useState("");
   const [retraitTel, setRetraitTel] = useState("");
   const [retraitPiece, setRetraitPiece] = useState("");
+  const [retraitSignature, setRetraitSignature] = useState<string | null>(null);
 
   if (!colis) {
     return (
@@ -88,6 +90,7 @@ export default function ColisDetail() {
           retrait_nom: retraitNom,
           retrait_telephone: retraitTel,
           retrait_piece_identite: retraitPiece || undefined,
+          retrait_signature: retraitSignature || undefined,
         },
       },
       {
@@ -206,11 +209,23 @@ export default function ColisDetail() {
                 <CheckCircle2 className="w-4 h-4" /> Informations de retrait
               </CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-              <Row label="Retiré par" value={colis.retrait_nom} bold />
-              <Row label="Téléphone" value={colis.retrait_telephone ?? "—"} />
-              {colis.retrait_piece_identite && <Row label="Pièce d'identité" value={colis.retrait_piece_identite} />}
-              {colis.retrait_date && <Row label="Date" value={new Date(colis.retrait_date).toLocaleString("fr-FR")} />}
+            <CardContent className="space-y-3 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Row label="Retiré par" value={colis.retrait_nom} bold />
+                <Row label="Téléphone" value={colis.retrait_telephone ?? "—"} />
+                {colis.retrait_piece_identite && <Row label="Pièce d'identité" value={colis.retrait_piece_identite} />}
+                {colis.retrait_date && <Row label="Date" value={new Date(colis.retrait_date).toLocaleString("fr-FR")} />}
+              </div>
+              {colis.retrait_signature && (
+                <div className="space-y-1 pt-1">
+                  <p className="text-xs text-muted-foreground font-medium">Signature</p>
+                  <img
+                    src={colis.retrait_signature}
+                    alt="Signature du retrayant"
+                    className="max-h-20 border border-green-200 rounded-lg bg-white p-1"
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -296,7 +311,11 @@ export default function ColisDetail() {
               <Label>Pièce d'identité (optionnel)</Label>
               <Input value={retraitPiece} onChange={(e) => setRetraitPiece(e.target.value)} placeholder="CNI, Passeport, Permis..." />
             </div>
-            <Button className="w-full" onClick={handleRetrait} disabled={!retraitNom || !retraitTel || retirer.isPending}>
+            <div className="space-y-1">
+              <Label>Signature du retrayant *</Label>
+              <SignaturePad onChange={setRetraitSignature} />
+            </div>
+            <Button className="w-full" onClick={handleRetrait} disabled={!retraitNom || !retraitTel || !retraitSignature || retirer.isPending}>
               {retirer.isPending ? "En cours..." : "Confirmer le retrait"}
             </Button>
           </div>
@@ -398,6 +417,26 @@ function PrintReceipt({ colis }: { colis: any }) {
       {colis.notes && (
         <div style={{ border: "1px dashed #ccc", padding: "6px", borderRadius: "4px", marginBottom: "10px", fontSize: "11px" }}>
           <span style={{ color: "#666" }}>Notes : </span>{colis.notes}
+        </div>
+      )}
+
+      {colis.statut === "retire" && colis.retrait_nom && (
+        <div style={{ border: "1px solid #16a34a", borderRadius: "6px", padding: "8px", marginBottom: "10px", background: "#f0fdf4" }}>
+          <div style={{ fontSize: "9px", color: "#16a34a", fontWeight: "bold", marginBottom: "4px", textTransform: "uppercase" }}>Retrait</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
+            <div style={{ fontSize: "11px" }}>
+              <div><span style={{ color: "#666" }}>Retiré par : </span><strong>{colis.retrait_nom}</strong></div>
+              <div><span style={{ color: "#666" }}>Tél : </span>{colis.retrait_telephone}</div>
+              {colis.retrait_piece_identite && <div><span style={{ color: "#666" }}>Pièce : </span>{colis.retrait_piece_identite}</div>}
+              {colis.retrait_date && <div><span style={{ color: "#666" }}>Date : </span>{new Date(colis.retrait_date).toLocaleString("fr-FR")}</div>}
+            </div>
+            {colis.retrait_signature && (
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "9px", color: "#666", marginBottom: "2px" }}>Signature</div>
+                <img src={colis.retrait_signature} alt="Signature" style={{ maxHeight: "48px", border: "1px solid #bbf7d0", borderRadius: "4px", background: "#fff", padding: "2px" }} />
+              </div>
+            )}
+          </div>
         </div>
       )}
 

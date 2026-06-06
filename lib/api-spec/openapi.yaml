@@ -729,6 +729,9 @@ components:
           type: ["string", "null"]
         retrait_piece_identite:
           type: ["string", "null"]
+        retrait_signature:
+          type: ["string", "null"]
+          description: Base64-encoded PNG of the recipient's signature
         retrait_date:
           type: ["string", "null"]
         notes:
@@ -807,6 +810,9 @@ components:
           type: string
         retrait_piece_identite:
           type: ["string", "null"]
+        retrait_signature:
+          type: ["string", "null"]
+          description: Base64-encoded PNG of the recipient's signature
 
     HistoriqueColis:
       type: object

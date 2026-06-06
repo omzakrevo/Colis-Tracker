@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Camera, QrCode, X, PackageCheck, PackageOpen, CheckCircle2, AlertCircle, ChevronRight } from "lucide-react";
 import { ColisBadge } from "./colis/index";
+import { SignaturePad } from "@/components/signature-pad";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -218,6 +219,7 @@ function RetraitForm({
   const [nom, setNom] = useState("");
   const [tel, setTel] = useState("");
   const [piece, setPiece] = useState("");
+  const [signature, setSignature] = useState<string | null>(null);
 
   if (isLoading) return <p className="text-center text-muted-foreground py-6 animate-pulse">Chargement…</p>;
   if (isError || !colis) {
@@ -247,7 +249,7 @@ function RetraitForm({
     e.preventDefault();
     if (!nom || !tel) return;
     retirer.mutate(
-      { id: colis.id, data: { retrait_nom: nom, retrait_telephone: tel, retrait_piece_identite: piece || undefined } },
+      { id: colis.id, data: { retrait_nom: nom, retrait_telephone: tel, retrait_piece_identite: piece || undefined, retrait_signature: signature || undefined } },
       { onSuccess: onDone, onError: () => {} }
     );
   };
@@ -278,7 +280,11 @@ function RetraitForm({
           <Label>Pièce d'identité (optionnel)</Label>
           <Input value={piece} onChange={(e) => setPiece(e.target.value)} placeholder="CNI, Passeport…" />
         </div>
-        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white" disabled={!nom || !tel || retirer.isPending}>
+        <div className="space-y-1">
+          <Label>Signature *</Label>
+          <SignaturePad onChange={setSignature} />
+        </div>
+        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white" disabled={!nom || !tel || !signature || retirer.isPending}>
           {retirer.isPending ? "En cours…" : "Confirmer le retrait"}
         </Button>
         <Button type="button" variant="outline" className="w-full" onClick={onCancel}>Annuler</Button>
