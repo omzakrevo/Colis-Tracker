@@ -9,7 +9,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -233,30 +233,29 @@ export default function UsersList() {
             </div>
             <div className="space-y-1">
               <Label>{editId ? "Nouveau mot de passe (laisser vide pour garder)" : "Mot de passe *"}</Label>
-              <Input type="password" required={!editId} value={form.password} onChange={(e) => set("password", e.target.value)} placeholder="••••••••" />
+              <Input type="password" required={!editId} value={form.password}
+                onChange={(e) => set("password", e.target.value)} placeholder="••••••••" />
             </div>
             <div className="space-y-1">
               <Label>Rôle *</Label>
-              <Select value={form.role} onValueChange={(v) => set("role", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Administrateur</SelectItem>
-                  <SelectItem value="chef_gare">Chef de gare</SelectItem>
-                  <SelectItem value="agent">Agent</SelectItem>
-                </SelectContent>
-              </Select>
+              <NativeSelect value={form.role} onChange={(e) => set("role", e.target.value)}>
+                <option value="admin">Administrateur</option>
+                <option value="chef_gare">Chef de gare</option>
+                <option value="agent">Agent</option>
+              </NativeSelect>
             </div>
             {form.role !== "admin" && (
               <div className="space-y-1">
                 <Label>Gare</Label>
-                <Select value={form.gare_id || undefined} onValueChange={(v) => set("gare_id", v)}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner une gare" /></SelectTrigger>
-                  <SelectContent>
-                    {gares?.map((g) => (
-                      <SelectItem key={g.id} value={String(g.id)}>{g.nom}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  value={form.gare_id}
+                  onChange={(e) => set("gare_id", e.target.value)}
+                  placeholder="Sélectionner une gare"
+                >
+                  {gares?.map((g) => (
+                    <option key={g.id} value={String(g.id)}>{g.nom}</option>
+                  ))}
+                </NativeSelect>
               </div>
             )}
             <div className="space-y-1">

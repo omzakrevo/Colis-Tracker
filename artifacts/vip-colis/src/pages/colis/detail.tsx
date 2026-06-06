@@ -4,12 +4,11 @@ import {
   useGetHistoriqueColis,
   useUpdateStatutColis,
   useRetirerColis,
-  useGetMe,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -200,7 +199,6 @@ export default function ColisDetail() {
           </Card>
         </div>
 
-        {/* Retrait info */}
         {colis.statut === "retire" && colis.retrait_nom && (
           <Card className="border-green-200 bg-green-50">
             <CardHeader className="pb-3">
@@ -217,7 +215,6 @@ export default function ColisDetail() {
           </Card>
         )}
 
-        {/* Historique */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -260,18 +257,20 @@ export default function ColisDetail() {
           <div className="space-y-4">
             <div className="space-y-1">
               <Label>Nouveau statut</Label>
-              <Select value={newStatut || undefined} onValueChange={setNewStatut}>
-                <SelectTrigger><SelectValue placeholder="Sélectionner un statut" /></SelectTrigger>
-                <SelectContent>
-                  {nextStatuts.map((s) => (
-                    <SelectItem key={s} value={s}>{STATUTS_LABELS[s]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <NativeSelect
+                value={newStatut}
+                onChange={(e) => setNewStatut(e.target.value)}
+                placeholder="Sélectionner un statut"
+              >
+                {nextStatuts.map((s) => (
+                  <option key={s} value={s}>{STATUTS_LABELS[s]}</option>
+                ))}
+              </NativeSelect>
             </div>
             <div className="space-y-1">
               <Label>Notes (optionnel)</Label>
-              <Textarea value={statutNotes} onChange={(e) => setStatutNotes(e.target.value)} placeholder="Informations complémentaires..." rows={3} />
+              <Textarea value={statutNotes} onChange={(e) => setStatutNotes(e.target.value)}
+                placeholder="Informations complémentaires..." rows={3} />
             </div>
             <Button className="w-full" onClick={handleUpdateStatut} disabled={!newStatut || updateStatut.isPending}>
               {updateStatut.isPending ? "En cours..." : "Confirmer"}
@@ -321,13 +320,11 @@ function PrintReceipt({ colis }: { colis: any }) {
 
   return (
     <div style={{ fontFamily: "Arial, sans-serif", fontSize: "12px", maxWidth: "148mm", margin: "0 auto", padding: "8mm" }}>
-      {/* Header */}
       <div style={{ textAlign: "center", borderBottom: "2px solid #000", paddingBottom: "8px", marginBottom: "12px" }}>
         <div style={{ fontSize: "20px", fontWeight: "bold", letterSpacing: "2px" }}>VIP COLIS</div>
         <div style={{ fontSize: "11px", color: "#555" }}>Réseau de transport express — Burkina Faso</div>
       </div>
 
-      {/* Tracking number + QR */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
         <div>
           <div style={{ fontSize: "10px", color: "#555", marginBottom: "2px" }}>NUMÉRO DE SUIVI</div>
@@ -344,7 +341,6 @@ function PrintReceipt({ colis }: { colis: any }) {
         </div>
       </div>
 
-      {/* Trajet */}
       <div style={{ background: "#f5f5f5", padding: "8px", borderRadius: "4px", marginBottom: "10px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ textAlign: "center", flex: 1 }}>
@@ -359,7 +355,6 @@ function PrintReceipt({ colis }: { colis: any }) {
         </div>
       </div>
 
-      {/* Expéditeur / Destinataire */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "10px" }}>
         <div style={{ border: "1px solid #ddd", padding: "6px", borderRadius: "4px" }}>
           <div style={{ fontSize: "9px", color: "#666", marginBottom: "3px" }}>EXPÉDITEUR</div>
@@ -373,7 +368,6 @@ function PrintReceipt({ colis }: { colis: any }) {
         </div>
       </div>
 
-      {/* Détails colis */}
       <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "10px", fontSize: "11px" }}>
         <tbody>
           <tr style={{ borderBottom: "1px solid #eee" }}>
@@ -407,7 +401,6 @@ function PrintReceipt({ colis }: { colis: any }) {
         </div>
       )}
 
-      {/* Footer */}
       <div style={{ borderTop: "1px solid #ddd", paddingTop: "8px", fontSize: "9px", color: "#888", textAlign: "center" }}>
         <div>Reçu émis le {printDate} — Conservez ce document pour le retrait de votre colis</div>
         <div style={{ marginTop: "2px" }}>En cas de problème, contactez votre gare avec le numéro {colis.numero}</div>
