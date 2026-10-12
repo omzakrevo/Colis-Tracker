@@ -28,6 +28,10 @@ depuis l'écran *Utilisateurs* de l'app (fonction SQL `admin_creer_utilisateur`)
 
 ## 2. Lancer l'application
 
+L'URL de votre VPS (`https://vps-ef39f3a3.vps.ovh.ca`) et la clé anon sont déjà
+intégrées par défaut : `flutter run -d chrome` suffit. Les `--dart-define` ci-dessous
+servent à les remplacer.
+
 ```bash
 cd flutter_app
 flutter pub get
