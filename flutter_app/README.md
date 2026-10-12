@@ -114,3 +114,13 @@ sur le VPS (la base n'est pas exposée sur internet).
 - **iOS** : nécessite un Mac et un compte Apple Developer (`flutter build ipa --release`).
 - L'APK est signé avec la clé de debug : suffisant pour installer et tester. Pour le Play Store,
   il faut créer une clé de signature de release.
+
+## 8. Générer et publier l'application web
+
+Workflow `.github/workflows/build-web.yml` : construit le web et le publie sur **GitHub Pages**
+(`https://<utilisateur>.github.io/Colis-Tracker/`).
+
+1. Une seule fois : GitHub → *Settings → Pages → Build and deployment → Source = GitHub Actions*.
+2. *Actions → Application web → Run workflow* (ou push sur `main` modifiant `flutter_app/`).
+3. Le dossier compilé est aussi téléchargeable dans *Artifacts* (`vip-colis-web`), pour l'héberger
+   vous-même (par exemple avec Caddy sur le VPS, section 3).
