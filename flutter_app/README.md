@@ -104,3 +104,13 @@ sur le VPS (la base n'est pas exposée sur internet).
    (`TENANT_ID` = `POOLER_TENANT_ID` du `.env` Supabase ; encodez les caractères spéciaux du mot de passe).
 3. Évolution du schéma : ajoutez `supabase/migrations/<AAAAMMJJHHMMSS>_nom.sql`, poussez sur `main`.
    Le `seed.sql` n'est jamais exécuté automatiquement.
+
+## 7. Générer l'application mobile
+
+- **Android (APK)** : GitHub → *Actions → Application mobile (Android) → Run workflow*. Au bout de
+  quelques minutes, téléchargez `vip-colis-android` (l'APK) dans *Artifacts* en bas de la page du run.
+  Installez-le sur le téléphone (autoriser « sources inconnues »). Un tag `v1.0.0` crée aussi une release avec l'APK.
+- **En local** : `cd flutter_app && flutter build apk --release` (SDK Android requis).
+- **iOS** : nécessite un Mac et un compte Apple Developer (`flutter build ipa --release`).
+- L'APK est signé avec la clé de debug : suffisant pour installer et tester. Pour le Play Store,
+  il faut créer une clé de signature de release.
