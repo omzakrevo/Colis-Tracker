@@ -1,0 +1,5 @@
+# Configuration minimale pour la CLI Supabase (migrations vers un serveur auto-hébergé).
+project_id = "vip-colis"
+
+[db]
+major_version = 15

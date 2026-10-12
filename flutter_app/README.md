@@ -89,3 +89,15 @@ colis.mondomaine.com {
 - **Caméra / photos** : permissions Android/iOS à déclarer au moment de publier
   (`CAMERA`, `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`).
 - Les photos et signatures sont stockées en base (base64), comme dans l'ancienne version.
+
+## 6. Migrations automatiques via GitHub
+
+Le workflow `.github/workflows/supabase-migrations.yml` applique les fichiers de
+`supabase/migrations/` sur votre VPS à chaque push sur `main` (dry-run sur les PR).
+
+1. Dans GitHub : *Settings → Secrets and variables → Actions → New repository secret*
+   `SUPABASE_DB_URL` = `postgresql://postgres:MOT_DE_PASSE@vps-ef39f3a3.vps.ovh.ca:5432/postgres`
+2. Le port Postgres du VPS doit être joignable depuis internet (ou utilisez un runner
+   GitHub auto-hébergé sur le VPS, plus sûr).
+3. Pour une évolution du schéma : ajoutez un fichier `supabase/migrations/<AAAAMMJJHHMMSS>_nom.sql`,
+   poussez, c'est appliqué. Le `seed.sql` n'est jamais exécuté automatiquement.
