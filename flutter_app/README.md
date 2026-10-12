@@ -92,12 +92,25 @@ colis.mondomaine.com {
 
 ## 6. Migrations automatiques via GitHub
 
-Le workflow `.github/workflows/supabase-migrations.yml` applique les fichiers de
-`supabase/migrations/` sur votre VPS à chaque push sur `main` (dry-run sur les PR).
+Le workflow `.github/workflows/supabase-migrations.yml` applique `supabase/migrations/`
+sur votre VPS à chaque push sur `main`, via un **runner GitHub auto-hébergé** installé
+sur le VPS (la base n'est pas exposée sur internet).
 
-1. Dans GitHub : *Settings → Secrets and variables → Actions → New repository secret*
-   `SUPABASE_DB_URL` = `postgresql://postgres:MOT_DE_PASSE@vps-ef39f3a3.vps.ovh.ca:5432/postgres`
-2. Le port Postgres du VPS doit être joignable depuis internet (ou utilisez un runner
-   GitHub auto-hébergé sur le VPS, plus sûr).
-3. Pour une évolution du schéma : ajoutez un fichier `supabase/migrations/<AAAAMMJJHHMMSS>_nom.sql`,
-   poussez, c'est appliqué. Le `seed.sql` n'est jamais exécuté automatiquement.
+1. GitHub → *Settings → Actions → Runners → New self-hosted runner* (Linux x64) : suivez les
+   commandes affichées sur le VPS, avec un utilisateur non-root, puis installez-le comme service
+   (`sudo ./svc.sh install && sudo ./svc.sh start`). Le runner doit avoir le label `linux`.
+2. Secret `SUPABASE_DB_URL` (Repository secrets) :
+   `postgresql://postgres.TENANT_ID:MOT_DE_PASSE@localhost:5432/postgres`
+   (`TENANT_ID` = `POOLER_TENANT_ID` du `.env` Supabase ; encodez les caractères spéciaux du mot de passe).
+3. Évolution du schéma : ajoutez `supabase/migrations/<AAAAMMJJHHMMSS>_nom.sql`, poussez sur `main`.
+   Le `seed.sql` n'est jamais exécuté automatiquement.
+
+## 7. Générer l'application mobile
+
+- **Android (APK)** : GitHub → *Actions → Application mobile (Android) → Run workflow*. Au bout de
+  quelques minutes, téléchargez `vip-colis-android` (l'APK) dans *Artifacts* en bas de la page du run.
+  Installez-le sur le téléphone (autoriser « sources inconnues »). Un tag `v1.0.0` crée aussi une release avec l'APK.
+- **En local** : `cd flutter_app && flutter build apk --release` (SDK Android requis).
+- **iOS** : nécessite un Mac et un compte Apple Developer (`flutter build ipa --release`).
+- L'APK est signé avec la clé de debug : suffisant pour installer et tester. Pour le Play Store,
+  il faut créer une clé de signature de release.

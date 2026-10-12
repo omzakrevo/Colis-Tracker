@@ -1,10 +1,10 @@
 name: Migrations Supabase
 
 # Applique automatiquement les fichiers de supabase/migrations/ sur votre VPS.
-# Sur une pull request : simple vérification (dry-run). Sur main : application réelle.
+# Le job tourne sur un runner GitHub auto-hébergé installé sur le VPS : la base n'a donc
+# pas besoin d'être exposée sur internet.
+# (Pas de déclencheur pull_request : un runner auto-hébergé ne doit pas exécuter le code de PR externes.)
 on:
-  pull_request:
-    paths: ["supabase/migrations/**"]
   push:
     branches: [main]
     paths: ["supabase/migrations/**"]
@@ -16,10 +16,11 @@ concurrency:
 
 jobs:
   migrate:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     env:
-      # Secret GitHub à créer : Settings > Secrets and variables > Actions
-      # Format : postgresql://postgres:MOT_DE_PASSE@vps-ef39f3a3.vps.ovh.ca:5432/postgres
+      # Secret GitHub : Settings > Secrets and variables > Actions > Repository secrets
+      # Connexion locale via Supavisor :
+      # postgresql://postgres.TENANT_ID:MOT_DE_PASSE@localhost:5432/postgres
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
     steps:
       - uses: actions/checkout@v4
@@ -27,8 +28,6 @@ jobs:
         with:
           version: latest
       - name: Vérification (dry-run)
-        if: github.event_name == 'pull_request'
         run: supabase db push --db-url "$SUPABASE_DB_URL" --dry-run
       - name: Application des migrations
-        if: github.event_name != 'pull_request'
         run: supabase db push --db-url "$SUPABASE_DB_URL"

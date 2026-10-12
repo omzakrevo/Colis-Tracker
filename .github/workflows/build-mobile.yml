@@ -1,0 +1,41 @@
+name: Application mobile (Android)
+
+# Construit l'APK Android de VIP Colis dans le cloud GitHub.
+# Lancer à la main : Actions > Application mobile (Android) > Run workflow.
+# Le fichier est ensuite téléchargeable dans « Artifacts » en bas de la page du run.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.7"
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter test
+      - name: Construire l'APK
+        run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vip-colis-android
+          path: flutter_app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+      - name: Joindre l'APK à la release (tags v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: flutter_app/build/app/outputs/flutter-apk/app-release.apk
