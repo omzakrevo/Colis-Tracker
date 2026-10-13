@@ -9,8 +9,10 @@ assurée par les règles RLS du schéma SQL.
 ## 1. Préparer Supabase (une seule fois)
 
 1. Ouvrez **Supabase Studio** de votre VPS → *SQL Editor*.
-2. Exécutez `supabase/migrations/20261012000000_vip_colis.sql` (tables, sécurité RLS,
-   fonctions, temps réel).
+2. *(Seulement si une ancienne version a déjà été essayée et a touché votre table `profiles` : exécutez d'abord `supabase/cleanup_profiles.sql`.)*
+   Exécutez `supabase/migrations/20261012000000_vip_colis.sql` (tables, sécurité RLS,
+   fonctions, temps réel). Les comptes de l'app sont dans la table dédiée `vip_profiles`,
+   la table `profiles` éventuelle de vos autres applications n'est pas touchée.
 3. *(Optionnel, pour tester)* exécutez `supabase/seed.sql` : crée 4 gares et les comptes
    `admin/admin123`, `chef_oua/chef123`, `agent_bobo/agent123`, `agent_ban/agent123`.
    **Changez ces mots de passe avant la production.**
@@ -114,3 +116,13 @@ sur le VPS (la base n'est pas exposée sur internet).
 - **iOS** : nécessite un Mac et un compte Apple Developer (`flutter build ipa --release`).
 - L'APK est signé avec la clé de debug : suffisant pour installer et tester. Pour le Play Store,
   il faut créer une clé de signature de release.
+
+## 8. Générer et publier l'application web
+
+Workflow `.github/workflows/build-web.yml` : construit le web et le publie sur **GitHub Pages**
+(`https://<utilisateur>.github.io/Colis-Tracker/`).
+
+1. Une seule fois : GitHub → *Settings → Pages → Build and deployment → Source = GitHub Actions*.
+2. *Actions → Application web → Run workflow* (ou push sur `main` modifiant `flutter_app/`).
+3. Le dossier compilé est aussi téléchargeable dans *Artifacts* (`vip-colis-web`), pour l'héberger
+   vous-même (par exemple avec Caddy sur le VPS, section 3).

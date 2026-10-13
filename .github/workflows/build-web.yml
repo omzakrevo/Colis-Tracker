@@ -1,0 +1,55 @@
+name: Application web
+
+# Construit l'application web (Flutter) et la publie sur GitHub Pages.
+# Prérequis (une seule fois) : Settings > Pages > Build and deployment > Source = « GitHub Actions ».
+# Lancer à la main : Actions > Application web > Run workflow. Se relance aussi à chaque push
+# qui modifie flutter_app/ sur main.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["flutter_app/**", ".github/workflows/build-web.yml"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.7"
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Construire le web
+        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vip-colis-web
+          path: flutter_app/build/web
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: flutter_app/build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
