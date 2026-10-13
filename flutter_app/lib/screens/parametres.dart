@@ -19,7 +19,16 @@ class ParametresScreen extends ConsumerStatefulWidget {
 
 class _ParametresScreenState extends ConsumerState<ParametresScreen> {
   final _c = <String, TextEditingController>{
-    for (final k in ['nom', 'slogan', 'telephone', 'email', 'adresse', 'ville', 'pays']) k: TextEditingController(),
+    for (final k in [
+      'nom',
+      'slogan',
+      'telephone',
+      'email',
+      'adresse',
+      'ville',
+      'pays',
+    ])
+      k: TextEditingController(),
   };
   String? _logo;
   bool _loaded = false, _saving = false;
@@ -46,7 +55,12 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
   }
 
   Future<void> _pickLogo() async {
-    final f = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 400, maxHeight: 400, imageQuality: 85);
+    final f = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 400,
+      maxHeight: 400,
+      imageQuality: 85,
+    );
     if (f == null) return;
     final bytes = await f.readAsBytes();
     setState(() => _logo = 'data:image/png;base64,${base64Encode(bytes)}');
@@ -59,7 +73,12 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
     }
     setState(() => _saving = true);
     try {
-      await Repo.saveSettings({for (final e in _c.entries) e.key: e.value.text.trim(), 'logo': _logo});
+      final cid = ref.read(profilProvider).value?.companyId;
+      if (cid == null) throw 'Entreprise introuvable';
+      await Repo.saveSettings(cid, {
+        for (final e in _c.entries) e.key: e.value.text.trim(),
+        'logo': _logo,
+      });
       ref.invalidate(settingsProvider);
       if (mounted) toast(context, 'Paramètres enregistrés');
     } catch (e) {
@@ -77,49 +96,108 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
       onRetry: () => ref.invalidate(settingsProvider),
       builder: (settings) {
         _load(settings);
-        return ListView(padding: const EdgeInsets.only(bottom: 100), children: [
-          const PageHeader('Paramètres', subtitle: 'Identité de la société, utilisée sur les reçus.'),
-          SectionCard(
-            title: 'Logo', icon: Icons.image_rounded,
-            child: Row(children: [
-              Logo(size: 72, data: _logo),
-              const SizedBox(width: 16),
-              Wrap(spacing: 10, children: [
-                OutlinedButton.icon(onPressed: _pickLogo, icon: const Icon(Icons.upload_rounded), label: const Text('Choisir')),
-                if (_logo != null) TextButton(onPressed: () => setState(() => _logo = null), child: const Text('Retirer')),
-              ]),
-            ]),
-          ).reveal(),
-          const SizedBox(height: 14),
-          SectionCard(
-            title: 'Société', icon: Icons.business_rounded,
-            child: Column(children: [
-              TextField(controller: _c['nom'], decoration: const InputDecoration(labelText: 'Nom *')),
-              const SizedBox(height: 12),
-              TextField(controller: _c['slogan'], decoration: const InputDecoration(labelText: 'Slogan')),
-              const SizedBox(height: 12),
-              TextField(controller: _c['telephone'], keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Téléphone')),
-              const SizedBox(height: 12),
-              TextField(controller: _c['email'], keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'E-mail')),
-              const SizedBox(height: 12),
-              TextField(controller: _c['adresse'], decoration: const InputDecoration(labelText: 'Adresse')),
-              const SizedBox(height: 12),
-              Row(children: [
-                Expanded(child: TextField(controller: _c['ville'], decoration: const InputDecoration(labelText: 'Ville'))),
-                const SizedBox(width: 12),
-                Expanded(child: TextField(controller: _c['pays'], decoration: const InputDecoration(labelText: 'Pays'))),
-              ]),
-            ]),
-          ).reveal(1),
-          const SizedBox(height: 18),
-          FilledButton.icon(
-            onPressed: _saving ? null : _save,
-            icon: _saving
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                : const Icon(Icons.save_rounded),
-            label: const Text('Enregistrer'),
-          ).reveal(2),
-        ]);
+        return ListView(
+          padding: const EdgeInsets.only(bottom: 100),
+          children: [
+            const PageHeader(
+              'Paramètres',
+              subtitle: 'Identité de la société, utilisée sur les reçus.',
+            ),
+            SectionCard(
+              title: 'Logo',
+              icon: Icons.image_rounded,
+              child: Row(
+                children: [
+                  Logo(size: 72, data: _logo),
+                  const SizedBox(width: 16),
+                  Wrap(
+                    spacing: 10,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _pickLogo,
+                        icon: const Icon(Icons.upload_rounded),
+                        label: const Text('Choisir'),
+                      ),
+                      if (_logo != null)
+                        TextButton(
+                          onPressed: () => setState(() => _logo = null),
+                          child: const Text('Retirer'),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ).reveal(),
+            const SizedBox(height: 14),
+            SectionCard(
+              title: 'Société',
+              icon: Icons.business_rounded,
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _c['nom'],
+                    decoration: const InputDecoration(labelText: 'Nom *'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _c['slogan'],
+                    decoration: const InputDecoration(labelText: 'Slogan'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _c['telephone'],
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(labelText: 'Téléphone'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _c['email'],
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(labelText: 'E-mail'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _c['adresse'],
+                    decoration: const InputDecoration(labelText: 'Adresse'),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _c['ville'],
+                          decoration: const InputDecoration(labelText: 'Ville'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _c['pays'],
+                          decoration: const InputDecoration(labelText: 'Pays'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ).reveal(1),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: _saving ? null : _save,
+              icon: _saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.save_rounded),
+              label: const Text('Enregistrer'),
+            ).reveal(2),
+          ],
+        );
       },
     );
   }

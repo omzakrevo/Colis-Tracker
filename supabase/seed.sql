@@ -1,9 +1,10 @@
--- Données de démonstration (facultatif) — à exécuter APRÈS la migration, en tant que postgres.
+-- Données de démonstration (facultatif) — à exécuter APRÈS toutes les migrations, en tant que postgres.
+-- Les gares et comptes de test sont rattachés à la première entreprise (celle créée par la migration SaaS).
 -- Comptes : admin / admin123, chef_oua / chef123, agent_bobo / agent123, agent_ban / agent123
 -- ⚠️ Supprimez ces comptes ou changez leurs mots de passe avant la mise en production.
 
-insert into public.gares (nom, ville, adresse, responsable, telephone)
-select * from (values
+insert into public.gares (nom, ville, adresse, responsable, telephone, company_id)
+select v.nom, v.ville, v.adresse, v.responsable, v.telephone, (select min(id) from public.companies) from (values
   ('Gare Ouagadougou',   'Ouagadougou',   'Avenue Kwame Nkrumah', 'Issa Ouédraogo', '+226 70 00 00 01'),
   ('Gare Bobo-Dioulasso','Bobo-Dioulasso','Route de Banfora',     'Awa Traoré',     '+226 70 00 00 02'),
   ('Gare Banfora',       'Banfora',       'Quartier Commercial',  'Salif Sanou',    '+226 70 00 00 03'),
@@ -35,10 +36,11 @@ begin
       jsonb_build_object('sub', uid::text, 'email', mail, 'email_verified', true), 'email', now(), now(), now());
   end if;
 
-  insert into public.vip_profiles (id, nom, username, role, gare_id)
-  values (uid, p_nom, p_username, p_role, (select id from public.gares where ville = p_ville limit 1))
+  insert into public.vip_profiles (id, nom, username, role, gare_id, company_id)
+  values (uid, p_nom, p_username, p_role, (select id from public.gares where ville = p_ville limit 1),
+          (select min(id) from public.companies))
   on conflict (id) do update set nom = excluded.nom, username = excluded.username,
-    role = excluded.role, gare_id = excluded.gare_id;
+    role = excluded.role, gare_id = excluded.gare_id, company_id = excluded.company_id;
 end $$;
 
 select pg_temp.seed_user('admin',      'admin123', 'Administrateur',  'admin',     null);

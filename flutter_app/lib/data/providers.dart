@@ -1,12 +1,16 @@
 import 'dart:async';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/identifiant.dart';
+import '../core/local_auth.dart';
 import 'models.dart';
 import 'repo.dart';
 
 String errMsg(Object e) {
+  if (estErreurReseau(e)) return 'Pas de connexion internet. Réessayez quand le réseau revient.';
   if (e is PostgrestException) return e.message;
   if (e is AuthException) return e.message;
   if (e is String) return e;
@@ -14,23 +18,243 @@ String errMsg(Object e) {
 }
 
 // ── Session ───────────────────────────────────────────────
-class ProfilNotifier extends AsyncNotifier<Profil?> {
-  @override
-  Future<Profil?> build() => Repo.currentProfil();
 
-  Future<void> login(String username, String password) async {
-    final p = await Repo.login(username, password);
-    state = AsyncData(p);
+/// Motifs pour lesquels l'utilisateur est déconnecté d'office (le compte n'existe plus ou est désactivé).
+const _motifsFatals = {
+  'compte_desactive',
+  'profil_introuvable',
+  'entreprise_introuvable',
+};
+
+String messageMotif(String? motif) => switch (motif) {
+  'en_attente' => 'Votre entreprise est en attente de validation par l\'administrateur de la plateforme.',
+  'suspendu' => 'Le compte de votre entreprise est suspendu. Contactez l\'administrateur de la plateforme.',
+  'abonnement_expire' => 'L\'abonnement de votre entreprise a expiré. Contactez l\'administrateur de la plateforme pour le renouveler.',
+  'compte_desactive' =>
+    'Votre compte a été désactivé. Contactez votre administrateur.',
+  'profil_introuvable' ||
+  'entreprise_introuvable' => 'Ce compte n\'existe plus.',
+  _ => 'Accès impossible.',
+};
+
+/// État d'authentification : qui est connecté, son entreprise, un éventuel blocage d'abonnement,
+/// si l'on est hors connexion, et un message à afficher après une déconnexion forcée.
+class AuthData {
+  const AuthData({
+    this.profil,
+    this.company,
+    this.motif,
+    this.offline = false,
+    this.message,
+  });
+  final Profil? profil;
+  final Company? company;
+  final String? motif;
+  final bool offline;
+  final String? message;
+
+  bool get bloque => profil != null && !profil!.isSuper && motif != null;
+
+  AuthData copyWith({bool? offline}) => AuthData(
+    profil: profil,
+    company: company,
+    motif: motif,
+    offline: offline ?? this.offline,
+    message: message,
+  );
+}
+
+/// Blocage calculé localement (utile hors ligne) à partir de l'entreprise mémorisée.
+String? _motifLocal(Profil p, Company? c) {
+  if (p.isSuper || c == null) return null;
+  if (c.statut == 'en_attente') return 'en_attente';
+  if (c.statut == 'suspendu') return 'suspendu';
+  final fin = c.abonnementFin;
+  if (fin != null &&
+      DateTime.now().isAfter(
+        DateTime(fin.year, fin.month, fin.day, 23, 59, 59),
+      )) {
+    return 'abonnement_expire';
+  }
+  return null;
+}
+
+class AuthNotifier extends AsyncNotifier<AuthData> {
+  String? _identifiant;
+  String? _mdpEnMemoire; // uniquement en mémoire vive, pour se reconnecter dès que le réseau revient
+  Timer? _timer;
+  StreamSubscription<List<ConnectivityResult>>? _conn;
+  bool _occupe = false;
+
+  @override
+  Future<AuthData> build() async {
+    _conn = Connectivity().onConnectivityChanged.listen((r) {
+      if (!r.contains(ConnectivityResult.none)) revalider();
+    });
+    _timer = Timer.periodic(const Duration(minutes: 10), (_) => revalider());
+    ref.onDispose(() {
+      _conn?.cancel();
+      _timer?.cancel();
+    });
+
+    if (!Repo.aUneSession) return const AuthData();
+    final local = await LocalAuth.byUserId(Repo.userId!);
+    if (local != null) {
+      // Démarrage instantané (même sans internet) avec le compte mémorisé, puis vérification en arrière-plan.
+      _identifiant = local.identifiant;
+      Future.microtask(revalider);
+      return AuthData(
+        profil: local.profil,
+        company: local.company,
+        motif: _motifLocal(local.profil, local.company),
+      );
+    }
+    try {
+      final c = await Repo.maSession();
+      return await _depuisServeur(c);
+    } catch (e) {
+      return const AuthData();
+    }
   }
 
+  Future<AuthData> _depuisServeur(SessionCheck c) async {
+    if (c.profil == null || _motifsFatals.contains(c.motif)) {
+      await _deconnecterDOffice(messageMotif(c.motif ?? 'profil_introuvable'));
+      return AuthData(message: messageMotif(c.motif ?? 'profil_introuvable'));
+    }
+    if (_identifiant != null)
+      await LocalAuth.refresh(_identifiant!, c.profil!, c.company);
+    return AuthData(
+      profil: c.profil,
+      company: c.company,
+      motif: c.valide ? null : c.motif,
+    );
+  }
+
+  Future<void> _deconnecterDOffice(String message) async {
+    try {
+      await Repo.logout();
+    } catch (_) {}
+    await LocalAuth.forgetAll();
+    _identifiant = null;
+    _mdpEnMemoire = null;
+    state = AsyncData(AuthData(message: message));
+  }
+
+  /// Connexion avec téléphone / identifiant + mot de passe (en ligne, sinon hors ligne si déjà mémorisé).
+  Future<void> login(String identifiant, String password) async {
+    final id = normaliserIdentifiant(identifiant);
+    try {
+      await Repo.signIn(id, password);
+      final c = await Repo.maSession();
+      if (c.profil == null || _motifsFatals.contains(c.motif)) {
+        await Repo.logout();
+        throw messageMotif(c.motif ?? 'profil_introuvable');
+      }
+      await LocalAuth.remember(id, password, c.profil!, c.company);
+      _identifiant = id;
+      _mdpEnMemoire = null;
+      state = AsyncData(
+        AuthData(
+          profil: c.profil,
+          company: c.company,
+          motif: c.valide ? null : c.motif,
+        ),
+      );
+    } catch (e) {
+      if (e is String) rethrow;
+      if (!estErreurReseau(e)) throw errMsg(e);
+      await _loginHorsLigne(id, password);
+    }
+  }
+
+  Future<void> _loginHorsLigne(String id, String password) async {
+    final a = await LocalAuth.verify(id, password);
+    if (a == null) {
+      final connu = await LocalAuth.get(id);
+      throw connu == null
+          ? 'Pas de connexion internet. Connectez-vous d\'abord une fois en ligne sur cet appareil.'
+          : 'Identifiants incorrects';
+    }
+    _identifiant = id;
+    _mdpEnMemoire = password;
+    state = AsyncData(
+      AuthData(
+        profil: a.profil,
+        company: a.company,
+        motif: _motifLocal(a.profil, a.company),
+        offline: true,
+      ),
+    );
+  }
+
+  /// Vérifie auprès du serveur que le compte et l'abonnement sont toujours valides.
+  /// En cas de problème, l'utilisateur est déconnecté et doit se reconnecter.
+  Future<void> revalider() async {
+    if (_occupe) return;
+    final actuel = state.value;
+    if (actuel?.profil == null) return;
+    _occupe = true;
+    try {
+      if (!Repo.aUneSession) {
+        if (_identifiant != null && _mdpEnMemoire != null) {
+          await Repo.signIn(_identifiant!, _mdpEnMemoire!);
+        } else {
+          await _deconnecterDOffice(
+            'Votre session a expiré. Reconnectez-vous.',
+          );
+          return;
+        }
+      }
+      final c = await Repo.maSession();
+      final data = await _depuisServeur(c);
+      if (data.profil != null) {
+        _mdpEnMemoire = null;
+        state = AsyncData(data);
+      }
+    } catch (e) {
+      if (estErreurReseau(e)) {
+        final cur = state.value;
+        if (cur != null && !cur.offline)
+          state = AsyncData(cur.copyWith(offline: true));
+      } else if (e is AuthException ||
+          e is String ||
+          (e is PostgrestException &&
+              (e.code == 'PGRST301' ||
+                  e.code == '401' ||
+                  e.message.contains('JWT')))) {
+        await _deconnecterDOffice(
+          'Votre session n\'est plus valide. Reconnectez-vous.',
+        );
+      }
+    } finally {
+      _occupe = false;
+    }
+  }
+
+  /// Déconnexion volontaire : le compte reste mémorisé pour un prochain accès hors ligne.
   Future<void> logout() async {
-    await Repo.logout();
-    state = const AsyncData(null);
+    try {
+      await Repo.logout();
+    } catch (_) {}
+    _mdpEnMemoire = null;
+    state = const AsyncData(AuthData());
   }
 }
 
-final profilProvider =
-    AsyncNotifierProvider<ProfilNotifier, Profil?>(ProfilNotifier.new);
+final authProvider = AsyncNotifierProvider<AuthNotifier, AuthData>(
+  AuthNotifier.new,
+);
+
+/// Profil connecté (null si personne).
+final profilProvider = Provider<AsyncValue<Profil?>>(
+  (ref) => ref.watch(authProvider).whenData((d) => d.profil),
+);
+
+/// Détails de session (entreprise, blocage, hors ligne).
+final sessionProvider = Provider<AuthData>(
+  (ref) => ref.watch(authProvider).value ?? const AuthData(),
+);
 
 // ── Temps réel : tout changement de colis relance les listes ──
 class TickNotifier extends Notifier<int> {
@@ -52,8 +276,10 @@ final realtimeProvider = Provider<void>((ref) {
       table: table,
       callback: (_) {
         debounce?.cancel();
-        debounce = Timer(const Duration(milliseconds: 400),
-            () => ref.read(tickProvider.notifier).bump());
+        debounce = Timer(
+          const Duration(milliseconds: 400),
+          () => ref.read(tickProvider.notifier).bump(),
+        );
       },
     );
   }
@@ -71,8 +297,9 @@ class ColisFilterNotifier extends Notifier<ColisFilter> {
   void set(ColisFilter f) => state = f;
 }
 
-final colisFilterProvider =
-    NotifierProvider<ColisFilterNotifier, ColisFilter>(ColisFilterNotifier.new);
+final colisFilterProvider = NotifierProvider<ColisFilterNotifier, ColisFilter>(
+  ColisFilterNotifier.new,
+);
 
 final colisListProvider = FutureProvider<List<Colis>>((ref) {
   ref.watch(tickProvider);
@@ -86,14 +313,19 @@ final colisProvider = FutureProvider.family<Colis, int>((ref, id) {
   return Repo.getColis(id);
 });
 
-final historiqueProvider = FutureProvider.family<List<Historique>, int>((ref, id) {
+final historiqueProvider = FutureProvider.family<List<Historique>, int>((
+  ref,
+  id,
+) {
   ref.watch(tickProvider);
   return Repo.historique(id);
 });
 
 final garesProvider = FutureProvider<List<Gare>>((ref) => Repo.gares());
 final profilsProvider = FutureProvider<List<Profil>>((ref) => Repo.profils());
-final settingsProvider = FutureProvider<CompanySettings>((ref) => Repo.settings());
+final settingsProvider = FutureProvider<CompanySettings>(
+  (ref) => Repo.settings(),
+);
 
 final dashboardProvider = FutureProvider<DashboardStats>((ref) {
   ref.watch(tickProvider);
@@ -113,13 +345,16 @@ class RapportPeriode {
 class RapportPeriodeNotifier extends Notifier<RapportPeriode> {
   @override
   RapportPeriode build() => RapportPeriode(
-      DateTime.now().subtract(const Duration(days: 29)), DateTime.now());
+    DateTime.now().subtract(const Duration(days: 29)),
+    DateTime.now(),
+  );
   void set(RapportPeriode p) => state = p;
 }
 
 final rapportPeriodeProvider =
     NotifierProvider<RapportPeriodeNotifier, RapportPeriode>(
-        RapportPeriodeNotifier.new);
+      RapportPeriodeNotifier.new,
+    );
 
 final colisParJourProvider = FutureProvider<List<JourStat>>((ref) {
   ref.watch(tickProvider);
