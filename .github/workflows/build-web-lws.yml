@@ -1,0 +1,53 @@
+name: Application web (LWS)
+
+# Construit l'application web pour un hébergement classique (LWS, cPanel, OVH...) servi à la racine
+# d'un domaine ou sous-domaine (ex. https://tchi.telimatchi.com/).
+# Résultat : l'artefact « tchi-web-lws » contient tchi-web.zip, à décompresser dans le dossier du
+# sous-domaine (le contenu du zip, pas le dossier lui-même).
+# Lancer à la main : Actions > Application web (LWS) > Run workflow.
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.7"
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Construire le web (racine du domaine)
+        run: flutter build web --release --base-href "/"
+      - name: Ajouter le fichier .htaccess
+        run: |
+          cat > build/web/.htaccess <<'EOF'
+          # Types MIME utiles à Flutter web
+          AddType application/wasm .wasm
+          AddType application/javascript .mjs
+          # Compression
+          <IfModule mod_deflate.c>
+            AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json application/wasm image/svg+xml
+          </IfModule>
+          # Ne jamais mettre en cache le démarrage : une nouvelle version est prise en compte au rechargement
+          <IfModule mod_headers.c>
+            <FilesMatch "(index\.html|flutter_bootstrap\.js|flutter_service_worker\.js|version\.json|main\.dart\.js)$">
+              Header set Cache-Control "no-cache, no-store, must-revalidate"
+            </FilesMatch>
+          </IfModule>
+          # Forcer HTTPS
+          RewriteEngine On
+          RewriteCond %{HTTPS} off
+          RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+          EOF
+      - name: Créer le zip
+        run: cd build/web && zip -rq ../../tchi-web.zip . -x '.*' && zip -q ../../tchi-web.zip .htaccess
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tchi-web-lws
+          path: flutter_app/tchi-web.zip
