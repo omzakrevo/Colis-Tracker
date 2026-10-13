@@ -83,7 +83,9 @@ create table if not exists public.company_settings (
   pays       text not null default 'Burkina Faso',
   logo       text
 );
-insert into public.company_settings (id) values (1) on conflict do nothing;
+do $$ begin
+  insert into public.company_settings (id) values (1) on conflict do nothing;
+exception when undefined_column then null; end $$;
 
 -- ───────────────────────── Fonctions utilitaires ─────────────────────────
 

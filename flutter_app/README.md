@@ -129,3 +129,24 @@ Workflow `.github/workflows/build-web.yml` : construit le web et le publie sur *
 2. *Actions → Application web → Run workflow* (ou push sur `main` modifiant `flutter_app/`).
 3. Le dossier compilé est aussi téléchargeable dans *Artifacts* (`vip-colis-web`), pour l'héberger
    vous-même (par exemple avec Caddy sur le VPS, section 3).
+
+## 9. SaaS : plusieurs entreprises et abonnements
+
+- **Migration** `20261014000000_saas_multi_entreprises.sql` : chaque entreprise a ses propres gares, colis,
+  utilisateurs et paramètres, isolés par la sécurité de la base (RLS). Les données existantes sont rattachées
+  à une première entreprise « active ».
+- **Super administrateur** (vous) : créez-le une fois avec `supabase/superadmin.sql` (après avoir remplacé
+  le numéro, le mot de passe et le nom). Il voit uniquement l'écran **Entreprises** : valider une demande,
+  fixer la date de fin d'abonnement et le nombre d'utilisateurs, prolonger, suspendre, créer une entreprise.
+- **Inscription** : sur l'écran de connexion, « Créer mon entreprise » (nom, ville, administrateur,
+  téléphone, mot de passe). L'entreprise reste **en attente** tant que le super administrateur ne l'a pas validée.
+- **Utilisateurs** : l'administrateur de l'entreprise crée les comptes de ses employés (identifiant = numéro de téléphone),
+  dans la limite du nombre d'utilisateurs de l'abonnement.
+- **Connexion** : numéro de téléphone + mot de passe (un nom d'utilisateur reste possible pour les comptes de test).
+- **Session mémorisée** : après la première connexion, l'application s'ouvre directement, même sans internet.
+  Dès que le réseau revient (et toutes les 10 minutes), le compte et l'abonnement sont revérifiés ; en cas de
+  problème (compte désactivé, entreprise suspendue, abonnement expiré, session révoquée), l'utilisateur est déconnecté.
+- **Connexion hors ligne** : après une déconnexion volontaire, le compte reste mémorisé sur l'appareil
+  (empreinte PBKDF2 salée du mot de passe, jamais le mot de passe) et permet de se reconnecter sans internet.
+  Les écrans de données (colis, rapports…) nécessitent encore internet.
+- Le seed (`supabase/seed.sql`) rattache les comptes de test à la première entreprise.

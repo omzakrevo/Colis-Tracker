@@ -23,15 +23,17 @@ const _principaux = [
   _Item('/recherche', 'Recherche', Icons.search_rounded),
 ];
 
-List<_Item> _menu(Profil me) => [
-  ..._principaux,
-  const _Item('/rapports', 'Rapports', Icons.insights_rounded),
-  if (me.isAdmin) ...const [
-    _Item('/gares', 'Gares', Icons.location_city_rounded),
-    _Item('/utilisateurs', 'Utilisateurs', Icons.groups_rounded),
-    _Item('/parametres', 'Paramètres', Icons.tune_rounded),
-  ],
-];
+List<_Item> _menu(Profil me) => me.isSuper
+    ? const [_Item('/entreprises', 'Entreprises', Icons.business_rounded)]
+    : [
+        ..._principaux,
+        const _Item('/rapports', 'Rapports', Icons.insights_rounded),
+        if (me.isAdmin) ...const [
+          _Item('/gares', 'Gares', Icons.location_city_rounded),
+          _Item('/utilisateurs', 'Utilisateurs', Icons.groups_rounded),
+          _Item('/parametres', 'Paramètres', Icons.tune_rounded),
+        ],
+      ];
 
 class Logo extends StatelessWidget {
   const Logo({super.key, this.size = 36, this.data});
@@ -85,9 +87,16 @@ class AppShell extends ConsumerWidget {
     final settings = ref.watch(settingsProvider).value;
     final wide = MediaQuery.sizeOf(context).width >= 900;
     final menu = _menu(me);
+    final offline = ref.watch(sessionProvider).offline;
+    final body = Column(
+      children: [
+        if (offline) const _OfflineBanner(),
+        Expanded(child: child),
+      ],
+    );
 
     Future<void> logout() async {
-      await ref.read(profilProvider.notifier).logout();
+      await ref.read(authProvider.notifier).logout();
     }
 
     if (wide) {
@@ -107,7 +116,7 @@ class AppShell extends ConsumerWidget {
                   constraints: const BoxConstraints(maxWidth: 1200),
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(32, 28, 32, 0),
-                    child: child,
+                    child: body,
                   ),
                 ),
               ),
@@ -150,9 +159,9 @@ class AppShell extends ConsumerWidget {
       ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-        child: child,
+        child: body,
       ),
-      floatingActionButton: location.startsWith('/scanner')
+      floatingActionButton: (location.startsWith('/scanner') || me.isSuper)
           ? null
           : FloatingActionButton.extended(
               onPressed: () => context.push('/colis/nouveau'),
@@ -168,16 +177,18 @@ class AppShell extends ConsumerWidget {
               duration: 500.ms,
               curve: Curves.easeOutBack,
             ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: bottomIdx < 0 ? 0 : bottomIdx,
-        backgroundColor: Colors.white,
-        indicatorColor: Brand.orangeSoft,
-        onDestinationSelected: (i) => context.go(_principaux[i].path),
-        destinations: [
-          for (final i in _principaux)
-            NavigationDestination(icon: Icon(i.icon), label: i.label),
-        ],
-      ),
+      bottomNavigationBar: me.isSuper
+          ? null
+          : NavigationBar(
+              selectedIndex: bottomIdx < 0 ? 0 : bottomIdx,
+              backgroundColor: Colors.white,
+              indicatorColor: Brand.orangeSoft,
+              onDestinationSelected: (i) => context.go(_principaux[i].path),
+              destinations: [
+                for (final i in _principaux)
+                  NavigationDestination(icon: Icon(i.icon), label: i.label),
+              ],
+            ),
     );
   }
 }
@@ -364,4 +375,35 @@ class _SideTile extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _OfflineBanner extends StatelessWidget {
+  const _OfflineBanner();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    margin: const EdgeInsets.only(bottom: 10),
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+    decoration: BoxDecoration(
+      color: const Color(0xFFFEF3C7),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: const Row(
+      children: [
+        Icon(Icons.cloud_off_rounded, size: 18, color: Color(0xFFB45309)),
+        SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'Hors connexion — les données se mettront à jour au retour d\'internet.',
+            style: TextStyle(
+              fontSize: 12.5,
+              color: Color(0xFF92400E),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    ),
+  ).animate().fadeIn().slideY(begin: -.4, end: 0);
 }
