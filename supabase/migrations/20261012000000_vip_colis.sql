@@ -28,6 +28,19 @@ create table if not exists public.profiles (
   created_at  timestamptz not null default now()
 );
 
+-- Si une table « profiles » existait déjà (ex. modèle de démarrage Supabase), on la complète.
+alter table public.profiles add column if not exists nom        text not null default '';
+alter table public.profiles add column if not exists username   text;
+alter table public.profiles add column if not exists role       text not null default 'agent';
+alter table public.profiles add column if not exists gare_id    bigint references public.gares(id) on delete set null;
+alter table public.profiles add column if not exists telephone  text;
+alter table public.profiles add column if not exists actif      boolean not null default true;
+alter table public.profiles add column if not exists created_at timestamptz not null default now();
+do $$ begin
+  alter table public.profiles add constraint profiles_role_check check (role in ('admin', 'chef_gare', 'agent'));
+exception when duplicate_object then null; end $$;
+create unique index if not exists profiles_vip_username_key on public.profiles (username);
+
 create sequence if not exists public.colis_numero_seq start 100000;
 
 create table if not exists public.colis (
@@ -248,7 +261,9 @@ begin
 
   perform set_config('vipcolis.bypass', 'on', true);
   insert into public.profiles (id, nom, username, role, gare_id, telephone)
-  values (uid, p_nom, lower(trim(p_username)), p_role, p_gare_id, p_telephone);
+  values (uid, p_nom, lower(trim(p_username)), p_role, p_gare_id, p_telephone)
+  on conflict (id) do update set nom = excluded.nom, username = excluded.username,
+    role = excluded.role, gare_id = excluded.gare_id, telephone = excluded.telephone;
   perform set_config('vipcolis.bypass', 'off', true);
   return uid;
 end $$;

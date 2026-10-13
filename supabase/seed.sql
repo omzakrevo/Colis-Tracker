@@ -18,6 +18,7 @@ declare
   mail text := p_username || '@vipcolis.app';
 begin
   if exists (select 1 from public.profiles where username = p_username) then return; end if;
+  perform set_config('vipcolis.bypass', 'on', true);
 
   insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
     raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
@@ -31,7 +32,9 @@ begin
     jsonb_build_object('sub', uid::text, 'email', mail, 'email_verified', true), 'email', now(), now(), now());
 
   insert into public.profiles (id, nom, username, role, gare_id)
-  values (uid, p_nom, p_username, p_role, (select id from public.gares where ville = p_ville limit 1));
+  values (uid, p_nom, p_username, p_role, (select id from public.gares where ville = p_ville limit 1))
+  on conflict (id) do update set nom = excluded.nom, username = excluded.username,
+    role = excluded.role, gare_id = excluded.gare_id;
 end $$;
 
 select pg_temp.seed_user('admin',      'admin123', 'Administrateur',  'admin',     null);
