@@ -5,6 +5,10 @@
 ///     --dart-define=SUPABASE_URL=https://supabase.mon-domaine.com \
 ///     --dart-define=SUPABASE_ANON_KEY=eyJ...
 class AppConfig {
+  /// Nom commercial de la plateforme.
+  static const appName = 'Tchi';
+  static const appSlogan = 'La gestion de vos colis, simplement.';
+
   static const supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
     defaultValue: 'https://vps-ef39f3a3.vps.ovh.ca',

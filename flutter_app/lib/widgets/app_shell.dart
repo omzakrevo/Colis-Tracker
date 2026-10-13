@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/config.dart';
 import '../core/format.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
@@ -55,18 +56,12 @@ class Logo extends StatelessWidget {
         );
       } catch (_) {}
     }
-    return Container(
+    // Logo de la plateforme (Tchi) quand l'entreprise n'a pas fourni le sien.
+    return Image.asset(
+      'assets/branding/tchi_logo_512.png',
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        color: Brand.orange,
-        borderRadius: BorderRadius.circular(size * .28),
-      ),
-      child: Icon(
-        Icons.inventory_2_rounded,
-        color: Colors.white,
-        size: size * .56,
-      ),
+      fit: BoxFit.cover,
     );
   }
 }
@@ -135,7 +130,7 @@ class AppShell extends ConsumerWidget {
             Logo(size: 30, data: settings?.logo),
             const SizedBox(width: 10),
             Text(
-              settings?.nom.toUpperCase() ?? 'VIP COLIS',
+              settings?.nom.toUpperCase() ?? AppConfig.appName.toUpperCase(),
               style: const TextStyle(
                 fontWeight: FontWeight.w800,
                 letterSpacing: .5,
@@ -228,7 +223,7 @@ class _Sidebar extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      (settings?.nom ?? 'VIP Colis').toUpperCase(),
+                      (settings?.nom ?? AppConfig.appName).toUpperCase(),
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white,

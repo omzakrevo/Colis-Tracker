@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/config.dart';
 import '../core/identifiant.dart';
 import '../core/theme.dart';
 import '../data/providers.dart';
@@ -81,8 +82,8 @@ class _InscriptionScreenState extends ConsumerState<InscriptionScreen> {
                       ),
                       const Logo(size: 34),
                       const SizedBox(width: 10),
-                      const Text(
-                        'VIP COLIS',
+                      Text(
+                        AppConfig.appName.toUpperCase(),
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 18,

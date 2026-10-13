@@ -1,4 +1,4 @@
-# VIP Colis — application Flutter (web + mobile) sur Supabase
+# Tchi — application Flutter (web + mobile) sur Supabase
 
 Refonte complète de l'application de gestion de colis : nouveau design, animations
 (motion design) et connexion directe à votre Supabase auto-hébergé. Une seule base

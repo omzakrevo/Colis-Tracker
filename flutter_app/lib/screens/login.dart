@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/config.dart';
 import '../core/theme.dart';
 import '../data/providers.dart';
 import '../widgets/app_shell.dart';
@@ -294,8 +295,8 @@ class _Hero extends StatelessWidget {
                       .then()
                       .shake(hz: 2, duration: 500.ms),
                   const SizedBox(height: 28),
-                  const Text(
-                    'VIP COLIS',
+                  Text(
+                    AppConfig.appName.toUpperCase(),
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 46,
@@ -305,7 +306,7 @@ class _Hero extends StatelessWidget {
                   ).animate().fadeIn(delay: 200.ms).slideX(begin: -.1, end: 0),
                   const SizedBox(height: 14),
                   Text(
-                    'Le centre névralgique de vos expéditions.\nSuivez, gérez et sécurisez chaque colis à travers tout le réseau.',
+                    '${AppConfig.appSlogan}\nSuivez, gérez et sécurisez chaque colis à travers tout votre réseau.',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: .75),
                       fontSize: 18,

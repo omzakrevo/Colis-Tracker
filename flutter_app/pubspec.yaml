@@ -1,5 +1,5 @@
 name: vip_colis
-description: "A new Flutter project."
+description: "Tchi — gestion de colis et de transport."
 publish_to: 'none'
 version: 0.1.0+1
 
@@ -32,6 +32,22 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/branding/tchi_logo_512.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/branding/tchi_icon_1024.png"
+  adaptive_icon_background: "#F28C28"
+  adaptive_icon_foreground: "assets/branding/tchi_foreground_1024.png"
+  web:
+    generate: true
+    image_path: "assets/branding/tchi_icon_1024.png"
+    background_color: "#F6F7F6"
+    theme_color: "#0E2621"
