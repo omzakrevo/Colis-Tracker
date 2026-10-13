@@ -24,14 +24,14 @@ const _principaux = [
 ];
 
 List<_Item> _menu(Profil me) => [
-      ..._principaux,
-      const _Item('/rapports', 'Rapports', Icons.insights_rounded),
-      if (me.isAdmin) ...const [
-        _Item('/gares', 'Gares', Icons.location_city_rounded),
-        _Item('/utilisateurs', 'Utilisateurs', Icons.groups_rounded),
-        _Item('/parametres', 'Paramètres', Icons.tune_rounded),
-      ],
-    ];
+  ..._principaux,
+  const _Item('/rapports', 'Rapports', Icons.insights_rounded),
+  if (me.isAdmin) ...const [
+    _Item('/gares', 'Gares', Icons.location_city_rounded),
+    _Item('/utilisateurs', 'Utilisateurs', Icons.groups_rounded),
+    _Item('/parametres', 'Paramètres', Icons.tune_rounded),
+  ],
+];
 
 class Logo extends StatelessWidget {
   const Logo({super.key, this.size = 36, this.data});
@@ -44,8 +44,12 @@ class Logo extends StatelessWidget {
       try {
         return ClipRRect(
           borderRadius: BorderRadius.circular(size * .28),
-          child: Image.memory(base64Decode(data!.split(',').last),
-              width: size, height: size, fit: BoxFit.cover),
+          child: Image.memory(
+            base64Decode(data!.split(',').last),
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+          ),
         );
       } catch (_) {}
     }
@@ -53,8 +57,14 @@ class Logo extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-          color: Brand.orange, borderRadius: BorderRadius.circular(size * .28)),
-      child: Icon(Icons.inventory_2_rounded, color: Colors.white, size: size * .56),
+        color: Brand.orange,
+        borderRadius: BorderRadius.circular(size * .28),
+      ),
+      child: Icon(
+        Icons.inventory_2_rounded,
+        color: Colors.white,
+        size: size * .56,
+      ),
     );
   }
 }
@@ -82,18 +92,28 @@ class AppShell extends ConsumerWidget {
 
     if (wide) {
       return Scaffold(
-        body: Row(children: [
-          _Sidebar(
-              me: me, menu: menu, active: _active, settings: settings, onLogout: logout),
-          Expanded(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1200),
-                child: Padding(padding: const EdgeInsets.fromLTRB(32, 28, 32, 0), child: child),
+        body: Row(
+          children: [
+            _Sidebar(
+              me: me,
+              menu: menu,
+              active: _active,
+              settings: settings,
+              onLogout: logout,
+            ),
+            Expanded(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1200),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(32, 28, 32, 0),
+                    child: child,
+                  ),
+                ),
               ),
             ),
-          ),
-        ]),
+          ],
+        ),
       );
     }
 
@@ -101,27 +121,53 @@ class AppShell extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
-        title: Row(children: [
-          Logo(size: 30, data: settings?.logo),
-          const SizedBox(width: 10),
-          Text(settings?.nom.toUpperCase() ?? 'VIP COLIS',
-              style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: .5, fontSize: 17)),
-        ]),
+        title: Row(
+          children: [
+            Logo(size: 30, data: settings?.logo),
+            const SizedBox(width: 10),
+            Text(
+              settings?.nom.toUpperCase() ?? 'VIP COLIS',
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                letterSpacing: .5,
+                fontSize: 17,
+              ),
+            ),
+          ],
+        ),
       ),
       drawer: Drawer(
         backgroundColor: Brand.emerald,
         child: _Sidebar(
-            me: me, menu: menu, active: _active, settings: settings, onLogout: logout,
-            onNavigate: () => Navigator.of(context).pop(), embedded: true),
+          me: me,
+          menu: menu,
+          active: _active,
+          settings: settings,
+          onLogout: logout,
+          onNavigate: () => Navigator.of(context).pop(),
+          embedded: true,
+        ),
       ),
-      body: Padding(padding: const EdgeInsets.fromLTRB(16, 4, 16, 0), child: child),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/colis/nouveau'),
-        backgroundColor: Brand.orange,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Nouveau', style: TextStyle(fontWeight: FontWeight.w800)),
-      ).animate().scale(delay: 400.ms, duration: 500.ms, curve: Curves.easeOutBack),
+      body: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+        child: child,
+      ),
+      floatingActionButton: location.startsWith('/scanner')
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => context.push('/colis/nouveau'),
+              backgroundColor: Brand.orange,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text(
+                'Nouveau',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ).animate().scale(
+              delay: 400.ms,
+              duration: 500.ms,
+              curve: Curves.easeOutBack,
+            ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: bottomIdx < 0 ? 0 : bottomIdx,
         backgroundColor: Colors.white,
@@ -161,100 +207,161 @@ class _Sidebar extends StatelessWidget {
       width: embedded ? null : 252,
       color: Brand.emerald,
       child: SafeArea(
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-            child: Row(children: [
-              Logo(size: 38, data: settings?.logo),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text((settings?.nom ?? 'VIP Colis').toUpperCase(),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+              child: Row(
+                children: [
+                  Logo(size: 38, data: settings?.logo),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      (settings?.nom ?? 'VIP Colis').toUpperCase(),
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 17,
+                        letterSpacing: .6,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ).animate().fadeIn().slideX(begin: -.1, end: 0),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                children: [
+                  for (var n = 0; n < menu.length; n++)
+                    _SideTile(
+                          item: menu[n],
+                          selected: active(menu[n].path),
+                          onTap: () {
+                            onNavigate?.call();
+                            context.go(menu[n].path);
+                          },
+                        )
+                        .animate()
+                        .fadeIn(delay: (50 * n).ms)
+                        .slideX(
+                          begin: -.15,
+                          end: 0,
+                          delay: (50 * n).ms,
+                          curve: Curves.easeOutCubic,
+                        ),
+                ],
+              ),
+            ),
+            Container(
+              margin: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Brand.emeraldLight,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    me.nom,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.w800, fontSize: 17, letterSpacing: .6)),
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    roleLabel(me.role),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: .6),
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  InkWell(
+                    onTap: onLogout,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.logout_rounded,
+                            size: 16,
+                            color: Colors.white.withValues(alpha: .85),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Déconnexion',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: .85),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ]),
-          ).animate().fadeIn().slideX(begin: -.1, end: 0),
-          Expanded(
-            child: ListView(padding: const EdgeInsets.symmetric(horizontal: 12), children: [
-              for (var n = 0; n < menu.length; n++)
-                _SideTile(
-                  item: menu[n],
-                  selected: active(menu[n].path),
-                  onTap: () {
-                    onNavigate?.call();
-                    context.go(menu[n].path);
-                  },
-                ).animate().fadeIn(delay: (50 * n).ms).slideX(begin: -.15, end: 0, delay: (50 * n).ms, curve: Curves.easeOutCubic),
-            ]),
-          ),
-          Container(
-            margin: const EdgeInsets.all(12),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-                color: Brand.emeraldLight, borderRadius: BorderRadius.circular(16)),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(me.nom,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 2),
-              Text(roleLabel(me.role),
-                  style: TextStyle(color: Colors.white.withValues(alpha: .6), fontSize: 12)),
-              const SizedBox(height: 10),
-              InkWell(
-                onTap: onLogout,
-                borderRadius: BorderRadius.circular(10),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(children: [
-                    Icon(Icons.logout_rounded, size: 16, color: Colors.white.withValues(alpha: .85)),
-                    const SizedBox(width: 8),
-                    Text('Déconnexion',
-                        style: TextStyle(color: Colors.white.withValues(alpha: .85), fontSize: 13, fontWeight: FontWeight.w600)),
-                  ]),
-                ),
-              ),
-            ]),
-          ),
-        ]),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _SideTile extends StatelessWidget {
-  const _SideTile({required this.item, required this.selected, required this.onTap});
+  const _SideTile({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
   final _Item item;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: 260.ms,
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: selected ? Brand.orange : Colors.transparent,
             borderRadius: BorderRadius.circular(14),
-            onTap: onTap,
-            child: AnimatedContainer(
-              duration: 260.ms,
-              curve: Curves.easeOut,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: selected ? Brand.orange : Colors.transparent,
-                borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                item.icon,
+                size: 19,
+                color: selected ? Colors.white : Colors.white70,
               ),
-              child: Row(children: [
-                Icon(item.icon, size: 19, color: selected ? Colors.white : Colors.white70),
-                const SizedBox(width: 12),
-                Text(item.label,
-                    style: TextStyle(
-                        color: selected ? Colors.white : Colors.white70,
-                        fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-                        fontSize: 14)),
-              ]),
-            ),
+              const SizedBox(width: 12),
+              Text(
+                item.label,
+                style: TextStyle(
+                  color: selected ? Colors.white : Colors.white70,
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                  fontSize: 14,
+                ),
+              ),
+            ],
           ),
         ),
-      );
+      ),
+    ),
+  );
 }

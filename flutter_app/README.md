@@ -78,7 +78,10 @@ colis.mondomaine.com {
 - Colis : création en 3 étapes, photo, liste avec recherche/filtres/tri, détail avec
   progression animée (camion), historique, QR code, changement de statut contrôlé,
   retrait avec signature, reçu PDF imprimable (ticket 80 mm).
-- Scanner QR (caméra mobile ou web) + saisie manuelle du numéro.
+- Scanner QR (caméra mobile ou web) avec **scan rapide par lot** : *Consulter* (ouvre le colis),
+  *Embarquer* (Enregistré → Chargé) et *Décharger* (Chargé/En route → Arrivé). On scanne tous les
+  colis (caméra, saisie ou lecteur Bluetooth), puis un seul bouton valide le lot. Nécessite la migration
+  `20261013000000_scan_rapide.sql`.
 - Rapports : colis/jour, recettes par gare et par agent, colis non retirés.
 - Admin : gares, utilisateurs (création, rôle, activation, mot de passe), paramètres société + logo.
 - Visibilité : l'admin voit tout ; chef de gare/agent ne voient que les colis de leur gare.

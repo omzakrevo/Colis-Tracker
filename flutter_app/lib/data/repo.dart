@@ -47,6 +47,12 @@ class ColisFilter {
   static const _keep = Object();
 }
 
+class ScanResult {
+  ScanResult(this.numero, this.ok, this.message);
+  final String numero, message;
+  final bool ok;
+}
+
 class Repo {
   // ── Auth ──────────────────────────────────────────────
   static Future<Profil> login(String username, String password) async {
@@ -123,6 +129,14 @@ class Repo {
   static Future<void> changerStatut(int id, String statut, String? notes) =>
       _db.rpc('changer_statut',
           params: {'p_id': id, 'p_statut': statut, 'p_notes': notes});
+
+  /// Embarquement / déchargement de plusieurs colis d'un coup (scan rapide).
+  static Future<List<ScanResult>> scanLot(String mode, List<String> numeros) async {
+    final rows = await _db.rpc('scan_lot', params: {'p_mode': mode, 'p_numeros': numeros}) as List;
+    return rows
+        .map((r) => ScanResult(r['r_numero'] as String, r['r_ok'] as bool, r['r_message'] as String))
+        .toList();
+  }
 
   static Future<void> retirer(int id,
           {required String nom,
