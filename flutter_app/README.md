@@ -150,3 +150,28 @@ Workflow `.github/workflows/build-web.yml` : construit le web et le publie sur *
   (empreinte PBKDF2 salée du mot de passe, jamais le mot de passe) et permet de se reconnecter sans internet.
   Les écrans de données (colis, rapports…) nécessitent encore internet.
 - Le seed (`supabase/seed.sql`) rattache les comptes de test à la première entreprise.
+
+## 10. Mises à jour automatiques sur les téléphones (Shorebird)
+
+[Shorebird](https://shorebird.dev) envoie les mises à jour du code Dart directement aux téléphones, sans
+réinstaller l'APK ni passer par un store. Les téléphones téléchargent le patch au démarrage et l'appliquent au
+démarrage suivant.
+
+**Mise en place (une seule fois)**
+1. Créez un compte sur shorebird.dev, installez la CLI sur votre ordinateur et lancez `shorebird login:ci` :
+   elle affiche un jeton. Dans GitHub : *Settings → Secrets and variables → Actions → New repository secret*
+   nommé `SHOREBIRD_TOKEN` (valeur = ce jeton).
+2. *Actions → Shorebird - Publier une version → Run workflow*. Le premier lancement crée l'application chez Shorebird
+   et affiche `shorebird.yaml` (avec l'`app_id`) dans le résumé du run : **ajoutez ce fichier dans `flutter_app/`
+   et poussez-le** (sinon les versions suivantes créeraient une autre application).
+3. Téléchargez l'APK `application-android-shorebird` et installez-le sur les téléphones : **c'est cet APK**
+   (et non celui du workflow « Application mobile (Android) ») qui reçoit les mises à jour.
+
+**Envoyer une mise à jour**
+1. Modifiez le code Dart, fusionnez dans `main`.
+2. *Actions → Shorebird - Envoyer une mise à jour → Run workflow*.
+3. Les téléphones installés avec la même version reçoivent le patch automatiquement.
+
+**Limites** : seul le code Dart se met à jour. Un nouveau plugin, un changement de permissions ou de code Android/iOS
+natif, ou un changement de version majeure demande une nouvelle « Publier une version » et une réinstallation.
+Shorebird est un service tiers (offre gratuite limitée, puis payante) : vérifiez ses conditions et tarifs.
