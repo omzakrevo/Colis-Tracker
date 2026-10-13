@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/identifiant.dart';
@@ -375,4 +377,19 @@ final recettesAgentProvider = FutureProvider<List<LigneStat>>((ref) {
 final statutsProvider = FutureProvider<Map<String, int>>((ref) {
   ref.watch(tickProvider);
   return Repo.statutsSummary();
+});
+
+
+// ── Mise à jour de l'application (Android) ────────────────
+
+/// Version plus récente que celle installée, sinon null. Ne s'applique qu'à l'application Android.
+final miseAJourProvider = FutureProvider<AppVersion?>((ref) async {
+  if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return null;
+  try {
+    final installee = int.tryParse((await PackageInfo.fromPlatform()).buildNumber) ?? 0;
+    final derniere = await Repo.derniereVersion();
+    return (derniere != null && derniere.buildNumber > installee) ? derniere : null;
+  } catch (_) {
+    return null; // hors ligne ou erreur : on réessaiera plus tard
+  }
 });

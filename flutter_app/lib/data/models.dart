@@ -309,3 +309,34 @@ class LigneStat {
   final int total;
   final double recette;
 }
+
+/// Version de l'application publiée par le super administrateur (mise à jour intégrée).
+class AppVersion {
+  AppVersion({
+    required this.id,
+    required this.versionName,
+    required this.buildNumber,
+    required this.apkUrl,
+    required this.obligatoire,
+    required this.actif,
+    required this.createdAt,
+    this.notes,
+  });
+
+  final int id, buildNumber;
+  final String versionName, apkUrl;
+  final String? notes;
+  final bool obligatoire, actif;
+  final DateTime createdAt;
+
+  factory AppVersion.fromJson(Map<String, dynamic> j) => AppVersion(
+        id: j['id'] as int,
+        versionName: j['version_name'] as String,
+        buildNumber: (j['build_number'] as num).toInt(),
+        apkUrl: j['apk_url'] as String,
+        notes: j['notes'] as String?,
+        obligatoire: j['obligatoire'] as bool? ?? false,
+        actif: j['actif'] as bool? ?? true,
+        createdAt: DateTime.parse(j['created_at'] as String),
+      );
+}

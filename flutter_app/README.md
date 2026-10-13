@@ -175,3 +175,26 @@ démarrage suivant.
 **Limites** : seul le code Dart se met à jour. Un nouveau plugin, un changement de permissions ou de code Android/iOS
 natif, ou un changement de version majeure demande une nouvelle « Publier une version » et une réinstallation.
 Shorebird est un service tiers (offre gratuite limitée, puis payante) : vérifiez ses conditions et tarifs.
+
+## 11. Mises à jour intégrées, hébergées sur votre serveur
+
+Alternative gratuite à Shorebird : les téléphones Android vérifient au démarrage s'il existe une version plus
+récente (numéro de build supérieur) et proposent de l'installer. L'utilisateur télécharge l'APK puis appuie sur
+« Installer » (Android n'autorise pas l'installation silencieuse). Les données sont conservées.
+
+**Mise en place (une fois)** : exécutez `supabase/migrations/20261015000000_mises_a_jour_app.sql` dans Supabase Studio.
+Elle crée la table des versions et un dossier de stockage public `app-releases`. Si votre APK dépasse 50 Mo,
+augmentez la limite `FILE_SIZE_LIMIT` du service Storage de votre Supabase.
+
+**Publier une version — automatique (recommandé)** : créez les secrets GitHub `SUPABASE_URL` (l'adresse de votre API)
+et `SUPABASE_SERVICE_KEY` (clé `service_role` : à ne jamais mettre dans l'application ni dans le dépôt), puis
+*Actions → Application mobile (Android) → Run workflow* en cochant **Publier**. L'APK est construit, mis en ligne et annoncé.
+
+**Publier une version — à la main** : récupérez l'APK du workflow (nom `tchi-<build>.apk`), mettez-le en ligne
+(Studio → Storage → `app-releases`, ou tout lien public) puis, en super administrateur, écran **Mises à jour → Publier**
+avec le numéro de build et le lien. Vous pouvez aussi désactiver une version, la rendre obligatoire ou la supprimer.
+
+**Obligatoire** : l'application affiche une fenêtre qui ne peut pas être fermée tant que la mise à jour n'est pas installée.
+
+Les deux systèmes peuvent coexister : Shorebird pour les correctifs Dart instantanés, la mise à jour intégrée pour
+les nouvelles versions complètes (nouveaux plugins, changements Android).

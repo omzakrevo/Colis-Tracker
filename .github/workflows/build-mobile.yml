@@ -1,10 +1,33 @@
 name: Application mobile (Android)
 
-# Construit l'APK Android de VIP Colis dans le cloud GitHub.
+# Construit l'APK Android de Tchi dans le cloud GitHub.
 # Lancer à la main : Actions > Application mobile (Android) > Run workflow.
-# Le fichier est ensuite téléchargeable dans « Artifacts » en bas de la page du run.
+# Le numéro de build est automatique (numéro du run) et toujours croissant : c'est lui qui permet
+# aux téléphones de savoir qu'une version plus récente existe.
+#
+# Option « publier » : met l'APK en ligne sur VOTRE serveur Supabase et l'annonce aux téléphones
+# (mise à jour intégrée). Secrets GitHub requis dans ce cas :
+#   SUPABASE_URL          ex. https://vps-ef39f3a3.vps.ovh.ca
+#   SUPABASE_SERVICE_KEY  clé « service_role » de votre Supabase (jamais dans l'application !)
 on:
   workflow_dispatch:
+    inputs:
+      publier:
+        description: "Publier automatiquement sur mon serveur (mise à jour intégrée)"
+        type: boolean
+        default: false
+      obligatoire:
+        description: "Mise à jour obligatoire"
+        type: boolean
+        default: false
+      notes:
+        description: "Nouveautés affichées aux utilisateurs"
+        type: string
+        default: ""
+      nom_version:
+        description: "Nom de la version (vide = celui de pubspec.yaml)"
+        type: string
+        default: ""
   push:
     tags: ["v*"]
 
@@ -27,15 +50,55 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter test
+      - name: Numéro et nom de version
+        id: ver
+        run: |
+          NAME="${{ inputs.nom_version }}"
+          if [ -z "$NAME" ]; then NAME=$(grep '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//'); fi
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "build=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
       - name: Construire l'APK
-        run: flutter build apk --release
+        run: |
+          flutter build apk --release --build-name="${{ steps.ver.outputs.name }}" --build-number="${{ steps.ver.outputs.build }}"
+          cp build/app/outputs/flutter-apk/app-release.apk "build/app/outputs/flutter-apk/tchi-${{ steps.ver.outputs.build }}.apk"
+          {
+            echo "### APK construit"
+            echo "- Version : **${{ steps.ver.outputs.name }}**"
+            echo "- Numéro de build : **${{ steps.ver.outputs.build }}**"
+          } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
-          name: vip-colis-android
-          path: flutter_app/build/app/outputs/flutter-apk/app-release.apk
+          name: tchi-android-build-${{ steps.ver.outputs.build }}
+          path: flutter_app/build/app/outputs/flutter-apk/tchi-${{ steps.ver.outputs.build }}.apk
           if-no-files-found: error
+      - name: Publier sur mon serveur (mise à jour intégrée)
+        if: ${{ inputs.publier }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          NAME: ${{ steps.ver.outputs.name }}
+          BUILD: ${{ steps.ver.outputs.build }}
+          NOTES: ${{ inputs.notes }}
+          OBLIG: ${{ inputs.obligatoire }}
+        run: |
+          set -e
+          : "${SUPABASE_URL:?Secret SUPABASE_URL manquant}"
+          : "${SUPABASE_SERVICE_KEY:?Secret SUPABASE_SERVICE_KEY manquant}"
+          SUPABASE_URL="${SUPABASE_URL%/}"
+          FILE="build/app/outputs/flutter-apk/tchi-${BUILD}.apk"
+          curl -sS --fail-with-body -X POST "$SUPABASE_URL/storage/v1/object/app-releases/android/tchi-${BUILD}.apk" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" -H "apikey: $SUPABASE_SERVICE_KEY" \
+            -H "Content-Type: application/vnd.android.package-archive" -H "x-upsert: true" \
+            --data-binary @"$FILE"
+          URL="$SUPABASE_URL/storage/v1/object/public/app-releases/android/tchi-${BUILD}.apk"
+          BODY=$(jq -n --arg n "$NAME" --argjson b "$BUILD" --arg u "$URL" --arg notes "$NOTES" --argjson o "$OBLIG" \
+            '{version_name:$n, build_number:$b, apk_url:$u, notes:(if $notes=="" then null else $notes end), obligatoire:$o}')
+          curl -sS --fail-with-body -X POST "$SUPABASE_URL/rest/v1/app_versions" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" -H "apikey: $SUPABASE_SERVICE_KEY" \
+            -H "Content-Type: application/json" -H "Prefer: return=minimal" -d "$BODY"
+          echo "- Publié : $URL" >> "$GITHUB_STEP_SUMMARY"
       - name: Joindre l'APK à la release (tags v*)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: flutter_app/build/app/outputs/flutter-apk/app-release.apk
+          files: flutter_app/build/app/outputs/flutter-apk/tchi-${{ steps.ver.outputs.build }}.apk
