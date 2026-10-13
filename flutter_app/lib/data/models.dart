@@ -280,7 +280,7 @@ class CompanySettings {
   );
 
   static CompanySettings get defaults => CompanySettings(
-    nom: 'VIP Colis',
+    nom: 'Mon entreprise',
     slogan: 'Réseau de transport express — Burkina Faso',
     telephone: '',
     email: '',

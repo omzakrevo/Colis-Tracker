@@ -1,0 +1,30 @@
+name: Shorebird - Envoyer une mise à jour (patch) aux téléphones
+
+# À lancer à chaque correctif ou amélioration qui ne change que le code Dart de l'application :
+# la mise à jour est téléchargée automatiquement par les téléphones, au prochain démarrage de l'application.
+# Si vous avez ajouté un plugin ou changé du code Android/iOS natif : faites plutôt une nouvelle « Publier une version ».
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Version à corriger (ex. 0.1.0+1). « latest » = la dernière version publiée"
+        required: false
+        default: "latest"
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    env:
+      SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: shorebirdtech/setup-shorebird@v1
+      - name: Envoyer le patch
+        run: shorebird patch android --release-version=${{ inputs.release_version }} --no-confirm

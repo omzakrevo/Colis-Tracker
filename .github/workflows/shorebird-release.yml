@@ -1,0 +1,54 @@
+name: Shorebird - Publier une version (APK avec mises à jour automatiques)
+
+# À lancer UNE FOIS par nouvelle version « complète » de l'application (nouveau numéro de version dans
+# flutter_app/pubspec.yaml, nouveau plugin, changement Android natif…).
+# L'APK produit contient le moteur Shorebird : il pourra ensuite recevoir des correctifs (patchs)
+# directement sur les téléphones, sans réinstallation.
+#
+# Prérequis (une seule fois) : secret GitHub SHOREBIRD_TOKEN  (commande locale : `shorebird login:ci`).
+on:
+  workflow_dispatch:
+    inputs:
+      flutter_version:
+        description: "Version de Flutter pour Shorebird (vide = version recommandée par Shorebird)"
+        required: false
+        default: ""
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: shorebirdtech/setup-shorebird@v1
+      - name: Initialiser Shorebird (première fois seulement)
+        run: |
+          if [ ! -f shorebird.yaml ]; then
+            shorebird init --force
+          fi
+          echo "### shorebird.yaml" >> "$GITHUB_STEP_SUMMARY"
+          echo '```yaml' >> "$GITHUB_STEP_SUMMARY"
+          cat shorebird.yaml >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - name: Publier la version Android
+        run: |
+          ARGS="--artifact apk --no-confirm"
+          if [ -n "${{ inputs.flutter_version }}" ]; then ARGS="$ARGS --flutter-version=${{ inputs.flutter_version }}"; fi
+          shorebird release android $ARGS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: application-android-shorebird
+          path: flutter_app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shorebird-yaml
+          path: flutter_app/shorebird.yaml

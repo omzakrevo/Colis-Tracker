@@ -17,11 +17,11 @@ Future<void> main() async {
       publishableKey: AppConfig.supabaseAnonKey,
     );
   }
-  runApp(const ProviderScope(child: VipColisApp()));
+  runApp(const ProviderScope(child: TchiApp()));
 }
 
-class VipColisApp extends ConsumerWidget {
-  const VipColisApp({super.key});
+class TchiApp extends ConsumerWidget {
+  const TchiApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,7 +33,7 @@ class VipColisApp extends ConsumerWidget {
       );
     }
     return MaterialApp.router(
-      title: 'VIP Colis',
+      title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
       theme: Brand.theme(),
       routerConfig: ref.watch(routerProvider),
