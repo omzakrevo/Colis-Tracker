@@ -9,8 +9,10 @@ assurée par les règles RLS du schéma SQL.
 ## 1. Préparer Supabase (une seule fois)
 
 1. Ouvrez **Supabase Studio** de votre VPS → *SQL Editor*.
-2. Exécutez `supabase/migrations/20261012000000_vip_colis.sql` (tables, sécurité RLS,
-   fonctions, temps réel).
+2. *(Seulement si une ancienne version a déjà été essayée et a touché votre table `profiles` : exécutez d'abord `supabase/cleanup_profiles.sql`.)*
+   Exécutez `supabase/migrations/20261012000000_vip_colis.sql` (tables, sécurité RLS,
+   fonctions, temps réel). Les comptes de l'app sont dans la table dédiée `vip_profiles`,
+   la table `profiles` éventuelle de vos autres applications n'est pas touchée.
 3. *(Optionnel, pour tester)* exécutez `supabase/seed.sql` : crée 4 gares et les comptes
    `admin/admin123`, `chef_oua/chef123`, `agent_bobo/agent123`, `agent_ban/agent123`.
    **Changez ces mots de passe avant la production.**

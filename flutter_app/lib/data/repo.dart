@@ -69,7 +69,7 @@ class Repo {
   static Future<Profil?> currentProfil() async {
     final uid = _db.auth.currentUser?.id;
     if (uid == null) return null;
-    final r = await _db.from('profiles').select().eq('id', uid).maybeSingle();
+    final r = await _db.from('vip_profiles').select().eq('id', uid).maybeSingle();
     return r == null ? null : Profil.fromJson(r);
   }
 
@@ -153,7 +153,7 @@ class Repo {
 
   // ── Utilisateurs ──────────────────────────────────────
   static Future<List<Profil>> profils() async =>
-      (await _db.from('profiles').select().order('nom')).map(Profil.fromJson).toList();
+      (await _db.from('vip_profiles').select().order('nom')).map(Profil.fromJson).toList();
 
   static Future<void> creerUtilisateur({
     required String username,
@@ -173,7 +173,7 @@ class Repo {
       });
 
   static Future<void> majProfil(String id, Map<String, dynamic> data) =>
-      _db.from('profiles').update(data).eq('id', id);
+      _db.from('vip_profiles').update(data).eq('id', id);
 
   static Future<void> changerMotDePasse(String id, String password) => _db
       .rpc('admin_changer_mot_de_passe', params: {'p_user': id, 'p_password': password});

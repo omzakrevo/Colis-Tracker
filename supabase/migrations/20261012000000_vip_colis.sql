@@ -15,9 +15,10 @@ create table if not exists public.gares (
   created_at  timestamptz not null default now()
 );
 
+-- Table dédiée à VIP Colis (nommée vip_profiles pour ne pas entrer en conflit avec une table « profiles » existante).
 -- Un profil par compte Supabase Auth. Connexion par « username » :
 -- l'e-mail technique est <username>@vipcolis.app (jamais affiché).
-create table if not exists public.profiles (
+create table if not exists public.vip_profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
   nom         text not null,
   username    text not null unique,
@@ -27,19 +28,6 @@ create table if not exists public.profiles (
   actif       boolean not null default true,
   created_at  timestamptz not null default now()
 );
-
--- Si une table « profiles » existait déjà (ex. modèle de démarrage Supabase), on la complète.
-alter table public.profiles add column if not exists nom        text not null default '';
-alter table public.profiles add column if not exists username   text;
-alter table public.profiles add column if not exists role       text not null default 'agent';
-alter table public.profiles add column if not exists gare_id    bigint references public.gares(id) on delete set null;
-alter table public.profiles add column if not exists telephone  text;
-alter table public.profiles add column if not exists actif      boolean not null default true;
-alter table public.profiles add column if not exists created_at timestamptz not null default now();
-do $$ begin
-  alter table public.profiles add constraint profiles_role_check check (role in ('admin', 'chef_gare', 'agent'));
-exception when duplicate_object then null; end $$;
-create unique index if not exists profiles_vip_username_key on public.profiles (username);
 
 create sequence if not exists public.colis_numero_seq start 100000;
 
@@ -59,7 +47,7 @@ create table if not exists public.colis (
   statut                  text not null default 'enregistre'
                           check (statut in ('enregistre','charge','en_route','arrive','retire','annule')),
   date_envoi              date not null default current_date,
-  agent_id                uuid references public.profiles(id) on delete set null,
+  agent_id                uuid references public.vip_profiles(id) on delete set null,
   retrait_nom             text,
   retrait_telephone       text,
   retrait_piece_identite  text,
@@ -79,7 +67,7 @@ create table if not exists public.historique_colis (
   colis_id         bigint not null references public.colis(id) on delete cascade,
   statut           text not null,
   notes            text,
-  agent_id         uuid references public.profiles(id) on delete set null,
+  agent_id         uuid references public.vip_profiles(id) on delete set null,
   date_changement  timestamptz not null default now()
 );
 create index if not exists historique_colis_idx on public.historique_colis(colis_id);
@@ -101,12 +89,12 @@ insert into public.company_settings (id) values (1) on conflict do nothing;
 
 create or replace function public.app_role() returns text
 language sql stable security definer set search_path = public as $$
-  select role from public.profiles where id = auth.uid() and actif
+  select role from public.vip_profiles where id = auth.uid() and actif
 $$;
 
 create or replace function public.app_gare_id() returns bigint
 language sql stable security definer set search_path = public as $$
-  select gare_id from public.profiles where id = auth.uid() and actif
+  select gare_id from public.vip_profiles where id = auth.uid() and actif
 $$;
 
 -- Numéro de suivi COL-YYYY-XXXXXX + agent courant
@@ -158,7 +146,7 @@ create trigger colis_guard_update before update on public.colis
   for each row execute function public.colis_guard_update();
 
 -- Un utilisateur non-admin ne peut pas modifier son propre rôle / sa gare / son état.
-create or replace function public.profiles_guard_update() returns trigger
+create or replace function public.vip_profiles_guard_update() returns trigger
 language plpgsql as $$
 begin
   if public.app_role() is distinct from 'admin' and current_setting('vipcolis.bypass', true) is distinct from 'on' then
@@ -170,9 +158,9 @@ begin
   return new;
 end $$;
 
-drop trigger if exists profiles_guard_update on public.profiles;
-create trigger profiles_guard_update before update on public.profiles
-  for each row execute function public.profiles_guard_update();
+drop trigger if exists vip_profiles_guard_update on public.vip_profiles;
+create trigger vip_profiles_guard_update before update on public.vip_profiles
+  for each row execute function public.vip_profiles_guard_update();
 
 -- ───────────────────────── Actions métier (RPC) ─────────────────────────
 
@@ -260,7 +248,7 @@ begin
           'email', now(), now(), now());
 
   perform set_config('vipcolis.bypass', 'on', true);
-  insert into public.profiles (id, nom, username, role, gare_id, telephone)
+  insert into public.vip_profiles (id, nom, username, role, gare_id, telephone)
   values (uid, p_nom, lower(trim(p_username)), p_role, p_gare_id, p_telephone)
   on conflict (id) do update set nom = excluded.nom, username = excluded.username,
     role = excluded.role, gare_id = excluded.gare_id, telephone = excluded.telephone;
@@ -287,12 +275,12 @@ select c.*,
 from public.colis c
 left join public.gares gd on gd.id = c.gare_depart_id
 left join public.gares ga on ga.id = c.gare_arrivee_id
-left join public.profiles p on p.id = c.agent_id;
+left join public.vip_profiles p on p.id = c.agent_id;
 
 create or replace view public.historique_detail with (security_invoker = true) as
 select h.*, p.nom as agent_nom
 from public.historique_colis h
-left join public.profiles p on p.id = h.agent_id;
+left join public.vip_profiles p on p.id = h.agent_id;
 
 create or replace function public.dashboard_stats() returns json
 language sql stable set search_path = public as $$
@@ -305,7 +293,7 @@ language sql stable set search_path = public as $$
     'recette_totale',      coalesce((select sum(prix) from colis where statut <> 'annule'), 0),
     'recette_aujourd_hui', coalesce((select sum(prix) from colis where statut <> 'annule' and date_envoi = current_date), 0),
     'total_gares',         (select count(*) from gares),
-    'total_agents',        (select count(*) from profiles where actif)
+    'total_agents',        (select count(*) from vip_profiles where actif)
   )
 $$;
 
@@ -330,7 +318,7 @@ create or replace function public.recettes_par_agent()
 returns table (agent_id uuid, agent_nom text, total_colis bigint, recette_totale numeric)
 language sql stable set search_path = public as $$
   select p.id, p.nom, count(c.id), coalesce(sum(c.prix), 0)
-  from profiles p left join colis c on c.agent_id = p.id
+  from vip_profiles p left join colis c on c.agent_id = p.id
   where p.role = 'agent'
   group by p.id, p.nom order by p.nom
 $$;
@@ -344,7 +332,7 @@ $$;
 -- ───────────────────────── Sécurité (RLS) ─────────────────────────
 
 alter table public.gares enable row level security;
-alter table public.profiles enable row level security;
+alter table public.vip_profiles enable row level security;
 alter table public.colis enable row level security;
 alter table public.historique_colis enable row level security;
 alter table public.company_settings enable row level security;
@@ -355,11 +343,11 @@ create policy gares_select on public.gares for select to authenticated using (tr
 create policy gares_write on public.gares for all to authenticated
   using (app_role() = 'admin') with check (app_role() = 'admin');
 
-drop policy if exists profiles_select on public.profiles;
-drop policy if exists profiles_update on public.profiles;
-drop policy if exists profiles_delete on public.profiles;
-create policy profiles_select on public.profiles for select to authenticated using (true);
-create policy profiles_update on public.profiles for update to authenticated
+drop policy if exists vip_profiles_select on public.vip_profiles;
+drop policy if exists vip_profiles_update on public.vip_profiles;
+drop policy if exists vip_profiles_delete on public.vip_profiles;
+create policy vip_profiles_select on public.vip_profiles for select to authenticated using (true);
+create policy vip_profiles_update on public.vip_profiles for update to authenticated
   using (app_role() = 'admin' or id = auth.uid())
   with check (app_role() = 'admin' or id = auth.uid());
 
@@ -385,7 +373,7 @@ create policy settings_update on public.company_settings for update to authentic
   using (app_role() = 'admin') with check (app_role() = 'admin');
 
 grant usage on schema public to authenticated;
-grant select, insert, update, delete on public.gares, public.profiles, public.colis, public.company_settings to authenticated;
+grant select, insert, update, delete on public.gares, public.vip_profiles, public.colis, public.company_settings to authenticated;
 grant select on public.historique_colis, public.colis_detail, public.historique_detail to authenticated;
 grant usage, select on all sequences in schema public to authenticated;
 grant execute on all functions in schema public to authenticated;

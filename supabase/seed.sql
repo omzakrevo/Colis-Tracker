@@ -14,24 +14,28 @@ where not exists (select 1 from public.gares);
 create or replace function pg_temp.seed_user(p_username text, p_password text, p_nom text, p_role text, p_ville text)
 returns void language plpgsql as $$
 declare
-  uid uuid := gen_random_uuid();
+  uid uuid;
   mail text := p_username || '@vipcolis.app';
 begin
-  if exists (select 1 from public.profiles where username = p_username) then return; end if;
+  if exists (select 1 from public.vip_profiles where username = p_username) then return; end if;
   perform set_config('vipcolis.bypass', 'on', true);
 
-  insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
-    raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
-    confirmation_token, recovery_token, email_change, email_change_token_new)
-  values ('00000000-0000-0000-0000-000000000000', uid, 'authenticated', 'authenticated', mail,
-    crypt(p_password, gen_salt('bf')), now(),
-    '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '');
+  select id into uid from auth.users where email = mail;
+  if uid is null then
+    uid := gen_random_uuid();
+    insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+      raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+      confirmation_token, recovery_token, email_change, email_change_token_new)
+    values ('00000000-0000-0000-0000-000000000000', uid, 'authenticated', 'authenticated', mail,
+      crypt(p_password, gen_salt('bf')), now(),
+      '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '');
 
-  insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
-  values (gen_random_uuid(), uid, uid::text,
-    jsonb_build_object('sub', uid::text, 'email', mail, 'email_verified', true), 'email', now(), now(), now());
+    insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+    values (gen_random_uuid(), uid, uid::text,
+      jsonb_build_object('sub', uid::text, 'email', mail, 'email_verified', true), 'email', now(), now(), now());
+  end if;
 
-  insert into public.profiles (id, nom, username, role, gare_id)
+  insert into public.vip_profiles (id, nom, username, role, gare_id)
   values (uid, p_nom, p_username, p_role, (select id from public.gares where ville = p_ville limit 1))
   on conflict (id) do update set nom = excluded.nom, username = excluded.username,
     role = excluded.role, gare_id = excluded.gare_id;
