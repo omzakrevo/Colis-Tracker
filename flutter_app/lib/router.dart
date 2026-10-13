@@ -12,6 +12,7 @@ import 'screens/entreprises.dart';
 import 'screens/gares.dart';
 import 'screens/inscription.dart';
 import 'screens/login.dart';
+import 'screens/mises_a_jour.dart';
 import 'screens/parametres.dart';
 import 'screens/rapports.dart';
 import 'screens/recherche.dart';
@@ -57,10 +58,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       const publiques = ['/login', '/inscription'];
       final p = d.profil;
       if (p == null) return publiques.contains(loc) ? null : '/login';
-      if (p.isSuper) return loc == '/entreprises' ? null : '/entreprises';
+      if (p.isSuper) return (loc == '/entreprises' || loc == '/mises-a-jour') ? null : '/entreprises';
       if (d.bloque) return loc == '/attente' ? null : '/attente';
       if (publiques.contains(loc) ||
           loc == '/attente' ||
+          loc == '/mises-a-jour' ||
           loc.startsWith('/entreprises'))
         return '/';
       const adminOnly = ['/gares', '/utilisateurs', '/parametres'];
@@ -87,6 +89,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/',
             pageBuilder: (c, s) => _page(s, const DashboardScreen()),
+          ),
+          GoRoute(
+            path: '/mises-a-jour',
+            pageBuilder: (c, s) => _page(s, const MisesAJourScreen()),
           ),
           GoRoute(
             path: '/entreprises',

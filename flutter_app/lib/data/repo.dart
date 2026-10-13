@@ -106,6 +106,46 @@ class Repo {
         .timeout(_delai);
   }
 
+  // ── Mises à jour de l'application ─────────────────────
+  /// Dernière version Android active (null s'il n'y en a pas).
+  static Future<AppVersion?> derniereVersion() async {
+    final r = await _db
+        .from('app_versions')
+        .select()
+        .eq('plateforme', 'android')
+        .eq('actif', true)
+        .order('build_number', ascending: false)
+        .limit(1)
+        .maybeSingle()
+        .timeout(_delai);
+    return r == null ? null : AppVersion.fromJson(r);
+  }
+
+  static Future<List<AppVersion>> versions() async {
+    final rows = await _db.from('app_versions').select().order('build_number', ascending: false);
+    return rows.map(AppVersion.fromJson).toList();
+  }
+
+  static Future<void> publierVersion({
+    required String versionName,
+    required int buildNumber,
+    required String apkUrl,
+    String? notes,
+    bool obligatoire = false,
+  }) =>
+      _db.from('app_versions').insert({
+        'version_name': versionName,
+        'build_number': buildNumber,
+        'apk_url': apkUrl,
+        'notes': notes,
+        'obligatoire': obligatoire,
+      });
+
+  static Future<void> majVersion(int id, Map<String, dynamic> data) =>
+      _db.from('app_versions').update(data).eq('id', id);
+
+  static Future<void> supprimerVersion(int id) => _db.from('app_versions').delete().eq('id', id);
+
   // ── Super administrateur ──────────────────────────────
   static Future<List<Company>> entreprises() async {
     final rows = await _db

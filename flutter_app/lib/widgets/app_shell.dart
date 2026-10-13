@@ -10,6 +10,7 @@ import '../core/format.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../data/providers.dart';
+import 'update_dialog.dart';
 
 class _Item {
   const _Item(this.path, this.label, this.icon);
@@ -25,7 +26,10 @@ const _principaux = [
 ];
 
 List<_Item> _menu(Profil me) => me.isSuper
-    ? const [_Item('/entreprises', 'Entreprises', Icons.business_rounded)]
+    ? const [
+        _Item('/entreprises', 'Entreprises', Icons.business_rounded),
+        _Item('/mises-a-jour', 'Mises à jour', Icons.system_update_rounded),
+      ]
     : [
         ..._principaux,
         const _Item('/rapports', 'Rapports', Icons.insights_rounded),
@@ -79,10 +83,18 @@ class AppShell extends ConsumerWidget {
     ref.watch(realtimeProvider);
     final me = ref.watch(profilProvider).value;
     if (me == null) return const SizedBox.shrink();
-    final settings = ref.watch(settingsProvider).value;
+    final settings = me.isSuper ? null : ref.watch(settingsProvider).value;
     final wide = MediaQuery.sizeOf(context).width >= 900;
     final menu = _menu(me);
     final offline = ref.watch(sessionProvider).offline;
+    ref.listen(miseAJourProvider, (_, next) {
+      final v = next.value;
+      if (v != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) proposerMiseAJour(context, v);
+        });
+      }
+    });
     final body = Column(
       children: [
         if (offline) const _OfflineBanner(),
