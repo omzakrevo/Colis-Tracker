@@ -382,6 +382,35 @@ class Repo {
     return locaux.where((c) => c.numero.toUpperCase() == n).firstOrNull;
   }
 
+  /// Informations minimales d'un colis pour le scan (le barragiste n'a pas accès aux données des clients).
+  static Future<Colis?> infoScan(String numero) async {
+    final rows =
+        await _db
+                .rpc('colis_scan_info', params: {'p_numero': numero})
+                .timeout(_delaiLecture)
+            as List;
+    if (rows.isEmpty) return null;
+    final m = Map<String, dynamic>.from(rows.first as Map);
+    final now = DateTime.now();
+    return Colis(
+      id: 0,
+      numero: m['numero'] as String,
+      expediteurNom: '',
+      expediteurTelephone: '',
+      destinataireNom: '',
+      destinataireTelephone: '',
+      gareDepartId: 0,
+      gareArriveeId: 0,
+      gareArriveeNom: m['gare_arrivee_nom'] as String?,
+      description: '',
+      nombre: 1,
+      prix: 0,
+      statut: m['statut'] as String,
+      dateEnvoi: now,
+      createdAt: now,
+    );
+  }
+
   static Future<List<Historique>> historique(int colisId) async {
     List<Historique> base = [];
     if (colisId >= 0) {

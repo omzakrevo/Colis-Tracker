@@ -26,7 +26,9 @@ const _principaux = [
   _Item('/recherche', 'Recherche', Icons.search_rounded),
 ];
 
-List<_Item> _menu(Profil me) => me.isSuper
+List<_Item> _menu(Profil me) => me.isBarragiste
+    ? const [_Item('/scanner', 'Scanner', Icons.qr_code_scanner_rounded)]
+    : me.isSuper
     ? const [
         _Item('/entreprises', 'Entreprises', Icons.business_rounded),
         _Item('/mises-a-jour', 'Mises à jour', Icons.system_update_rounded),
@@ -169,7 +171,8 @@ class AppShell extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
         child: body,
       ),
-      floatingActionButton: (location.startsWith('/scanner') || me.isSuper)
+      floatingActionButton:
+          (location.startsWith('/scanner') || me.isSuper || me.isBarragiste)
           ? null
           : FloatingActionButton.extended(
               onPressed: () => context.push('/colis/nouveau'),
@@ -185,7 +188,7 @@ class AppShell extends ConsumerWidget {
               duration: 500.ms,
               curve: Curves.easeOutBack,
             ),
-      bottomNavigationBar: me.isSuper
+      bottomNavigationBar: (me.isSuper || me.isBarragiste)
           ? null
           : NavigationBar(
               selectedIndex: bottomIdx < 0 ? 0 : bottomIdx,

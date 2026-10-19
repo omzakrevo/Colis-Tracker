@@ -9,6 +9,7 @@ import '../data/providers.dart';
 import '../data/repo.dart';
 import '../widgets/colis_tile.dart';
 import '../widgets/common.dart';
+import 'rapport_pdf.dart';
 
 final _nonRetiresProvider = FutureProvider<List<Colis>>((ref) {
   ref.watch(tickProvider);
@@ -17,6 +18,38 @@ final _nonRetiresProvider = FutureProvider<List<Colis>>((ref) {
 
 class RapportsScreen extends ConsumerWidget {
   const RapportsScreen({super.key});
+
+  /// Génère le rapport PDF (avec les signatures des retraits) de la période affichée.
+  Future<void> _telecharger(BuildContext context, WidgetRef ref) async {
+    final p = ref.read(rapportPeriodeProvider);
+    final me = ref.read(profilProvider).value;
+    if (me == null) return;
+    toast(context, 'Préparation du rapport…');
+    try {
+      final colis = await Repo.listColis(
+        ColisFilter(debut: p.debut, fin: p.fin),
+        maGareId: me.gareId,
+      );
+      final gares = await ref.read(recettesGareProvider.future);
+      final agents = await ref.read(recettesAgentProvider.future);
+      final co = await ref.read(settingsProvider.future);
+      final garesListe = await ref.read(garesProvider.future);
+      final gare = garesListe.where((g) => g.id == me.gareId).firstOrNull;
+      final pdf = await rapportPdf(
+        co: co,
+        me: me,
+        perimetre: me.isAdmin ? 'Toutes les gares' : (gare?.nom ?? 'Ma gare'),
+        debut: p.debut,
+        fin: p.fin,
+        colis: colis,
+        gares: gares,
+        agents: agents,
+      );
+      await telechargerRapport(pdf, debut: p.debut, fin: p.fin);
+    } catch (e) {
+      if (context.mounted) toast(context, errMsg(e), error: true);
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -135,6 +168,11 @@ class RapportsScreen extends ConsumerWidget {
               onPressed: () => pick(false),
               icon: const Icon(Icons.event_rounded, size: 18),
               label: Text('Au ${p.fin == null ? '…' : dateFr(p.fin!)}'),
+            ),
+            FilledButton.icon(
+              onPressed: () => _telecharger(context, ref),
+              icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+              label: const Text('Télécharger (PDF)'),
             ),
           ],
         ).reveal(),

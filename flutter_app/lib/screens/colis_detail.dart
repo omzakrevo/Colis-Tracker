@@ -250,9 +250,14 @@ class ColisDetailScreen extends ConsumerWidget {
                     label: const Text('Changer le statut'),
                   ),
                 OutlinedButton.icon(
+                  onPressed: () => imprimerRecu(c, company, ticket: true),
+                  icon: const Icon(Icons.receipt_long_rounded),
+                  label: const Text('Ticket 80 mm'),
+                ),
+                OutlinedButton.icon(
                   onPressed: () => imprimerRecu(c, company),
                   icon: const Icon(Icons.print_rounded),
-                  label: const Text('Imprimer le reçu'),
+                  label: const Text('Reçu A4'),
                 ),
               ],
             ).reveal(2),

@@ -63,6 +63,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             ? null
             : '/entreprises';
       if (d.bloque) return loc == '/attente' ? null : '/attente';
+      // Le barragiste n'a accès qu'au scanner.
+      if (p.isBarragiste) return loc == '/scanner' ? null : '/scanner';
       if (publiques.contains(loc) ||
           loc == '/attente' ||
           loc == '/mises-a-jour' ||

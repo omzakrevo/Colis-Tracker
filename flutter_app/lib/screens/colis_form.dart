@@ -13,6 +13,7 @@ import '../data/models.dart';
 import '../data/providers.dart';
 import '../data/repo.dart';
 import '../widgets/common.dart';
+import 'receipt.dart';
 
 class ColisFormScreen extends ConsumerStatefulWidget {
   const ColisFormScreen({super.key});
@@ -114,11 +115,49 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
             ? 'Colis ${c.numero} enregistré hors ligne — il sera envoyé dès le retour d\'internet'
             : 'Colis ${c.numero} enregistré !',
       );
-      context.go('/colis/${c.id}');
+      await _proposerImpression(c);
+      if (mounted) context.go('/colis/${c.id}');
     } catch (e) {
       if (mounted) toast(context, errMsg(e), error: true);
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  /// Juste après l'enregistrement : imprimer tout de suite le ticket (ou le reçu A4).
+  Future<void> _proposerImpression(Colis c) async {
+    final choix = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'Imprimer le ticket ?',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: Text('Colis ${c.numero} enregistré. Imprimez maintenant le reçu à remettre au client.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'non'),
+            child: const Text('Plus tard'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.pop(ctx, 'a4'),
+            icon: const Icon(Icons.print_rounded),
+            label: const Text('Reçu A4'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, 'ticket'),
+            icon: const Icon(Icons.receipt_long_rounded),
+            label: const Text('Ticket 80 mm'),
+          ),
+        ],
+      ),
+    );
+    if (choix == null || choix == 'non') return;
+    try {
+      final co = await ref.read(settingsProvider.future);
+      await imprimerRecu(c, co, ticket: choix == 'ticket');
+    } catch (e) {
+      if (mounted) toast(context, errMsg(e), error: true);
     }
   }
 

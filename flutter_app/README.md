@@ -208,3 +208,13 @@ Migration à exécuter : `supabase/migrations/20261016000000_hors_ligne.sql` (co
 - **Colis créé hors ligne** : il reçoit un numéro provisoire `LOC-XXXXXXXX` (reçu et QR), puis son vrai numéro `COL-…` à la synchronisation ; l'étiquette déjà collée reste scannable car le serveur conserve le numéro provisoire. Un envoi rejoué ne crée jamais de doublon.
 - **Refus du serveur** : si une action n'est plus valable (le colis a changé entre-temps), elle est mise de côté avec son motif dans un bandeau rouge, sans bloquer les autres.
 - Limites : les écrans d'administration (gares, utilisateurs, entreprises) et la création de comptes nécessitent toujours internet ; la photo du colis n'est pas conservée dans les listes mémorisées.
+
+## 13. Rôles, rapports par gare, impression
+
+Migration à exécuter : `supabase/migrations/20261017000000_barragistes_et_rapports_par_gare.sql`.
+
+- **Barragiste** (nouveau rôle, à créer dans *Utilisateurs*) : il n'a que l'écran **Scanner**, avec *Embarquer* et *Décharger* (pas de consultation). Il ne voit aucune donnée client : le scan ne renvoie que le numéro, le statut et la gare d'arrivée. Il ne peut ni changer un statut à la main ni enregistrer un retrait. La gare est facultative pour lui.
+- **Agents / chefs de gare** : ils ne voient que les colis qui partent de leur gare ou qui arrivent chez eux ; le tableau de bord, les rapports, les recettes par gare et par agent ne concernent que leur gare (recette = colis partis de leur gare).
+- **Rapport PDF** (écran *Rapports* → *Télécharger (PDF)*) : synthèse, recettes, liste des colis de la période et **signatures des retraits**. Télécharge le fichier sur le web, ouvre le partage sur mobile.
+- **Impression** : juste après l'enregistrement d'un colis, une fenêtre propose d'imprimer le **ticket 80 mm** (occupe toute la largeur du rouleau) ou un **reçu A4** (deux exemplaires, client et agence, qui remplissent la feuille). Les mêmes boutons sont sur la fiche du colis.
+- **Scanner** : la caméra reste active quand on passe de *Consulter* à *Embarquer* / *Décharger*.

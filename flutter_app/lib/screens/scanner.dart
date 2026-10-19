@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../core/format.dart';
+import '../core/identifiant.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../data/providers.dart';
@@ -47,6 +48,9 @@ class _ScanItem {
   final String numero;
   Colis? colis;
   bool loading = true;
+
+  /// Barragiste sans internet : le colis ne peut pas être vérifié, il le sera à l'envoi.
+  bool horsLigne = false;
 }
 
 class ScannerScreen extends ConsumerStatefulWidget {
@@ -61,10 +65,24 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   final _manual = TextEditingController();
   final _manualFocus = FocusNode();
   final _items = <_ScanItem>[];
-  ScanMode _mode = ScanMode.consulter;
+  final _camKey = GlobalKey();
+  late ScanMode _mode;
   bool _busy = false, _validating = false;
   String? _lastCode;
   DateTime _lastAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// Le barragiste ne fait que l'embarquement et le déchargement (pas de consultation).
+  bool get _barragiste => ref.read(profilProvider).value?.isBarragiste ?? false;
+
+  List<ScanMode> get _modes => _barragiste
+      ? const [ScanMode.embarquement, ScanMode.dechargement]
+      : ScanMode.values;
+
+  @override
+  void initState() {
+    super.initState();
+    _mode = _barragiste ? ScanMode.embarquement : ScanMode.consulter;
+  }
 
   @override
   void dispose() {
@@ -79,6 +97,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     setState(() {
       _mode = m;
       _items.clear();
+    });
+    // Le passage entre les deux mises en page recrée le lecteur : on s'assure que la caméra tourne.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _ctl.value.isRunning || _ctl.value.isStarting) return;
+      try {
+        await _ctl.start();
+      } catch (_) {}
     });
   }
 
@@ -106,15 +131,20 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     HapticFeedback.selectionClick();
     SystemSound.play(SystemSoundType.click);
     try {
-      item.colis = await Repo.getColisByNumero(numero);
-    } catch (_) {
+      item.colis = _barragiste
+          ? await Repo.infoScan(numero)
+          : await Repo.getColisByNumero(numero);
+    } catch (e) {
       item.colis = null;
+      item.horsLigne = _barragiste && estErreurReseau(e);
     }
     item.loading = false;
     if (!mounted) return;
     setState(() {});
-    if (item.colis == null || !_mode.accepts(item.colis!.statut))
+    if (!item.horsLigne &&
+        (item.colis == null || !_mode.accepts(item.colis!.statut))) {
       HapticFeedback.heavyImpact();
+    }
   }
 
   Future<void> _open(String numero) async {
@@ -139,7 +169,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
   List<_ScanItem> get _valides => _items
       .where(
-        (i) => !i.loading && i.colis != null && _mode.accepts(i.colis!.statut),
+        (i) =>
+            !i.loading &&
+            (i.horsLigne ||
+                (i.colis != null && _mode.accepts(i.colis!.statut))),
       )
       .toList();
 
@@ -169,6 +202,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   }
 
   Widget _camera() => ClipRRect(
+    key: _camKey,
     borderRadius: BorderRadius.circular(28),
     child: Stack(
       fit: StackFit.expand,
@@ -240,11 +274,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     height: 52,
     child: Row(
       children: [
-        for (final m in ScanMode.values)
+        for (final m in _modes)
           Expanded(
             child: Padding(
               padding: EdgeInsets.only(
-                right: m == ScanMode.values.last ? 0 : 8,
+                right: m == _modes.last ? 0 : 8,
               ),
               child: GestureDetector(
                 onTap: () => _setMode(m),
@@ -305,16 +339,21 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       itemBuilder: (_, i) {
         final it = _items[i];
         final c = it.colis;
-        final ok = c != null && _mode.accepts(c.statut);
+        final ok = it.horsLigne || (c != null && _mode.accepts(c.statut));
         final color = it.loading
             ? Brand.muted
             : (ok ? _mode.color : const Color(0xFFDC2626));
         final subtitle = it.loading
             ? 'Vérification…'
+            : it.horsLigne
+            ? 'Hors ligne — vérifié à l\'envoi'
             : c == null
             ? 'Colis introuvable'
             : ok
-            ? '${c.destinataireNom} · ${c.gareArriveeNom ?? '—'}'
+            ? [
+                c.destinataireNom,
+                c.gareArriveeNom ?? '—',
+              ].where((x) => x.isNotEmpty).join(' · ')
             : 'Statut actuel : ${Statut.of(c.statut).label} — ignoré';
         return Container(
               key: ValueKey(it.numero),

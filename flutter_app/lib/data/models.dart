@@ -56,6 +56,9 @@ class Profil {
   /// Super administrateur de la plateforme.
   bool get isSuper => role == 'superadmin';
 
+  /// Barragiste : ne peut que scanner (embarquement / déchargement).
+  bool get isBarragiste => role == 'barragiste';
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'nom': nom,
