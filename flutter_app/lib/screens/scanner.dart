@@ -71,8 +71,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   String? _lastCode;
   DateTime _lastAt = DateTime.fromMillisecondsSinceEpoch(0);
 
-  /// Le barragiste ne fait que l'embarquement et le déchargement (pas de consultation).
-  bool get _barragiste => ref.read(profilProvider).value?.isBarragiste ?? false;
+  /// Barragiste et convoyeur ne font que l'embarquement et le déchargement (pas de consultation).
+  bool get _barragiste => ref.read(profilProvider).value?.scanRestreint ?? false;
 
   List<ScanMode> get _modes => _barragiste
       ? const [ScanMode.embarquement, ScanMode.dechargement]

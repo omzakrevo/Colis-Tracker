@@ -49,7 +49,7 @@ class UtilisateursScreen extends ConsumerWidget {
                     ? Brand.orange
                     : (u.role == 'chef_gare'
                           ? const Color(0xFF2563EB)
-                          : (u.role == 'barragiste'
+                          : (u.role == 'barragiste' || u.role == 'convoyeur'
                                 ? const Color(0xFF7C3AED)
                                 : const Color(0xFF16A34A)));
                 return Card(
@@ -193,7 +193,7 @@ class UtilisateursScreen extends ConsumerWidget {
                       initialValue: role,
                       decoration: const InputDecoration(labelText: 'Rôle'),
                       items: [
-                        for (final r in ['admin', 'chef_gare', 'agent', 'barragiste'])
+                        for (final r in ['admin', 'chef_gare', 'agent', 'guichet', 'convoyeur', 'barragiste'])
                           DropdownMenuItem(value: r, child: Text(roleLabel(r))),
                       ],
                       onChanged: (v) => setS(() => role = v!),
@@ -215,7 +215,7 @@ class UtilisateursScreen extends ConsumerWidget {
                       ],
                       onChanged: (v) => setS(() => gareId = v),
                       validator: (v) =>
-                          role != 'admin' && role != 'barragiste' && v == null
+                          !['admin', 'barragiste', 'convoyeur'].contains(role) && v == null
                           ? 'Gare requise pour ce rôle'
                           : null,
                     ),

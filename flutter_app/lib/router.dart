@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import 'data/providers.dart';
 import 'screens/attente.dart';
+import 'screens/billet_detail.dart';
+import 'screens/billet_form.dart';
+import 'screens/billets_list.dart';
 import 'screens/colis_detail.dart';
 import 'screens/colis_form.dart';
 import 'screens/colis_list.dart';
@@ -65,6 +68,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (d.bloque) return loc == '/attente' ? null : '/attente';
       // Le barragiste n'a accès qu'au scanner.
       if (p.isBarragiste) return loc == '/scanner' ? null : '/scanner';
+      // Le convoyeur vend des billets et scanne, rien d'autre.
+      if (p.isConvoyeur) {
+        return (loc.startsWith('/billets') || loc == '/scanner')
+            ? null
+            : '/billets';
+      }
       if (publiques.contains(loc) ||
           loc == '/attente' ||
           loc == '/mises-a-jour' ||
@@ -116,6 +125,21 @@ final routerProvider = Provider<GoRouter>((ref) {
             pageBuilder: (c, s) => _page(
               s,
               ColisDetailScreen(id: int.parse(s.pathParameters['id']!)),
+            ),
+          ),
+          GoRoute(
+            path: '/billets',
+            pageBuilder: (c, s) => _page(s, const BilletsListScreen()),
+          ),
+          GoRoute(
+            path: '/billets/nouveau',
+            pageBuilder: (c, s) => _page(s, const BilletFormScreen()),
+          ),
+          GoRoute(
+            path: '/billets/:id',
+            pageBuilder: (c, s) => _page(
+              s,
+              BilletDetailScreen(id: int.parse(s.pathParameters['id']!)),
             ),
           ),
           GoRoute(

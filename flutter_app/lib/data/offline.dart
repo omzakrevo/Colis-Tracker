@@ -100,6 +100,7 @@ class OutboxOp {
     'creer' => 'Création du colis ${payload['numero_provisoire'] ?? ''}',
     'statut' => 'Changement de statut',
     'retirer' => 'Retrait du colis',
+    'ticket' => 'Billet ${payload['numero_provisoire'] ?? ''}',
     'scan' =>
       payload['mode'] == 'embarquement' ? 'Embarquement' : 'Déchargement',
     _ => type,
@@ -284,6 +285,59 @@ class Outbox {
       enAttente: true,
       clientRef: ref,
     );
+  }
+
+  /// Billet tel qu'il apparaît localement juste après sa vente hors ligne.
+  static Ticket ticketLocal(
+    Map<String, dynamic> data, {
+    required Map<int, String> garesNoms,
+    String? vendeurNom,
+    DateTime? createdAt,
+  }) {
+    final ref = data['client_ref'] as String;
+    return Ticket(
+      id: idLocal(ref),
+      numero: data['numero_provisoire'] as String,
+      clientNom: data['client_nom'] as String,
+      clientTelephone: data['client_telephone'] as String,
+      gareDepartId: data['gare_depart_id'] as int,
+      gareArriveeId: data['gare_arrivee_id'] as int,
+      gareDepartNom: garesNoms[data['gare_depart_id']],
+      gareArriveeNom: garesNoms[data['gare_arrivee_id']],
+      dateVoyage: DateTime.parse(data['date_voyage'] as String),
+      heureDepart: data['heure_depart'] as String?,
+      siege: data['siege'] as String?,
+      prix: (data['prix'] as num).toDouble(),
+      statut: 'emis',
+      vendeurNom: vendeurNom,
+      notes: data['notes'] as String?,
+      createdAt: createdAt ?? DateTime.now(),
+      clientRef: ref,
+      enAttente: true,
+    );
+  }
+
+  /// Ajoute à la liste des billets ceux vendus hors ligne et pas encore envoyés.
+  static List<Ticket> appliquerTickets(
+    List<Ticket> base,
+    List<OutboxOp> ops, {
+    Map<int, String> garesNoms = const {},
+  }) {
+    final liste = [...base];
+    for (final op in ops.where((o) => o.type == 'ticket')) {
+      final ref = op.payload['client_ref'] as String;
+      if (liste.any((t) => t.clientRef == ref)) continue;
+      liste.insert(
+        0,
+        ticketLocal(
+          op.payload,
+          garesNoms: garesNoms,
+          vendeurNom: op.payload['_vendeur_nom'] as String?,
+          createdAt: op.createdAt,
+        ),
+      );
+    }
+    return liste;
   }
 
   static bool _vise(Colis c, Map<String, dynamic> p) {

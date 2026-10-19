@@ -510,6 +510,188 @@ class Repo {
     );
   }
 
+  // ── Billets de transport ──────────────────────────────
+  static Future<List<Ticket>> listTickets() async {
+    final base = await _lire<List<Ticket>>(
+      'tickets_list',
+      () async =>
+          (await _db
+                  .from('tickets_detail')
+                  .select()
+                  .order('created_at', ascending: false)
+                  .limit(300))
+              .map(Ticket.fromJson)
+              .toList(),
+      (l) => l.map((t) => t.toJson()).toList(),
+      (o) => _maps(o).map(Ticket.fromJson).toList(),
+    );
+    final ops = await Outbox.pending();
+    if (!ops.any((o) => o.type == 'ticket')) return base;
+    return Outbox.appliquerTickets(base, ops, garesNoms: await _garesNoms());
+  }
+
+  static Future<Ticket> getTicket(int id) async {
+    if (id < 0) {
+      final ops = await Outbox.pending();
+      final t = Outbox.appliquerTickets(
+        const [],
+        ops,
+        garesNoms: await _garesNoms(),
+      ).where((t) => t.id == id).firstOrNull;
+      if (t != null) return t;
+      final reel = await Outbox.idReelPourLocal(id);
+      if (reel == null) throw 'Billet introuvable';
+      id = reel;
+    }
+    try {
+      return Ticket.fromJson(
+        await _db
+            .from('tickets_detail')
+            .select()
+            .eq('id', id)
+            .single()
+            .timeout(_delaiLecture),
+      );
+    } catch (e) {
+      if (!estErreurReseau(e)) rethrow;
+      final copie = (await LocalStore.read('tickets_list'));
+      final t = copie == null
+          ? null
+          : _maps(copie).map(Ticket.fromJson).where((t) => t.id == id).firstOrNull;
+      if (t == null) rethrow;
+      return t;
+    }
+  }
+
+  /// Vend un billet. Sans internet, il est gardé sur l'appareil (numéro provisoire LOC-…) puis envoyé au retour du réseau.
+  static Future<Ticket> creerTicket(
+    Map<String, dynamic> data, {
+    String? vendeurNom,
+  }) async {
+    final ref = Outbox.nouvelleRef();
+    final payload = {
+      ...data,
+      'client_ref': ref,
+      'numero_provisoire': Outbox.provisoire(ref),
+    };
+    try {
+      return await _envoyerTicket(payload).timeout(_delaiEcriture);
+    } catch (e) {
+      if (!estErreurReseau(e)) rethrow;
+    }
+    final op = await Outbox.ajouter('ticket', {
+      ...payload,
+      '_vendeur_nom': vendeurNom,
+    });
+    return Outbox.ticketLocal(
+      op.payload,
+      garesNoms: await _garesNoms(),
+      vendeurNom: vendeurNom,
+    );
+  }
+
+  static Future<Ticket> _envoyerTicket(Map<String, dynamic> payload) async {
+    final data = Map<String, dynamic>.from(payload)
+      ..remove('_vendeur_nom')
+      ..remove('numero_provisoire');
+    int id;
+    try {
+      final r = await _db.from('tickets').insert(data).select('id').single();
+      id = r['id'] as int;
+    } on PostgrestException catch (e) {
+      if (e.code != '23505') rethrow;
+      final r = await _db
+          .from('tickets')
+          .select('id')
+          .eq('client_ref', data['client_ref'] as String)
+          .single();
+      id = r['id'] as int;
+    }
+    await Outbox.memoriserIdReel(data['client_ref'] as String, id);
+    return Ticket.fromJson(
+      await _db.from('tickets_detail').select().eq('id', id).single(),
+    );
+  }
+
+  static Future<void> annulerTicket(int id) =>
+      _db.rpc('annuler_ticket', params: {'p_id': id});
+
+  /// Clients déjà connus dont le nom ou le téléphone commence par ce qui est tapé (colis et billets).
+  /// Sans internet : recherche dans les colis et billets gardés sur l'appareil.
+  static Future<List<ClientSuggestion>> clientsSuggestions(
+    String terme,
+  ) async {
+    final t = terme.trim();
+    if (t.length < 2) return [];
+    try {
+      final rows = await _db
+          .rpc('clients_suggestions', params: {'p_terme': t})
+          .timeout(const Duration(seconds: 6));
+      return _maps(rows).map(ClientSuggestion.fromJson).toList();
+    } catch (e) {
+      if (!estErreurReseau(e)) rethrow;
+    }
+    final chiffres = t.replaceAll(RegExp(r'[^0-9]'), '');
+    final minuscule = t.toLowerCase();
+    final trouves = <String, ClientSuggestion>{};
+    void voir(String nom, String tel, {bool colis = false}) {
+      final d = tel.replaceAll(RegExp(r'[^0-9]'), '');
+      if (d.length < 6 || nom.trim().isEmpty) return;
+      final ok =
+          (chiffres.isNotEmpty && d.contains(chiffres)) ||
+          nom.toLowerCase().contains(minuscule);
+      if (!ok || trouves.length >= 8 && !trouves.containsKey(d)) return;
+      final avant = trouves[d];
+      trouves[d] = ClientSuggestion(
+        nom: nom.trim(),
+        telephone: d,
+        nbColis: (avant?.nbColis ?? 0) + (colis ? 1 : 0),
+        nbTickets: (avant?.nbTickets ?? 0) + (colis ? 0 : 1),
+        dernierDepartId: avant?.dernierDepartId,
+        dernierArriveeId: avant?.dernierArriveeId,
+      );
+    }
+
+    for (final c in await _toutesLesCopies()) {
+      voir(c.expediteurNom, c.expediteurTelephone, colis: true);
+      voir(c.destinataireNom, c.destinataireTelephone, colis: true);
+    }
+    final copieBillets = await LocalStore.read('tickets_list');
+    if (copieBillets != null) {
+      for (final b in _maps(copieBillets).map(Ticket.fromJson)) {
+        voir(b.clientNom, b.clientTelephone);
+      }
+    }
+    return trouves.values.toList();
+  }
+
+  // ── SMS (SMSBUS) ──────────────────────────────────────
+  static Future<SmsConfig?> smsConfig() async {
+    final rows = await _db.from('sms_settings').select();
+    return rows.isEmpty ? null : SmsConfig.fromJson(rows.first);
+  }
+
+  static Future<void> enregistrerSms(Map<String, dynamic> data) =>
+      _db.rpc('sms_enregistrer', params: {'p': data});
+
+  static Future<List<SmsLigne>> smsJournal() async {
+    try {
+      await _db.rpc('sms_rafraichir');
+    } catch (_) {}
+    final rows = await _db
+        .from('sms_outbox')
+        .select()
+        .order('created_at', ascending: false)
+        .limit(100);
+    return rows.map(SmsLigne.fromJson).toList();
+  }
+
+  static Future<void> renvoyerSms(int id) =>
+      _db.rpc('sms_renvoyer', params: {'p_id': id});
+
+  static Future<void> testerSms(String telephone) =>
+      _db.rpc('sms_tester', params: {'p_tel': telephone});
+
   /// Renvoie `true` si le serveur a pris en compte le changement, `false` s'il est en attente d'envoi.
   static Future<bool> changerStatut(
     int id,
@@ -688,6 +870,8 @@ class Repo {
     switch (op.type) {
       case 'creer':
         await _envoyerCreation(p);
+      case 'ticket':
+        await _envoyerTicket(p);
       case 'statut':
         await _rpcStatut(
           await _idDe(p),

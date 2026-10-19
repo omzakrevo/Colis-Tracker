@@ -26,15 +26,28 @@ const _principaux = [
   _Item('/recherche', 'Recherche', Icons.search_rounded),
 ];
 
+const _billets = _Item('/billets', 'Billets', Icons.confirmation_number_rounded);
+const _scanner = _Item('/scanner', 'Scanner', Icons.qr_code_scanner_rounded);
+
+/// Onglets du bas (téléphone) selon le rôle.
+List<_Item> _onglets(Profil me) => me.isConvoyeur
+    ? const [_billets, _scanner]
+    : me.isGuichet
+    ? [..._principaux.take(2), _billets, ..._principaux.skip(2)]
+    : _principaux;
+
 List<_Item> _menu(Profil me) => me.isBarragiste
-    ? const [_Item('/scanner', 'Scanner', Icons.qr_code_scanner_rounded)]
+    ? const [_scanner]
+    : me.isConvoyeur
+    ? const [_billets, _scanner]
     : me.isSuper
     ? const [
         _Item('/entreprises', 'Entreprises', Icons.business_rounded),
         _Item('/mises-a-jour', 'Mises à jour', Icons.system_update_rounded),
       ]
     : [
-        ..._principaux,
+        ..._onglets(me),
+        if (me.voitBillets && !me.isGuichet) _billets,
         const _Item('/rapports', 'Rapports', Icons.insights_rounded),
         if (me.isAdmin) ...const [
           _Item('/gares', 'Gares', Icons.location_city_rounded),
@@ -136,7 +149,8 @@ class AppShell extends ConsumerWidget {
       );
     }
 
-    final bottomIdx = _principaux.indexWhere((i) => _active(i.path));
+    final onglets = _onglets(me);
+    final bottomIdx = onglets.indexWhere((i) => _active(i.path));
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
@@ -172,10 +186,18 @@ class AppShell extends ConsumerWidget {
         child: body,
       ),
       floatingActionButton:
-          (location.startsWith('/scanner') || me.isSuper || me.isBarragiste)
+          (location.startsWith('/scanner') ||
+              location.endsWith('/nouveau') ||
+              me.isSuper ||
+              me.isBarragiste ||
+              (location.startsWith('/billets') && !me.peutVendreBillets))
           ? null
           : FloatingActionButton.extended(
-              onPressed: () => context.push('/colis/nouveau'),
+              onPressed: () => context.push(
+                (me.isConvoyeur || location.startsWith('/billets'))
+                    ? '/billets/nouveau'
+                    : '/colis/nouveau',
+              ),
               backgroundColor: Brand.orange,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.add_rounded),
@@ -194,9 +216,9 @@ class AppShell extends ConsumerWidget {
               selectedIndex: bottomIdx < 0 ? 0 : bottomIdx,
               backgroundColor: Colors.white,
               indicatorColor: Brand.orangeSoft,
-              onDestinationSelected: (i) => context.go(_principaux[i].path),
+              onDestinationSelected: (i) => context.go(onglets[i].path),
               destinations: [
-                for (final i in _principaux)
+                for (final i in onglets)
                   NavigationDestination(icon: Icon(i.icon), label: i.label),
               ],
             ),

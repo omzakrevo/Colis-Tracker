@@ -347,7 +347,7 @@ final realtimeProvider = Provider<void>((ref) {
   final client = Supabase.instance.client;
   Timer? debounce;
   final channel = client.channel('vip-colis-live');
-  for (final table in ['colis', 'historique_colis']) {
+  for (final table in ['colis', 'historique_colis', 'tickets']) {
     channel.onPostgresChanges(
       event: PostgresChangeEvent.all,
       schema: 'public',
@@ -398,6 +398,18 @@ final historiqueProvider = FutureProvider.family<List<Historique>, int>((
   ref.watch(tickProvider);
   return Repo.historique(id);
 });
+
+final ticketsProvider = FutureProvider<List<Ticket>>((ref) {
+  ref.watch(tickProvider);
+  return Repo.listTickets();
+});
+
+final ticketProvider = FutureProvider.family<Ticket, int>((ref, id) {
+  ref.watch(tickProvider);
+  return Repo.getTicket(id);
+});
+
+final smsConfigProvider = FutureProvider<SmsConfig?>((ref) => Repo.smsConfig());
 
 final garesProvider = FutureProvider<List<Gare>>((ref) => Repo.gares());
 final profilsProvider = FutureProvider<List<Profil>>((ref) => Repo.profils());

@@ -356,3 +356,642 @@ end $$;
 
 -- Recharge le cache de schéma de l'API (évite « could not find the column … in the schema cache »).
 notify pgrst, 'reload schema';
+
+-- ═══ 20261019000000_billets_guichet_clients ═══
+-- Billetterie : nouveaux rôles « guichet » et « convoyeur », billets de transport, fichier clients
+-- (retrouver un client dès qu'on tape son téléphone ou son nom).
+--
+--   guichet    : travaille dans une gare comme un agent (colis) et vend des billets de cette gare.
+--   convoyeur  : vend des billets à bord et scanne les colis (embarquement / déchargement) ; aucun accès aux données des clients.
+--   admin      : tout, y compris annuler un billet.
+
+alter table public.vip_profiles drop constraint if exists vip_profiles_role_check;
+alter table public.vip_profiles add constraint vip_profiles_role_check
+  check (role in ('superadmin', 'admin', 'chef_gare', 'agent', 'barragiste', 'guichet', 'convoyeur'));
+
+create or replace function public.admin_creer_utilisateur(
+  p_username text, p_password text, p_nom text,
+  p_role text default 'agent', p_gare_id bigint default null, p_telephone text default null)
+returns uuid
+language plpgsql security definer set search_path = public, auth, extensions as $$
+declare
+  cid bigint := app_company_id();
+  uid uuid;
+  ident text := public.normaliser_identifiant(p_username);
+  maxu integer;
+begin
+  if app_role() is distinct from 'admin' then raise exception 'Réservé aux administrateurs'; end if;
+  if p_role not in ('admin', 'chef_gare', 'agent', 'barragiste', 'guichet', 'convoyeur') then raise exception 'Rôle invalide'; end if;
+  select max_utilisateurs into maxu from public.companies where id = cid;
+  if (select count(*) from public.vip_profiles where company_id = cid and actif) >= maxu then
+    raise exception 'Limite de % utilisateurs atteinte pour votre abonnement', maxu;
+  end if;
+  if p_gare_id is not null and not exists (select 1 from public.gares where id = p_gare_id and company_id = cid) then
+    raise exception 'Gare invalide';
+  end if;
+
+  uid := public._creer_compte_auth(ident, p_password);
+  perform set_config('vipcolis.bypass', 'on', true);
+  insert into public.vip_profiles (id, nom, username, role, gare_id, telephone, company_id)
+  values (uid, trim(p_nom), ident, p_role, p_gare_id, coalesce(nullif(trim(p_telephone), ''), case when ident ~ '^[0-9]+$' then ident end), cid);
+  perform set_config('vipcolis.bypass', 'off', true);
+  return uid;
+end $$;
+
+-- Le guichet voit / crée / modifie les colis de sa gare comme un agent.
+drop policy if exists colis_select on public.colis;
+drop policy if exists colis_insert on public.colis;
+drop policy if exists colis_update on public.colis;
+create policy colis_select on public.colis for select to authenticated using (
+  public.app_role() in ('admin', 'chef_gare', 'agent', 'guichet') and company_id = public.app_company_id()
+  and (public.app_role() = 'admin' or public.app_gare_id() in (gare_depart_id, gare_arrivee_id)));
+create policy colis_insert on public.colis for insert to authenticated with check (
+  public.app_role() in ('admin', 'chef_gare', 'agent', 'guichet')
+  and (public.app_role() = 'admin' or public.app_gare_id() = gare_depart_id));
+create policy colis_update on public.colis for update to authenticated using (
+  public.app_role() in ('admin', 'chef_gare', 'agent', 'guichet') and company_id = public.app_company_id()
+  and (public.app_role() = 'admin' or public.app_gare_id() in (gare_depart_id, gare_arrivee_id)));
+
+-- Le convoyeur ne change pas les statuts à la main et ne gère pas les retraits ; il scanne partout (comme le barragiste).
+create or replace function public.changer_statut(p_id bigint, p_statut text, p_notes text default null)
+returns public.colis
+language plpgsql security definer set search_path = public as $$
+declare
+  c public.colis;
+  ok boolean;
+begin
+  if app_role() is null or app_role() in ('superadmin', 'barragiste', 'convoyeur') then raise exception 'Non autorisé'; end if;
+  select * into c from public.colis where id = p_id and company_id = app_company_id();
+  if not found then raise exception 'Colis non trouvé'; end if;
+  if app_role() <> 'admin' and app_gare_id() not in (c.gare_depart_id, c.gare_arrivee_id) then
+    raise exception 'Non autorisé';
+  end if;
+
+  ok := (c.statut = 'enregistre' and p_statut in ('charge','annule'))
+     or (c.statut = 'charge'     and p_statut in ('en_route','annule'))
+     or (c.statut = 'en_route'   and p_statut in ('arrive','annule'))
+     or (c.statut = 'arrive'     and p_statut = 'annule');
+  if not ok then raise exception 'Transition % → % impossible', c.statut, p_statut; end if;
+
+  perform set_config('vipcolis.bypass', 'on', true);
+  update public.colis set statut = p_statut where id = p_id returning * into c;
+  perform set_config('vipcolis.bypass', 'off', true);
+
+  insert into public.historique_colis (colis_id, statut, notes, agent_id)
+  values (p_id, p_statut, p_notes, auth.uid());
+  return c;
+end $$;
+
+create or replace function public.retirer_colis(
+  p_id bigint, p_nom text, p_telephone text,
+  p_piece text default null, p_signature text default null)
+returns public.colis
+language plpgsql security definer set search_path = public as $$
+declare c public.colis;
+begin
+  if app_role() is null or app_role() in ('superadmin', 'barragiste', 'convoyeur') then raise exception 'Non autorisé'; end if;
+  select * into c from public.colis where id = p_id and company_id = app_company_id();
+  if not found then raise exception 'Colis non trouvé'; end if;
+  if app_role() <> 'admin' and app_gare_id() is distinct from c.gare_arrivee_id then
+    raise exception 'Le retrait se fait à la gare d''arrivée';
+  end if;
+  if c.statut <> 'arrive' then raise exception 'Le colis doit être à l''état « Arrivé »'; end if;
+
+  perform set_config('vipcolis.bypass', 'on', true);
+  update public.colis set
+    statut = 'retire', retrait_nom = p_nom, retrait_telephone = p_telephone,
+    retrait_piece_identite = p_piece, retrait_signature = p_signature, retrait_date = now()
+  where id = p_id returning * into c;
+  perform set_config('vipcolis.bypass', 'off', true);
+
+  insert into public.historique_colis (colis_id, statut, notes, agent_id)
+  values (p_id, 'retire', 'Retiré par ' || p_nom, auth.uid());
+  return c;
+end $$;
+
+create or replace function public.scan_lot(p_mode text, p_numeros text[], p_notes text default null)
+returns table (r_numero text, r_ok boolean, r_message text, r_statut text)
+language plpgsql security definer set search_path = public as $$
+declare
+  nums text[];
+  n text;
+  c public.colis;
+begin
+  if app_role() is null or app_role() = 'superadmin' then raise exception 'Non autorisé'; end if;
+  if p_mode not in ('embarquement', 'dechargement') then raise exception 'Mode inconnu : %', p_mode; end if;
+
+  select coalesce(array_agg(distinct upper(trim(x))), '{}') into nums
+  from unnest(coalesce(p_numeros, '{}')) as x where trim(x) <> '';
+
+  foreach n in array nums loop
+    select * into c from public.colis
+    where (colis.numero = n or colis.numero_provisoire = n) and colis.company_id = app_company_id()
+    limit 1;
+    if not found then
+      return query select n, false, 'Colis introuvable'::text, null::text;
+      continue;
+    end if;
+    if app_role() not in ('admin', 'barragiste', 'convoyeur') and app_gare_id() not in (c.gare_depart_id, c.gare_arrivee_id) then
+      return query select n, false, 'Colis d''une autre gare'::text, c.statut;
+      continue;
+    end if;
+
+    if p_mode = 'embarquement' then
+      if c.statut <> 'enregistre' then
+        return query select n, false, ('Statut actuel : ' || c.statut)::text, c.statut;
+        continue;
+      end if;
+      perform set_config('vipcolis.bypass', 'on', true);
+      update public.colis set statut = 'charge' where id = c.id;
+      perform set_config('vipcolis.bypass', 'off', true);
+      insert into public.historique_colis (colis_id, statut, notes, agent_id)
+      values (c.id, 'charge', coalesce(p_notes, 'Embarquement (scan rapide)'), auth.uid());
+      return query select n, true, 'Embarqué'::text, 'charge'::text;
+    else
+      if c.statut not in ('charge', 'en_route') then
+        return query select n, false, ('Statut actuel : ' || c.statut)::text, c.statut;
+        continue;
+      end if;
+      if c.statut = 'charge' then
+        insert into public.historique_colis (colis_id, statut, notes, agent_id)
+        values (c.id, 'en_route', 'Départ (ajouté automatiquement au déchargement)', auth.uid());
+      end if;
+      perform set_config('vipcolis.bypass', 'on', true);
+      update public.colis set statut = 'arrive' where id = c.id;
+      perform set_config('vipcolis.bypass', 'off', true);
+      insert into public.historique_colis (colis_id, statut, notes, agent_id)
+      values (c.id, 'arrive', coalesce(p_notes, 'Déchargement (scan rapide)'), auth.uid());
+      return query select n, true, 'Déchargé'::text, 'arrive'::text;
+    end if;
+  end loop;
+end $$;
+
+-- ───────────────────────── Fichier clients ─────────────────────────
+-- Alimenté automatiquement par chaque colis (expéditeur, destinataire) et chaque billet : un client est retrouvé
+-- par son numéro de téléphone (chiffres seuls) ou par son nom.
+
+create table if not exists public.clients (
+  id                 bigint generated always as identity primary key,
+  company_id         bigint not null references public.companies(id) on delete cascade,
+  nom                text not null,
+  telephone          text not null,
+  nb_colis           integer not null default 0,
+  nb_tickets         integer not null default 0,
+  dernier_depart_id  bigint references public.gares(id) on delete set null,
+  dernier_arrivee_id bigint references public.gares(id) on delete set null,
+  derniere_activite  timestamptz not null default now(),
+  created_at         timestamptz not null default now(),
+  unique (company_id, telephone)
+);
+create index if not exists clients_nom_idx on public.clients (company_id, lower(nom));
+
+alter table public.clients enable row level security;
+drop policy if exists clients_select on public.clients;
+create policy clients_select on public.clients for select to authenticated using (
+  public.app_role() in ('admin', 'chef_gare', 'agent', 'guichet', 'convoyeur')
+  and company_id = public.app_company_id());
+grant select on public.clients to authenticated;
+
+create or replace function public._maj_client(
+  p_company bigint, p_nom text, p_tel text,
+  p_depart bigint default null, p_arrivee bigint default null,
+  p_colis integer default 0, p_tickets integer default 0)
+returns void
+language plpgsql security definer set search_path = public as $$
+declare tel text := regexp_replace(coalesce(p_tel, ''), '[^0-9]', '', 'g');
+begin
+  if p_company is null or length(tel) < 6 or length(trim(coalesce(p_nom, ''))) = 0 then return; end if;
+  insert into public.clients (company_id, nom, telephone, nb_colis, nb_tickets, dernier_depart_id, dernier_arrivee_id)
+  values (p_company, trim(p_nom), tel, p_colis, p_tickets, p_depart, p_arrivee)
+  on conflict (company_id, telephone) do update set
+    nom = excluded.nom,
+    nb_colis = public.clients.nb_colis + p_colis,
+    nb_tickets = public.clients.nb_tickets + p_tickets,
+    dernier_depart_id = coalesce(excluded.dernier_depart_id, public.clients.dernier_depart_id),
+    dernier_arrivee_id = coalesce(excluded.dernier_arrivee_id, public.clients.dernier_arrivee_id),
+    derniere_activite = now();
+end $$;
+
+create or replace function public.colis_after_insert_client() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  perform public._maj_client(new.company_id, new.expediteur_nom, new.expediteur_telephone, new.gare_depart_id, new.gare_arrivee_id, 1, 0);
+  perform public._maj_client(new.company_id, new.destinataire_nom, new.destinataire_telephone, null, null, 1, 0);
+  return new;
+end $$;
+drop trigger if exists colis_client_maj on public.colis;
+create trigger colis_client_maj after insert on public.colis
+  for each row execute function public.colis_after_insert_client();
+
+-- Reprise de l'existant : les clients des colis déjà enregistrés.
+insert into public.clients (company_id, nom, telephone, nb_colis, derniere_activite)
+select company_id, (array_agg(nom order by d desc))[1], tel, count(*), max(d)
+from (
+  select company_id, expediteur_nom as nom, regexp_replace(expediteur_telephone, '[^0-9]', '', 'g') as tel, created_at as d from public.colis
+  union all
+  select company_id, destinataire_nom, regexp_replace(destinataire_telephone, '[^0-9]', '', 'g'), created_at from public.colis
+) x
+where company_id is not null and length(tel) >= 6 and length(trim(nom)) > 0
+group by company_id, tel
+on conflict (company_id, telephone) do nothing;
+
+-- Suggestions pendant la frappe (téléphone ou nom) : 8 clients maximum, les plus récents d'abord.
+create or replace function public.clients_suggestions(p_terme text)
+returns table (nom text, telephone text, nb_colis integer, nb_tickets integer,
+               dernier_depart_id bigint, dernier_arrivee_id bigint)
+language sql stable set search_path = public as $$
+  with t as (select trim(coalesce(p_terme, '')) as txt, regexp_replace(coalesce(p_terme, ''), '[^0-9]', '', 'g') as chiffres)
+  select c.nom, c.telephone, c.nb_colis, c.nb_tickets, c.dernier_depart_id, c.dernier_arrivee_id
+  from public.clients c, t
+  where length(t.txt) >= 2
+    and ((t.chiffres <> '' and c.telephone like '%' || t.chiffres || '%') or c.nom ilike '%' || t.txt || '%')
+  order by (t.chiffres <> '' and c.telephone like t.chiffres || '%') desc, c.derniere_activite desc
+  limit 8
+$$;
+
+-- ───────────────────────── Billets de transport ─────────────────────────
+
+create sequence if not exists public.ticket_numero_seq start 1000;
+
+create table if not exists public.tickets (
+  id                 bigint generated always as identity primary key,
+  company_id         bigint not null references public.companies(id) on delete cascade,
+  numero             text not null unique,
+  client_nom         text not null,
+  client_telephone   text not null,
+  gare_depart_id     bigint not null references public.gares(id),
+  gare_arrivee_id    bigint not null references public.gares(id),
+  date_voyage        date not null default current_date,
+  heure_depart       text,
+  siege              text,
+  prix               numeric(12, 2) not null check (prix >= 0),
+  statut             text not null default 'emis' check (statut in ('emis', 'annule')),
+  vendeur_id         uuid references auth.users(id),
+  notes              text,
+  client_ref         uuid,
+  numero_provisoire  text,
+  created_at         timestamptz not null default now()
+);
+create unique index if not exists tickets_client_ref_uidx on public.tickets (client_ref) where client_ref is not null;
+create index if not exists tickets_company_date_idx on public.tickets (company_id, date_voyage desc);
+
+create or replace function public.tickets_before_insert() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  new.numero := 'BIL-' || extract(year from now())::int || '-' || nextval('public.ticket_numero_seq');
+  new.statut := 'emis';
+  new.vendeur_id := coalesce(auth.uid(), new.vendeur_id);
+  if public.app_company_id() is not null then new.company_id := public.app_company_id(); end if;
+  return new;
+end $$;
+drop trigger if exists tickets_before_insert on public.tickets;
+create trigger tickets_before_insert before insert on public.tickets
+  for each row execute function public.tickets_before_insert();
+
+create or replace function public.tickets_after_insert() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  perform public._maj_client(new.company_id, new.client_nom, new.client_telephone, new.gare_depart_id, new.gare_arrivee_id, 0, 1);
+  return new;
+end $$;
+drop trigger if exists tickets_after_insert on public.tickets;
+create trigger tickets_after_insert after insert on public.tickets
+  for each row execute function public.tickets_after_insert();
+
+create or replace view public.tickets_detail with (security_invoker = true) as
+select t.*, gd.nom as gare_depart_nom, ga.nom as gare_arrivee_nom, p.nom as vendeur_nom
+from public.tickets t
+left join public.gares gd on gd.id = t.gare_depart_id
+left join public.gares ga on ga.id = t.gare_arrivee_id
+left join public.vip_profiles p on p.id = t.vendeur_id;
+
+alter table public.tickets enable row level security;
+drop policy if exists tickets_select on public.tickets;
+drop policy if exists tickets_insert on public.tickets;
+create policy tickets_select on public.tickets for select to authenticated using (
+  company_id = public.app_company_id() and (
+    public.app_role() = 'admin'
+    or (public.app_role() in ('chef_gare', 'guichet') and public.app_gare_id() in (gare_depart_id, gare_arrivee_id))
+    or (public.app_role() = 'convoyeur' and vendeur_id = auth.uid())));
+create policy tickets_insert on public.tickets for insert to authenticated with check (
+  public.app_role() in ('admin', 'guichet', 'convoyeur')
+  and (public.app_role() in ('admin', 'convoyeur') or public.app_gare_id() = gare_depart_id));
+
+grant select, insert on public.tickets to authenticated;
+grant select on public.tickets_detail to authenticated;
+grant usage, select on sequence public.ticket_numero_seq to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
+
+-- Annulation d'un billet : administrateur, ou guichet de la gare de départ.
+create or replace function public.annuler_ticket(p_id bigint)
+returns void
+language plpgsql security definer set search_path = public as $$
+declare t public.tickets;
+begin
+  select * into t from public.tickets where id = p_id and company_id = public.app_company_id();
+  if not found then raise exception 'Billet introuvable'; end if;
+  if public.app_role() is distinct from 'admin'
+     and not (public.app_role() = 'guichet' and public.app_gare_id() = t.gare_depart_id) then
+    raise exception 'Non autorisé';
+  end if;
+  update public.tickets set statut = 'annule' where id = p_id;
+end $$;
+revoke execute on function public.annuler_ticket(bigint) from public, anon;
+grant execute on function public.annuler_ticket(bigint) to authenticated;
+revoke execute on function public.clients_suggestions(text) from public, anon;
+grant execute on function public.clients_suggestions(text) to authenticated;
+
+-- Fonctions internes (déclencheurs) : jamais appelables directement par les utilisateurs.
+revoke execute on function public._maj_client(bigint, text, text, bigint, bigint, integer, integer) from public, anon, authenticated;
+revoke execute on function public.colis_after_insert_client() from public, anon, authenticated;
+revoke execute on function public.tickets_before_insert() from public, anon, authenticated;
+revoke execute on function public.tickets_after_insert() from public, anon, authenticated;
+
+-- Temps réel : les listes de billets se rafraîchissent toutes seules.
+do $$ begin
+  alter publication supabase_realtime add table public.tickets;
+exception when others then null;
+end $$;
+
+notify pgrst, 'reload schema';
+
+-- ═══ 20261020000000_sms_smsbus ═══
+-- SMS automatiques (passerelle SMSBUS / 3MI, API HTTP GET) lors de l'envoi et de la réception des colis,
+-- et à la vente d'un billet. Les identifiants SMSBUS restent côté serveur (jamais envoyés à l'application).
+-- L'envoi passe par l'extension pg_net (incluse dans Supabase) ; sans elle, les SMS restent en file avec l'erreur.
+
+do $$ begin
+  create extension if not exists pg_net;
+exception when others then null;
+end $$;
+
+create table if not exists public.sms_settings (
+  company_id       bigint primary key references public.companies(id) on delete cascade,
+  actif            boolean not null default false,
+  username         text not null default '',
+  password         text not null default '',
+  sender           text not null default '',
+  port             integer not null default 7170,
+  indicatif        text not null default '226',
+  sms_colis_envoi  boolean not null default true,   -- à l'enregistrement : expéditeur + destinataire
+  sms_colis_arrive boolean not null default true,   -- à l'arrivée : destinataire
+  sms_colis_retire boolean not null default true,   -- au retrait : expéditeur
+  sms_billet       boolean not null default true,
+  tpl_envoi_exp    text not null default '{entreprise} : votre colis {numero} pour {destinataire} ({arrivee}) est enregistre a {depart}. Merci de votre confiance.',
+  tpl_envoi_dest   text not null default '{entreprise} : un colis {numero} de {expediteur} vous est envoye vers {arrivee}. Vous serez prevenu a son arrivee.',
+  tpl_arrive       text not null default '{entreprise} : votre colis {numero} est arrive a {arrivee}. Presentez-vous avec une piece d''identite pour le retirer.',
+  tpl_retire       text not null default '{entreprise} : votre colis {numero} a ete retire par {retrait}. Merci de votre confiance.',
+  tpl_billet       text not null default '{entreprise} : billet {numero} {depart} -> {arrivee} le {date}. Bon voyage !',
+  updated_at       timestamptz not null default now()
+);
+
+create table if not exists public.sms_outbox (
+  id          bigint generated always as identity primary key,
+  company_id  bigint not null references public.companies(id) on delete cascade,
+  type        text not null check (type in ('envoi_exp', 'envoi_dest', 'arrive', 'retire', 'billet', 'test')),
+  colis_id    bigint references public.colis(id) on delete cascade,
+  ticket_id   bigint references public.tickets(id) on delete cascade,
+  telephone   text not null,
+  message     text not null,
+  statut      text not null default 'attente' check (statut in ('attente', 'envoye', 'echec')),
+  reponse     text,
+  request_id  bigint,
+  created_at  timestamptz not null default now()
+);
+create unique index if not exists sms_outbox_colis_type_uidx on public.sms_outbox (colis_id, type) where colis_id is not null;
+create unique index if not exists sms_outbox_ticket_type_uidx on public.sms_outbox (ticket_id, type) where ticket_id is not null;
+create index if not exists sms_outbox_company_idx on public.sms_outbox (company_id, created_at desc);
+
+alter table public.sms_settings enable row level security;
+alter table public.sms_outbox enable row level security;
+drop policy if exists sms_settings_select on public.sms_settings;
+create policy sms_settings_select on public.sms_settings for select to authenticated
+  using (public.app_role() = 'admin' and company_id = public.app_company_id());
+drop policy if exists sms_outbox_select on public.sms_outbox;
+create policy sms_outbox_select on public.sms_outbox for select to authenticated
+  using (public.app_role() = 'admin' and company_id = public.app_company_id());
+
+-- Le mot de passe SMSBUS n'est jamais lisible par l'application.
+revoke all on public.sms_settings from public, anon, authenticated;
+grant select (company_id, actif, username, sender, port, indicatif, sms_colis_envoi, sms_colis_arrive, sms_colis_retire,
+              sms_billet, tpl_envoi_exp, tpl_envoi_dest, tpl_arrive, tpl_retire, tpl_billet, updated_at)
+  on public.sms_settings to authenticated;
+revoke all on public.sms_outbox from public, anon, authenticated;
+grant select on public.sms_outbox to authenticated;
+
+-- ───────────────────────── Outils ─────────────────────────
+
+create or replace function public._sms_urlencode(t text) returns text
+language sql immutable as $$
+  select coalesce(string_agg(
+    case when b between 48 and 57 or b between 65 and 90 or b between 97 and 122 or b in (45, 46, 95, 126)
+         then chr(b) else '%' || upper(lpad(to_hex(b), 2, '0')) end, '' order by i), '')
+  from (select get_byte(convert_to(coalesce(t, ''), 'UTF8'), i) as b, i
+        from generate_series(0, octet_length(convert_to(coalesce(t, ''), 'UTF8')) - 1) as i) x
+$$;
+
+-- Numéro au format international sans « + » ni « 00 » (8 chiffres = numéro local : on ajoute l'indicatif).
+create or replace function public._sms_numero(p_tel text, p_indicatif text) returns text
+language plpgsql immutable as $$
+declare n text := regexp_replace(coalesce(p_tel, ''), '[^0-9]', '', 'g');
+begin
+  if n like '00%' then n := substr(n, 3);
+  elsif length(n) <= 9 then n := regexp_replace(coalesce(p_indicatif, ''), '[^0-9]', '', 'g') || n; end if;
+  return n;
+end $$;
+
+create or replace function public._sms_remplir(p_tpl text, p_vals jsonb) returns text
+language plpgsql immutable as $$
+declare r text := p_tpl; k text;
+begin
+  for k in select jsonb_object_keys(p_vals) loop
+    r := replace(r, '{' || k || '}', coalesce(p_vals ->> k, ''));
+  end loop;
+  return r;
+end $$;
+
+-- Envoie un SMS de la file (requête HTTP asynchrone via pg_net).
+create or replace function public._sms_envoyer(p_id bigint) returns void
+language plpgsql security definer set search_path = public as $$
+declare o public.sms_outbox; s public.sms_settings; url text; rid bigint;
+begin
+  select * into o from public.sms_outbox where id = p_id;
+  select * into s from public.sms_settings where company_id = o.company_id;
+  if not found or not s.actif or s.username = '' or s.sender = '' then
+    update public.sms_outbox set statut = 'echec', reponse = 'SMS non configurés' where id = p_id; return;
+  end if;
+  url := 'https://www.lesmsbus.com:' || s.port || '/ines.smsbus/smsbusMt'
+      || '?to=' || public._sms_urlencode(public._sms_numero(o.telephone, s.indicatif))
+      || '&text=' || public._sms_urlencode(o.message)
+      || '&username=' || public._sms_urlencode(s.username)
+      || '&password=' || public._sms_urlencode(s.password)
+      || '&from=' || public._sms_urlencode(s.sender)
+      || '&jca=0';
+  execute 'select net.http_get(url := $1)' into rid using url;
+  update public.sms_outbox set request_id = rid where id = p_id;
+exception when others then
+  update public.sms_outbox set statut = 'echec', reponse = left(sqlerrm, 300) where id = p_id;
+end $$;
+
+-- Met en file puis envoie un SMS (ne fait jamais échouer l'opération appelante).
+create or replace function public._sms_poster(p_company bigint, p_type text, p_colis bigint, p_ticket bigint, p_tel text, p_msg text)
+returns void
+language plpgsql security definer set search_path = public as $$
+declare id bigint;
+begin
+  if length(regexp_replace(coalesce(p_tel, ''), '[^0-9]', '', 'g')) < 6 then return; end if;
+  insert into public.sms_outbox (company_id, type, colis_id, ticket_id, telephone, message)
+  values (p_company, p_type, p_colis, p_ticket, p_tel, p_msg)
+  on conflict do nothing
+  returning sms_outbox.id into id;
+  if id is not null then perform public._sms_envoyer(id); end if;
+exception when others then null;
+end $$;
+
+-- ───────────────────────── Déclencheurs ─────────────────────────
+
+create or replace function public._sms_colis_vals(c public.colis) returns jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'entreprise', coalesce((select nom from public.companies where id = c.company_id), 'Colis'),
+    'numero', c.numero, 'expediteur', c.expediteur_nom, 'destinataire', c.destinataire_nom,
+    'depart', coalesce((select nom from public.gares where id = c.gare_depart_id), ''),
+    'arrivee', coalesce((select nom from public.gares where id = c.gare_arrivee_id), ''),
+    'retrait', coalesce(c.retrait_nom, c.destinataire_nom),
+    'prix', c.prix::text)
+$$;
+
+create or replace function public.colis_sms_insert() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare s public.sms_settings; v jsonb;
+begin
+  select * into s from public.sms_settings where company_id = new.company_id and actif;
+  if not found or not s.sms_colis_envoi then return new; end if;
+  v := public._sms_colis_vals(new);
+  perform public._sms_poster(new.company_id, 'envoi_exp', new.id, null, new.expediteur_telephone, public._sms_remplir(s.tpl_envoi_exp, v));
+  perform public._sms_poster(new.company_id, 'envoi_dest', new.id, null, new.destinataire_telephone, public._sms_remplir(s.tpl_envoi_dest, v));
+  return new;
+exception when others then return new;
+end $$;
+drop trigger if exists colis_sms_insert on public.colis;
+create trigger colis_sms_insert after insert on public.colis
+  for each row execute function public.colis_sms_insert();
+
+create or replace function public.colis_sms_statut() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare s public.sms_settings; v jsonb;
+begin
+  if new.statut is not distinct from old.statut then return new; end if;
+  select * into s from public.sms_settings where company_id = new.company_id and actif;
+  if not found then return new; end if;
+  v := public._sms_colis_vals(new);
+  if new.statut = 'arrive' and s.sms_colis_arrive then
+    perform public._sms_poster(new.company_id, 'arrive', new.id, null, new.destinataire_telephone, public._sms_remplir(s.tpl_arrive, v));
+  elsif new.statut = 'retire' and s.sms_colis_retire then
+    perform public._sms_poster(new.company_id, 'retire', new.id, null, new.expediteur_telephone, public._sms_remplir(s.tpl_retire, v));
+  end if;
+  return new;
+exception when others then return new;
+end $$;
+drop trigger if exists colis_sms_statut on public.colis;
+create trigger colis_sms_statut after update of statut on public.colis
+  for each row execute function public.colis_sms_statut();
+
+create or replace function public.tickets_sms_insert() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare s public.sms_settings; v jsonb;
+begin
+  select * into s from public.sms_settings where company_id = new.company_id and actif;
+  if not found or not s.sms_billet then return new; end if;
+  v := jsonb_build_object(
+    'entreprise', coalesce((select nom from public.companies where id = new.company_id), 'Billet'),
+    'numero', new.numero, 'nom', new.client_nom,
+    'depart', coalesce((select nom from public.gares where id = new.gare_depart_id), ''),
+    'arrivee', coalesce((select nom from public.gares where id = new.gare_arrivee_id), ''),
+    'date', to_char(new.date_voyage, 'DD/MM/YYYY') || coalesce(' ' || nullif(new.heure_depart, ''), ''),
+    'siege', coalesce(new.siege, ''), 'prix', new.prix::text);
+  perform public._sms_poster(new.company_id, 'billet', null, new.id, new.client_telephone, public._sms_remplir(s.tpl_billet, v));
+  return new;
+exception when others then return new;
+end $$;
+drop trigger if exists tickets_sms_insert on public.tickets;
+create trigger tickets_sms_insert after insert on public.tickets
+  for each row execute function public.tickets_sms_insert();
+
+-- ───────────────────────── Fonctions pour l'application (administrateur) ─────────────────────────
+
+-- Enregistre la configuration ; le mot de passe n'est modifié que s'il est fourni.
+create or replace function public.sms_enregistrer(p jsonb) returns void
+language plpgsql security definer set search_path = public as $$
+declare cid bigint := public.app_company_id();
+begin
+  if public.app_role() is distinct from 'admin' or cid is null then raise exception 'Non autorisé'; end if;
+  insert into public.sms_settings (company_id) values (cid) on conflict do nothing;
+  update public.sms_settings set
+    actif = coalesce((p ->> 'actif')::boolean, actif),
+    username = coalesce(p ->> 'username', username),
+    password = coalesce(nullif(p ->> 'password', ''), password),
+    sender = coalesce(left(p ->> 'sender', 18), sender),
+    port = coalesce((p ->> 'port')::integer, port),
+    indicatif = coalesce(p ->> 'indicatif', indicatif),
+    sms_colis_envoi = coalesce((p ->> 'sms_colis_envoi')::boolean, sms_colis_envoi),
+    sms_colis_arrive = coalesce((p ->> 'sms_colis_arrive')::boolean, sms_colis_arrive),
+    sms_colis_retire = coalesce((p ->> 'sms_colis_retire')::boolean, sms_colis_retire),
+    sms_billet = coalesce((p ->> 'sms_billet')::boolean, sms_billet),
+    tpl_envoi_exp = coalesce(nullif(p ->> 'tpl_envoi_exp', ''), tpl_envoi_exp),
+    tpl_envoi_dest = coalesce(nullif(p ->> 'tpl_envoi_dest', ''), tpl_envoi_dest),
+    tpl_arrive = coalesce(nullif(p ->> 'tpl_arrive', ''), tpl_arrive),
+    tpl_retire = coalesce(nullif(p ->> 'tpl_retire', ''), tpl_retire),
+    tpl_billet = coalesce(nullif(p ->> 'tpl_billet', ''), tpl_billet),
+    updated_at = now()
+  where company_id = cid;
+end $$;
+
+-- Reprend le résultat des requêtes HTTP (0000|OK… = accepté par SMSBUS) et le met dans la file.
+create or replace function public.sms_rafraichir() returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if public.app_role() is distinct from 'admin' then raise exception 'Non autorisé'; end if;
+  begin
+    execute $q$
+      update public.sms_outbox o set
+        statut = case when r.content like '0000%' then 'envoye' else 'echec' end,
+        reponse = left(coalesce(r.content, r.error_msg, 'Pas de réponse'), 300)
+      from net._http_response r
+      where r.id = o.request_id and o.statut = 'attente' and o.company_id = public.app_company_id()
+    $q$;
+  exception when others then null;
+  end;
+end $$;
+
+-- Renvoie un SMS en échec.
+create or replace function public.sms_renvoyer(p_id bigint) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if public.app_role() is distinct from 'admin' then raise exception 'Non autorisé'; end if;
+  update public.sms_outbox set statut = 'attente', reponse = null, request_id = null
+  where id = p_id and company_id = public.app_company_id();
+  perform public._sms_envoyer(p_id);
+end $$;
+
+-- SMS de test vers un numéro.
+create or replace function public.sms_tester(p_tel text) returns void
+language plpgsql security definer set search_path = public as $$
+declare cid bigint := public.app_company_id(); id bigint;
+begin
+  if public.app_role() is distinct from 'admin' or cid is null then raise exception 'Non autorisé'; end if;
+  insert into public.sms_outbox (company_id, type, telephone, message)
+  values (cid, 'test', p_tel, 'Test SMS : la configuration SMSBUS fonctionne.') returning sms_outbox.id into id;
+  perform public._sms_envoyer(id);
+end $$;
+
+revoke execute on function public.sms_enregistrer(jsonb), public.sms_rafraichir(), public.sms_renvoyer(bigint), public.sms_tester(text)
+  from public, anon;
+grant execute on function public.sms_enregistrer(jsonb), public.sms_rafraichir(), public.sms_renvoyer(bigint), public.sms_tester(text)
+  to authenticated;
+revoke execute on function public._sms_urlencode(text), public._sms_numero(text, text), public._sms_remplir(text, jsonb),
+  public._sms_envoyer(bigint), public._sms_poster(bigint, text, bigint, bigint, text, text),
+  public._sms_colis_vals(public.colis), public.colis_sms_insert(), public.colis_sms_statut(), public.tickets_sms_insert()
+  from public, anon, authenticated;
+
+notify pgrst, 'reload schema';

@@ -12,6 +12,7 @@ import '../core/theme.dart';
 import '../data/models.dart';
 import '../data/providers.dart';
 import '../data/repo.dart';
+import '../widgets/client_fields.dart';
 import '../widgets/common.dart';
 import 'receipt.dart';
 
@@ -274,23 +275,15 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
                 icon: Icons.upload_rounded,
                 child: Column(
                   children: [
-                    TextFormField(
-                      controller: expNom,
-                      textCapitalization: TextCapitalization.words,
-                      decoration: const InputDecoration(
-                        labelText: 'Nom complet *',
-                      ),
+                    ClientFields(
+                      nom: expNom,
+                      telephone: expTel,
                       validator: _req,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: expTel,
-                      keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
-                        labelText: 'Téléphone *',
-                        hintText: '+226 70 00 00 00',
-                      ),
-                      validator: _req,
+                      onPick: (c) {
+                        if (arrivee == null && c.dernierArriveeId != null) {
+                          setState(() => arrivee = c.dernierArriveeId);
+                        }
+                      },
                     ),
                   ],
                 ),
@@ -302,22 +295,9 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
                 accent: const Color(0xFF16A34A),
                 child: Column(
                   children: [
-                    TextFormField(
-                      controller: destNom,
-                      textCapitalization: TextCapitalization.words,
-                      decoration: const InputDecoration(
-                        labelText: 'Nom complet *',
-                      ),
-                      validator: _req,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: destTel,
-                      keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
-                        labelText: 'Téléphone *',
-                        hintText: '+226 70 00 00 00',
-                      ),
+                    ClientFields(
+                      nom: destNom,
+                      telephone: destTel,
                       validator: _req,
                     ),
                   ],
@@ -354,6 +334,7 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<int>(
+                      key: ValueKey(arrivee),
                       initialValue: arrivee,
                       decoration: const InputDecoration(
                         labelText: 'Gare d\'arrivée *',

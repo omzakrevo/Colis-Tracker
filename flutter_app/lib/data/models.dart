@@ -612,3 +612,82 @@ class AppVersion {
     createdAt: DateTime.parse(j['created_at'] as String),
   );
 }
+
+/// Configuration SMS SMSBUS de l'entreprise (le mot de passe n'est jamais renvoyé par le serveur).
+class SmsConfig {
+  SmsConfig({
+    this.actif = false,
+    this.username = '',
+    this.sender = '',
+    this.port = 7170,
+    this.indicatif = '226',
+    this.colisEnvoi = true,
+    this.colisArrive = true,
+    this.colisRetire = true,
+    this.billet = true,
+    this.tplEnvoiExp = '',
+    this.tplEnvoiDest = '',
+    this.tplArrive = '',
+    this.tplRetire = '',
+    this.tplBillet = '',
+  });
+
+  final bool actif, colisEnvoi, colisArrive, colisRetire, billet;
+  final String username, sender, indicatif;
+  final int port;
+  final String tplEnvoiExp, tplEnvoiDest, tplArrive, tplRetire, tplBillet;
+
+  factory SmsConfig.fromJson(Map<String, dynamic> j) => SmsConfig(
+    actif: j['actif'] as bool? ?? false,
+    username: j['username'] as String? ?? '',
+    sender: j['sender'] as String? ?? '',
+    port: (j['port'] as num?)?.toInt() ?? 7170,
+    indicatif: j['indicatif'] as String? ?? '226',
+    colisEnvoi: j['sms_colis_envoi'] as bool? ?? true,
+    colisArrive: j['sms_colis_arrive'] as bool? ?? true,
+    colisRetire: j['sms_colis_retire'] as bool? ?? true,
+    billet: j['sms_billet'] as bool? ?? true,
+    tplEnvoiExp: j['tpl_envoi_exp'] as String? ?? '',
+    tplEnvoiDest: j['tpl_envoi_dest'] as String? ?? '',
+    tplArrive: j['tpl_arrive'] as String? ?? '',
+    tplRetire: j['tpl_retire'] as String? ?? '',
+    tplBillet: j['tpl_billet'] as String? ?? '',
+  );
+}
+
+/// Une ligne du journal des SMS envoyés.
+class SmsLigne {
+  SmsLigne({
+    required this.id,
+    required this.type,
+    required this.telephone,
+    required this.message,
+    required this.statut,
+    required this.createdAt,
+    this.reponse,
+  });
+
+  final int id;
+  final String type, telephone, message, statut;
+  final String? reponse;
+  final DateTime createdAt;
+
+  factory SmsLigne.fromJson(Map<String, dynamic> j) => SmsLigne(
+    id: j['id'] as int,
+    type: j['type'] as String,
+    telephone: j['telephone'] as String,
+    message: j['message'] as String,
+    statut: j['statut'] as String,
+    reponse: j['reponse'] as String?,
+    createdAt: DateTime.parse(j['created_at'] as String).toLocal(),
+  );
+
+  String get typeLabel => switch (type) {
+    'envoi_exp' => 'Envoi (expéditeur)',
+    'envoi_dest' => 'Envoi (destinataire)',
+    'arrive' => 'Arrivée',
+    'retire' => 'Retrait',
+    'billet' => 'Billet',
+    _ => 'Test',
+  };
+}
