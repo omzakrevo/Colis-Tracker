@@ -53,17 +53,17 @@ class _MissingConfig extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Scaffold(
-        body: Center(
-          child: Padding(
-            padding: EdgeInsets.all(32),
-            child: SelectableText(
-              'Supabase n\'est pas configuré.\n\n'
-              'Lancez l\'application avec :\n'
-              '--dart-define=SUPABASE_URL=https://votre-serveur\n'
-              '--dart-define=SUPABASE_ANON_KEY=votre_clé_anon',
-              textAlign: TextAlign.center,
-            ),
-          ),
+    body: Center(
+      child: Padding(
+        padding: EdgeInsets.all(32),
+        child: SelectableText(
+          'Supabase n\'est pas configuré.\n\n'
+          'Lancez l\'application avec :\n'
+          '--dart-define=SUPABASE_URL=https://votre-serveur\n'
+          '--dart-define=SUPABASE_ANON_KEY=votre_clé_anon',
+          textAlign: TextAlign.center,
         ),
-      );
+      ),
+    ),
+  );
 }

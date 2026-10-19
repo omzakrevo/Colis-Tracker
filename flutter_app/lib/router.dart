@@ -58,7 +58,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       const publiques = ['/login', '/inscription'];
       final p = d.profil;
       if (p == null) return publiques.contains(loc) ? null : '/login';
-      if (p.isSuper) return (loc == '/entreprises' || loc == '/mises-a-jour') ? null : '/entreprises';
+      if (p.isSuper)
+        return (loc == '/entreprises' || loc == '/mises-a-jour')
+            ? null
+            : '/entreprises';
       if (d.bloque) return loc == '/attente' ? null : '/attente';
       if (publiques.contains(loc) ||
           loc == '/attente' ||
