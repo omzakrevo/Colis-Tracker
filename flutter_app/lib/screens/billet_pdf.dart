@@ -26,18 +26,18 @@ pw.Widget _billet(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.SizedBox(
-          width: f(58),
+          width: f(84),
           child: pw.Text(
             pdfTexte(l),
-            style: pw.TextStyle(fontSize: f(8.5), color: PdfColors.grey700),
+            style: pw.TextStyle(fontSize: f(10.5), fontWeight: pw.FontWeight.bold),
           ),
         ),
         pw.Expanded(
           child: pw.Text(
             pdfTexte(v),
             style: pw.TextStyle(
-              fontSize: f(10),
-              fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+              fontSize: f(12.5),
+              fontWeight: pw.FontWeight.bold,
             ),
           ),
         ),
@@ -53,8 +53,8 @@ pw.Widget _billet(
       pdfTexte(s),
       textAlign: pw.TextAlign.center,
       style: pw.TextStyle(
-        fontSize: f(size),
-        fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+        fontSize: f(size * 1.25),
+        fontWeight: pw.FontWeight.bold,
       ),
     ),
   );
@@ -107,11 +107,11 @@ pw.Widget _billet(
         children: [
           pw.Text(
             'TOTAL',
-            style: pw.TextStyle(fontSize: f(12), fontWeight: pw.FontWeight.bold),
+            style: pw.TextStyle(fontSize: f(15), fontWeight: pw.FontWeight.bold),
           ),
           pw.Text(
             pdfTexte(fcfa(t.prix)),
-            style: pw.TextStyle(fontSize: f(14), fontWeight: pw.FontWeight.bold),
+            style: pw.TextStyle(fontSize: f(18), fontWeight: pw.FontWeight.bold),
           ),
         ],
       ),
@@ -147,7 +147,7 @@ Future<Uint8List> billetPdf(Ticket t, CompanySettings co, PdfPageFormat format) 
     final colonne = (format.width - 2 * marge - gap) / 2;
     final k = (colonne / 210).clamp(.6, 1.6);
     final hauteur = format.height - 2 * marge - 30;
-    final kv = (1 + (hauteur - 400 * k) / (95 * k)).clamp(1.0, 4.0);
+    final kv = (1 + (hauteur - 485 * k) / (95 * k)).clamp(1.0, 4.0);
     doc.addPage(
       pw.Page(
         pageFormat: format.copyWith(
