@@ -122,7 +122,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
           FilledButton.icon(
             onPressed: () => Navigator.pop(ctx, 'ticket'),
             icon: const Icon(Icons.receipt_long_rounded),
-            label: const Text('Ticket 80 mm'),
+            label: const Text('Ticket'),
           ),
         ],
       ),

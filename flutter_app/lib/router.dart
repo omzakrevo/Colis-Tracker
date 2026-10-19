@@ -14,6 +14,7 @@ import 'screens/colis_list.dart';
 import 'screens/dashboard.dart';
 import 'screens/entreprises.dart';
 import 'screens/gares.dart';
+import 'screens/imprimante.dart';
 import 'screens/inscription.dart';
 import 'screens/login.dart';
 import 'screens/mises_a_jour.dart';
@@ -72,7 +73,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (p.isBarragiste) return loc == '/scanner' ? null : '/scanner';
       // Le convoyeur vend des billets et scanne, rien d'autre.
       if (p.isConvoyeur) {
-        return (loc.startsWith('/billets') || loc == '/scanner')
+        return (loc.startsWith('/billets') ||
+                loc == '/scanner' ||
+                loc == '/imprimante')
             ? null
             : '/billets';
       }
@@ -136,6 +139,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/billets/nouveau',
             pageBuilder: (c, s) => _page(s, const BilletFormScreen()),
+          ),
+          GoRoute(
+            path: '/imprimante',
+            pageBuilder: (c, s) => _page(s, const ImprimanteScreen()),
           ),
           GoRoute(
             path: '/billets/verifier',

@@ -5,6 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../core/format.dart';
+import '../core/imprimante.dart';
 import '../data/models.dart';
 import 'receipt.dart' show pdfImage, pdfTexte;
 
@@ -180,13 +181,23 @@ Future<Uint8List> billetPdf(Ticket t, CompanySettings co, PdfPageFormat format) 
   return doc.save();
 }
 
-/// Ouvre l'impression du billet. `ticket` : imprimante à rouleau 80 mm ; sinon feuille A4 (deux exemplaires).
+/// Imprime le billet. `ticket` : imprimante à tickets (58/80 mm), directement si une imprimante est réglée
+/// sur cet appareil ; sinon feuille A4 (deux exemplaires) via la fenêtre d'impression.
 Future<void> imprimerBillet(
   Ticket t,
   CompanySettings co, {
   bool ticket = false,
-}) => Printing.layoutPdf(
-  name: 'Billet-${t.numero}',
-  format: ticket ? PdfPageFormat.roll80 : PdfPageFormat.a4,
-  onLayout: (format) => billetPdf(t, co, format),
-);
+}) async {
+  if (ticket &&
+      await Imprimante.imprimerDirect(
+        'Billet-${t.numero}',
+        (format) => billetPdf(t, co, format),
+      )) {
+    return;
+  }
+  await Printing.layoutPdf(
+    name: 'Billet-${t.numero}',
+    format: ticket ? PdfPageFormat.roll80 : PdfPageFormat.a4,
+    onLayout: (format) => billetPdf(t, co, format),
+  );
+}

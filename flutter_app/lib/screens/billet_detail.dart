@@ -99,12 +99,12 @@ class BilletDetailScreen extends ConsumerWidget {
                 runSpacing: 10,
                 children: [
                   OutlinedButton.icon(
-                    onPressed: () => imprimerBillet(t, company, ticket: true),
+                    onPressed: () => avecMessage(context, () => imprimerBillet(t, company, ticket: true)),
                     icon: const Icon(Icons.receipt_long_rounded),
-                    label: const Text('Ticket 80 mm'),
+                    label: const Text('Ticket'),
                   ),
                   OutlinedButton.icon(
-                    onPressed: () => imprimerBillet(t, company),
+                    onPressed: () => avecMessage(context, () => imprimerBillet(t, company)),
                     icon: const Icon(Icons.print_rounded),
                     label: const Text('Billet A4'),
                   ),

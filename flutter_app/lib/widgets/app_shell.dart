@@ -28,6 +28,7 @@ const _principaux = [
 
 const _billets = _Item('/billets', 'Billets', Icons.confirmation_number_rounded);
 const _verifier = _Item('/billets/verifier', 'Vérifier', Icons.fact_check_rounded);
+const _imprimante = _Item('/imprimante', 'Imprimante', Icons.print_rounded);
 const _scanner = _Item('/scanner', 'Scanner', Icons.qr_code_scanner_rounded);
 
 /// Onglets du bas (téléphone) selon le rôle.
@@ -40,7 +41,7 @@ List<_Item> _onglets(Profil me) => me.isConvoyeur
 List<_Item> _menu(Profil me) => me.isBarragiste
     ? const [_scanner]
     : me.isConvoyeur
-    ? const [_billets, _verifier, _scanner]
+    ? const [_billets, _verifier, _scanner, _imprimante]
     : me.isSuper
     ? const [
         _Item('/entreprises', 'Entreprises', Icons.business_rounded),
@@ -50,6 +51,7 @@ List<_Item> _menu(Profil me) => me.isBarragiste
         ..._onglets(me),
         if (me.voitBillets && !me.isGuichet) _billets,
         if (me.peutVerifierBillets) _verifier,
+        _imprimante,
         const _Item('/rapports', 'Rapports', Icons.insights_rounded),
         if (me.isAdmin) ...const [
           _Item('/gares', 'Gares', Icons.location_city_rounded),

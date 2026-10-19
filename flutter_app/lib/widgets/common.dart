@@ -490,3 +490,12 @@ class StatutProgress extends StatelessWidget {
     );
   }
 }
+
+/// Lance une action (impression…) et affiche l'erreur éventuelle au lieu de la laisser passer en silence.
+Future<void> avecMessage(BuildContext context, Future<void> Function() action) async {
+  try {
+    await action();
+  } catch (e) {
+    if (context.mounted) toast(context, errMsg(e), error: true);
+  }
+}

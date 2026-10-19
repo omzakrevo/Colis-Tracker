@@ -6,6 +6,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../core/format.dart';
+import '../core/imprimante.dart';
 import '../data/models.dart';
 
 /// Texte compatible avec la police PDF standard (les espaces insécables fines des montants ne s'y impriment pas).
@@ -205,14 +206,24 @@ Future<Uint8List> recuPdf(Colis c, CompanySettings co, PdfPageFormat format) {
   return doc.save();
 }
 
-/// Ouvre l'impression du reçu. `ticket` : imprimante à rouleau 80 mm ; sinon feuille A4 (deux exemplaires).
-/// Le format réellement choisi dans la fenêtre d'impression est pris en compte.
+/// Imprime le reçu. `ticket` : imprimante à tickets (58/80 mm) ; sinon feuille A4 (deux exemplaires).
+/// Si une imprimante est réglée sur cet appareil (écran « Imprimante »), le ticket part directement dessus,
+/// sans fenêtre d'impression ; sinon la fenêtre d'impression s'ouvre (le format choisi est pris en compte).
 Future<void> imprimerRecu(
   Colis c,
   CompanySettings co, {
   bool ticket = false,
-}) => Printing.layoutPdf(
-  name: 'Recu-${c.numero}',
-  format: ticket ? PdfPageFormat.roll80 : PdfPageFormat.a4,
-  onLayout: (format) => recuPdf(c, co, format),
-);
+}) async {
+  if (ticket &&
+      await Imprimante.imprimerDirect(
+        'Recu-${c.numero}',
+        (format) => recuPdf(c, co, format),
+      )) {
+    return;
+  }
+  await Printing.layoutPdf(
+    name: 'Recu-${c.numero}',
+    format: ticket ? PdfPageFormat.roll80 : PdfPageFormat.a4,
+    onLayout: (format) => recuPdf(c, co, format),
+  );
+}
