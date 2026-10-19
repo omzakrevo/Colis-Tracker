@@ -1,0 +1,39 @@
+name: Application Windows
+
+# Construit Tchi pour Windows (dossier à copier tel quel + archive .zip).
+# Lancer à la main : Actions > Application Windows > Run workflow.
+# Remarque : le scanner par caméra n'existe pas sous Windows ; on saisit le numéro ou on utilise un lecteur
+# de code-barres / QR (il se comporte comme un clavier).
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/**"]
+    paths: ["flutter_app/windows/**", ".github/workflows/build-windows.yml"]
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.7"
+          channel: stable
+          cache: true
+      - run: flutter config --enable-windows-desktop
+      - run: flutter pub get
+      - name: Construire pour Windows
+        run: flutter build windows --release --build-name=1.0.0 --build-number=${{ github.run_number }}
+      - name: Archive
+        shell: pwsh
+        run: |
+          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath "tchi-windows-${{ github.run_number }}.zip"
+          "### Application Windows construite`n- Archive : **tchi-windows-${{ github.run_number }}.zip** (décompressez, lancez `vip_colis.exe`)" | Out-File -Append $env:GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tchi-windows-${{ github.run_number }}
+          path: flutter_app/tchi-windows-${{ github.run_number }}.zip
+          if-no-files-found: error
