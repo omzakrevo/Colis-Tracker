@@ -23,7 +23,7 @@ jobs:
           cache: true
       - run: flutter pub get
       - name: Construire le web (racine du domaine)
-        run: flutter build web --release --base-href "/"
+        run: flutter build web --release --base-href "/" --no-web-resources-cdn
       - name: Ajouter le fichier .htaccess
         run: |
           cat > build/web/.htaccess <<'EOF'
