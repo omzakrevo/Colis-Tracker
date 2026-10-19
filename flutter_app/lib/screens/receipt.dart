@@ -166,42 +166,33 @@ Future<Uint8List> recuPdf(Colis c, CompanySettings co, PdfPageFormat format) {
       ),
     );
   } else {
-    // Feuille A4 / A5 : deux exemplaires côte à côte (client et agence) qui remplissent la page.
-    const marge = 24.0, gap = 22.0;
-    final colonne = (format.width - 2 * marge - gap) / 2;
-    final k = (colonne / 210).clamp(.6, 1.6);
-    // Étire les espacements pour que les exemplaires occupent aussi toute la hauteur de la feuille.
-    final hauteur = format.height - 2 * marge - 30;
+    // Feuille A4 / A5 : un exemplaire par page (client puis agence), centré et agrandi pour remplir la feuille.
+    const marge = 28.0;
+    final largeur = ((format.width - 2 * marge) * .8).clamp(200.0, 420.0);
+    final hauteur = format.height - 2 * marge;
+    // Le texte grossit tant que l'exemplaire tient dans la largeur ET la hauteur de la feuille.
+    final kMax = hauteur / 535 * .97;
+    final k = (largeur / 210 < kMax ? largeur / 210 : kMax).clamp(.7, 2.0);
     final kv = (1 + (hauteur - 535 * k) / (105 * k)).clamp(1.0, 4.0);
-    doc.addPage(
-      pw.Page(
-        pageFormat: format.copyWith(
-          marginLeft: marge,
-          marginRight: marge,
-          marginTop: marge,
-          marginBottom: marge,
+    for (final exemplaire in ['EXEMPLAIRE CLIENT', 'EXEMPLAIRE AGENCE']) {
+      doc.addPage(
+        pw.Page(
+          pageFormat: format.copyWith(
+            marginLeft: marge,
+            marginRight: marge,
+            marginTop: marge,
+            marginBottom: marge,
+          ),
+          build: (_) => pw.Align(
+            alignment: pw.Alignment.topCenter,
+            child: pw.SizedBox(
+              width: largeur,
+              child: _recu(c, co, logo, k, exemplaire: exemplaire, kv: kv),
+            ),
+          ),
         ),
-        build: (_) => pw.Row(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.SizedBox(
-              width: colonne,
-              child: _recu(c, co, logo, k, exemplaire: 'EXEMPLAIRE CLIENT', kv: kv),
-            ),
-            pw.Container(
-              width: gap,
-              height: hauteur,
-              alignment: pw.Alignment.center,
-              child: pw.Container(width: .8, color: PdfColors.grey500),
-            ),
-            pw.SizedBox(
-              width: colonne,
-              child: _recu(c, co, logo, k, exemplaire: 'EXEMPLAIRE AGENCE', kv: kv),
-            ),
-          ],
-        ),
-      ),
-    );
+      );
+    }
   }
   return doc.save();
 }
