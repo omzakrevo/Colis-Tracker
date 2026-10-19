@@ -142,15 +142,15 @@ Future<Uint8List> billetPdf(Ticket t, CompanySettings co, PdfPageFormat format) 
       ),
     );
   } else {
-    // Feuille A4 / A5 : un exemplaire par page (client puis agence), centré et agrandi pour remplir la feuille.
+    // Feuille A4 / A5 : un seul billet (pas d'exemplaire agence), centré et agrandi pour remplir la feuille.
     const marge = 28.0;
     final largeur = ((format.width - 2 * marge) * .8).clamp(200.0, 420.0);
     final hauteur = format.height - 2 * marge;
     // Le texte grossit tant que l'exemplaire tient dans la largeur ET la hauteur de la feuille.
     final kMax = hauteur / 485 * .97;
     final k = (largeur / 210 < kMax ? largeur / 210 : kMax).clamp(.7, 2.0);
-    final kv = (1 + (hauteur - 485 * k) / (95 * k)).clamp(1.0, 4.0);
-    for (final exemplaire in ['EXEMPLAIRE PASSAGER', 'EXEMPLAIRE AGENCE']) {
+    final kv = (1 + (hauteur - 485 * k) / (95 * k)).clamp(1.0, 1.6);
+    {
       doc.addPage(
         pw.Page(
           pageFormat: format.copyWith(
@@ -163,7 +163,7 @@ Future<Uint8List> billetPdf(Ticket t, CompanySettings co, PdfPageFormat format) 
             alignment: pw.Alignment.topCenter,
             child: pw.SizedBox(
               width: largeur,
-              child: _billet(t, co, logo, k, exemplaire: exemplaire, kv: kv),
+              child: _billet(t, co, logo, k, kv: kv),
             ),
           ),
         ),
