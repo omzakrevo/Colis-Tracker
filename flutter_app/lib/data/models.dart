@@ -14,6 +14,15 @@ class Gare {
   final String nom, ville, adresse;
   final String? responsable, telephone;
 
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'nom': nom,
+    'ville': ville,
+    'adresse': adresse,
+    'responsable': responsable,
+    'telephone': telephone,
+  };
+
   factory Gare.fromJson(Map<String, dynamic> j) => Gare(
     id: j['id'] as int,
     nom: j['nom'] as String,
@@ -186,7 +195,15 @@ class Colis {
     this.retraitDate,
     this.photo,
     this.notes,
+    this.enAttente = false,
+    this.clientRef,
   });
+
+  /// Créé ou modifié hors connexion, pas encore envoyé au serveur.
+  final bool enAttente;
+
+  /// Identifiant client d'un colis créé hors ligne (sert au numéro provisoire LOC-…).
+  final String? clientRef;
 
   final int id, gareDepartId, gareArriveeId, nombre;
   final String numero, expediteurNom, expediteurTelephone;
@@ -227,6 +244,78 @@ class Colis {
     photo: j['photo'] as String?,
     notes: j['notes'] as String?,
     createdAt: DateTime.parse(j['created_at'] as String),
+    enAttente: j['en_attente'] as bool? ?? false,
+    clientRef: j['client_ref'] as String?,
+  );
+
+  /// Mêmes clés que la base : permet de mémoriser le colis sur l'appareil puis de le relire avec `fromJson`.
+  /// `light` retire la photo et la signature (lourdes) pour les listes mises en cache.
+  Map<String, dynamic> toJson({bool light = false}) => {
+    'id': id,
+    'numero': numero,
+    'expediteur_nom': expediteurNom,
+    'expediteur_telephone': expediteurTelephone,
+    'destinataire_nom': destinataireNom,
+    'destinataire_telephone': destinataireTelephone,
+    'gare_depart_id': gareDepartId,
+    'gare_arrivee_id': gareArriveeId,
+    'gare_depart_nom': gareDepartNom,
+    'gare_arrivee_nom': gareArriveeNom,
+    'description': description,
+    'nombre': nombre,
+    'poids': poids,
+    'prix': prix,
+    'statut': statut,
+    'date_envoi': dateEnvoi.toIso8601String(),
+    'agent_nom': agentNom,
+    'retrait_nom': retraitNom,
+    'retrait_telephone': retraitTelephone,
+    'retrait_piece_identite': retraitPieceIdentite,
+    'retrait_signature': light ? null : retraitSignature,
+    'retrait_date': retraitDate?.toIso8601String(),
+    'photo': light ? null : photo,
+    'notes': notes,
+    'created_at': createdAt.toIso8601String(),
+    'en_attente': enAttente,
+    'client_ref': clientRef,
+  };
+
+  Colis copyWith({
+    String? statut,
+    String? retraitNom,
+    String? retraitTelephone,
+    String? retraitPieceIdentite,
+    String? retraitSignature,
+    DateTime? retraitDate,
+    bool? enAttente,
+  }) => Colis(
+    id: id,
+    numero: numero,
+    expediteurNom: expediteurNom,
+    expediteurTelephone: expediteurTelephone,
+    destinataireNom: destinataireNom,
+    destinataireTelephone: destinataireTelephone,
+    gareDepartId: gareDepartId,
+    gareArriveeId: gareArriveeId,
+    gareDepartNom: gareDepartNom,
+    gareArriveeNom: gareArriveeNom,
+    description: description,
+    nombre: nombre,
+    poids: poids,
+    prix: prix,
+    statut: statut ?? this.statut,
+    dateEnvoi: dateEnvoi,
+    agentNom: agentNom,
+    retraitNom: retraitNom ?? this.retraitNom,
+    retraitTelephone: retraitTelephone ?? this.retraitTelephone,
+    retraitPieceIdentite: retraitPieceIdentite ?? this.retraitPieceIdentite,
+    retraitSignature: retraitSignature ?? this.retraitSignature,
+    retraitDate: retraitDate ?? this.retraitDate,
+    photo: photo,
+    notes: notes,
+    createdAt: createdAt,
+    enAttente: enAttente ?? this.enAttente,
+    clientRef: clientRef,
   );
 }
 
@@ -243,6 +332,14 @@ class Historique {
   final String statut;
   final DateTime date;
   final String? notes, agentNom;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'statut': statut,
+    'date_changement': date.toIso8601String(),
+    'notes': notes,
+    'agent_nom': agentNom,
+  };
 
   factory Historique.fromJson(Map<String, dynamic> j) => Historique(
     id: j['id'] as int,
@@ -278,6 +375,17 @@ class CompanySettings {
     pays: j['pays'] as String,
     logo: j['logo'] as String?,
   );
+
+  Map<String, dynamic> toJson() => {
+    'nom': nom,
+    'slogan': slogan,
+    'telephone': telephone,
+    'email': email,
+    'adresse': adresse,
+    'ville': ville,
+    'pays': pays,
+    'logo': logo,
+  };
 
   static CompanySettings get defaults => CompanySettings(
     nom: 'Mon entreprise',
@@ -330,13 +438,13 @@ class AppVersion {
   final DateTime createdAt;
 
   factory AppVersion.fromJson(Map<String, dynamic> j) => AppVersion(
-        id: j['id'] as int,
-        versionName: j['version_name'] as String,
-        buildNumber: (j['build_number'] as num).toInt(),
-        apkUrl: j['apk_url'] as String,
-        notes: j['notes'] as String?,
-        obligatoire: j['obligatoire'] as bool? ?? false,
-        actif: j['actif'] as bool? ?? true,
-        createdAt: DateTime.parse(j['created_at'] as String),
-      );
+    id: j['id'] as int,
+    versionName: j['version_name'] as String,
+    buildNumber: (j['build_number'] as num).toInt(),
+    apkUrl: j['apk_url'] as String,
+    notes: j['notes'] as String?,
+    obligatoire: j['obligatoire'] as bool? ?? false,
+    actif: j['actif'] as bool? ?? true,
+    createdAt: DateTime.parse(j['created_at'] as String),
+  );
 }

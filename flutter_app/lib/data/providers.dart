@@ -9,10 +9,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/identifiant.dart';
 import '../core/local_auth.dart';
 import 'models.dart';
+import 'offline.dart';
 import 'repo.dart';
 
 String errMsg(Object e) {
-  if (estErreurReseau(e)) return 'Pas de connexion internet. Réessayez quand le réseau revient.';
+  if (estErreurReseau(e))
+    return 'Pas de connexion internet. Réessayez quand le réseau revient.';
   if (e is PostgrestException) return e.message;
   if (e is AuthException) return e.message;
   if (e is String) return e;
@@ -258,6 +260,80 @@ final sessionProvider = Provider<AuthData>(
   (ref) => ref.watch(authProvider).value ?? const AuthData(),
 );
 
+// ── Synchronisation des opérations faites hors ligne ──────
+
+class SyncState {
+  const SyncState({
+    this.pending = 0,
+    this.rejected = const [],
+    this.syncing = false,
+  });
+  final int pending;
+  final List<OutboxOp> rejected;
+  final bool syncing;
+}
+
+/// Envoie au serveur, dès que le réseau revient, ce qui a été fait sans internet.
+class SyncNotifier extends Notifier<SyncState> {
+  bool _busy = false;
+
+  @override
+  SyncState build() {
+    void onChange() => _refresh();
+    Outbox.changes.addListener(onChange);
+    final conn = Connectivity().onConnectivityChanged.listen((r) {
+      if (!r.contains(ConnectivityResult.none)) sync();
+    });
+    final timer = Timer.periodic(const Duration(seconds: 45), (_) => sync());
+    ref.listen(authProvider, (_, next) {
+      _refresh();
+      final d = next.value;
+      if (d?.profil != null && !d!.offline) sync();
+    });
+    ref.onDispose(() {
+      Outbox.changes.removeListener(onChange);
+      conn.cancel();
+      timer.cancel();
+    });
+    Future.microtask(() async {
+      await _refresh();
+      await sync();
+    });
+    return const SyncState();
+  }
+
+  Future<void> _refresh() async {
+    final p = await Outbox.pending();
+    final r = await Outbox.rejected();
+    if (!ref.mounted) return;
+    state = SyncState(pending: p.length, rejected: r, syncing: _busy);
+  }
+
+  Future<void> sync() async {
+    if (_busy || !Repo.aUneSession) return;
+    final me = ref.read(profilProvider).value;
+    if (me == null || me.isSuper) return;
+    if ((await Outbox.pending()).isEmpty) return;
+    _busy = true;
+    await _refresh();
+    try {
+      final n = await Repo.synchroniser();
+      if (n > 0 && ref.mounted) ref.read(tickProvider.notifier).bump();
+    } catch (_) {
+      // réseau ou session : on réessaiera au prochain passage
+    } finally {
+      _busy = false;
+      await _refresh();
+    }
+  }
+
+  Future<void> oublier(String id) => Outbox.oublierRejet(id);
+}
+
+final syncProvider = NotifierProvider<SyncNotifier, SyncState>(
+  SyncNotifier.new,
+);
+
 // ── Temps réel : tout changement de colis relance les listes ──
 class TickNotifier extends Notifier<int> {
   @override
@@ -379,16 +455,18 @@ final statutsProvider = FutureProvider<Map<String, int>>((ref) {
   return Repo.statutsSummary();
 });
 
-
 // ── Mise à jour de l'application (Android) ────────────────
 
 /// Version plus récente que celle installée, sinon null. Ne s'applique qu'à l'application Android.
 final miseAJourProvider = FutureProvider<AppVersion?>((ref) async {
   if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return null;
   try {
-    final installee = int.tryParse((await PackageInfo.fromPlatform()).buildNumber) ?? 0;
+    final installee =
+        int.tryParse((await PackageInfo.fromPlatform()).buildNumber) ?? 0;
     final derniere = await Repo.derniereVersion();
-    return (derniere != null && derniere.buildNumber > installee) ? derniere : null;
+    return (derniere != null && derniere.buildNumber > installee)
+        ? derniere
+        : null;
   } catch (_) {
     return null; // hors ligne ou erreur : on réessaiera plus tard
   }

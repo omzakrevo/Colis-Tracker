@@ -198,3 +198,13 @@ avec le numéro de build et le lien. Vous pouvez aussi désactiver une version, 
 
 Les deux systèmes peuvent coexister : Shorebird pour les correctifs Dart instantanés, la mise à jour intégrée pour
 les nouvelles versions complètes (nouveaux plugins, changements Android).
+
+## 12. Mode hors ligne complet
+
+Migration à exécuter : `supabase/migrations/20261016000000_hors_ligne.sql` (colonnes `client_ref` et `numero_provisoire`, scan par lot compatible avec les numéros provisoires).
+
+- **Lecture** : colis, détail, historique, gares, paramètres, tableau de bord et rapports sont mémorisés sur l'appareil à chaque consultation en ligne ; sans internet, la dernière copie s'affiche (recherche et filtres appliqués localement).
+- **Écriture** : créer un colis, changer un statut, enregistrer un retrait et valider un scan par lot fonctionnent sans internet. Ces actions sont placées dans une file d'attente persistante (un compte = une file) et envoyées dans l'ordre au retour du réseau, avec la pastille « En attente d'envoi » sur les colis concernés.
+- **Colis créé hors ligne** : il reçoit un numéro provisoire `LOC-XXXXXXXX` (reçu et QR), puis son vrai numéro `COL-…` à la synchronisation ; l'étiquette déjà collée reste scannable car le serveur conserve le numéro provisoire. Un envoi rejoué ne crée jamais de doublon.
+- **Refus du serveur** : si une action n'est plus valable (le colis a changé entre-temps), elle est mise de côté avec son motif dans un bandeau rouge, sans bloquer les autres.
+- Limites : les écrans d'administration (gares, utilisateurs, entreprises) et la création de comptes nécessitent toujours internet ; la photo du colis n'est pas conservée dans les listes mémorisées.

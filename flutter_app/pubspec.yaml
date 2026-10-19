@@ -26,6 +26,7 @@ dependencies:
   pdf: ^3.13.1
   printing: ^5.15.1
   qr_flutter: ^4.1.0
+  shared_preferences: ^2.5.3
   signature: ^6.4.0
   supabase_flutter: ^2.18.2
   url_launcher: ^6.3.3

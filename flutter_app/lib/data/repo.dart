@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/identifiant.dart';
 import 'models.dart';
+import 'offline.dart';
 
 SupabaseClient get _db => Supabase.instance.client;
 
@@ -122,7 +123,10 @@ class Repo {
   }
 
   static Future<List<AppVersion>> versions() async {
-    final rows = await _db.from('app_versions').select().order('build_number', ascending: false);
+    final rows = await _db
+        .from('app_versions')
+        .select()
+        .order('build_number', ascending: false);
     return rows.map(AppVersion.fromJson).toList();
   }
 
@@ -132,19 +136,19 @@ class Repo {
     required String apkUrl,
     String? notes,
     bool obligatoire = false,
-  }) =>
-      _db.from('app_versions').insert({
-        'version_name': versionName,
-        'build_number': buildNumber,
-        'apk_url': apkUrl,
-        'notes': notes,
-        'obligatoire': obligatoire,
-      });
+  }) => _db.from('app_versions').insert({
+    'version_name': versionName,
+    'build_number': buildNumber,
+    'apk_url': apkUrl,
+    'notes': notes,
+    'obligatoire': obligatoire,
+  });
 
   static Future<void> majVersion(int id, Map<String, dynamic> data) =>
       _db.from('app_versions').update(data).eq('id', id);
 
-  static Future<void> supprimerVersion(int id) => _db.from('app_versions').delete().eq('id', id);
+  static Future<void> supprimerVersion(int id) =>
+      _db.from('app_versions').delete().eq('id', id);
 
   // ── Super administrateur ──────────────────────────────
   static Future<List<Company>> entreprises() async {
@@ -198,8 +202,72 @@ class Repo {
     },
   );
 
+  // ── Lecture avec mémoire locale ───────────────────────
+  static const _delaiLecture = Duration(seconds: 10);
+  static const _delaiEcriture = Duration(seconds: 15);
+
+  /// Lit sur le serveur et mémorise le résultat ; sans réseau, renvoie la dernière copie mémorisée.
+  static Future<T> _lire<T>(
+    String cle,
+    Future<T> Function() serveur,
+    Object? Function(T) encoder,
+    T Function(Object) decoder,
+  ) async {
+    try {
+      final v = await serveur().timeout(_delaiLecture);
+      await LocalStore.write(cle, encoder(v));
+      return v;
+    } catch (e) {
+      if (!estErreurReseau(e)) rethrow;
+      final c = await LocalStore.read(cle);
+      if (c == null) rethrow;
+      return decoder(c);
+    }
+  }
+
+  static List<Map<String, dynamic>> _maps(Object o) => [
+    for (final e in o as List) Map<String, dynamic>.from(e as Map),
+  ];
+
+  static Future<Map<int, String>> _garesNoms() async {
+    final c = await LocalStore.read('gares');
+    if (c == null) return {};
+    return {for (final g in _maps(c).map(Gare.fromJson)) g.id: g.nom};
+  }
+
   // ── Colis ─────────────────────────────────────────────
   static Future<List<Colis>> listColis(ColisFilter f, {int? maGareId}) async {
+    List<Colis> base;
+    try {
+      base = await _listColisServeur(f, maGareId).timeout(_delaiLecture);
+      final sansFiltre =
+          f.activeCount == 0 && f.search.trim().isEmpty && !f.ancienFirst;
+      if (sansFiltre) {
+        await LocalStore.write(
+          'colis_list',
+          base.map((c) => c.toJson(light: true)).toList(),
+        );
+      }
+    } catch (e) {
+      if (!estErreurReseau(e)) rethrow;
+      final c = await LocalStore.read('colis_list');
+      if (c == null) rethrow;
+      base = Outbox.filtrer(
+        _maps(c).map(Colis.fromJson).toList(),
+        f,
+        maGareId: maGareId,
+      );
+    }
+    final ops = await Outbox.pending();
+    if (ops.isEmpty) return base;
+    final avec = Outbox.appliquer(base, ops, garesNoms: await _garesNoms());
+    return Outbox.filtrer(avec, f, maGareId: maGareId);
+  }
+
+  static Future<List<Colis>> _listColisServeur(
+    ColisFilter f,
+    int? maGareId,
+  ) async {
     var q = _db.from('colis_detail').select();
     if (f.statut != null) q = q.eq('statut', f.statut!);
     if (f.debut != null) q = q.gte('date_envoi', _iso(f.debut!));
@@ -223,41 +291,240 @@ class Repo {
     return rows.map(Colis.fromJson).toList();
   }
 
-  static Future<Colis> getColis(int id) async => Colis.fromJson(
-    await _db.from('colis_detail').select().eq('id', id).single(),
-  );
+  static Future<Colis> getColis(int id) async {
+    if (id < 0) {
+      final c = await _colisLocalParId(id);
+      if (c != null) return c;
+      // Déjà envoyé au serveur depuis : on retrouve son vrai identifiant.
+      final reel = await Outbox.idReelPourLocal(id);
+      if (reel != null) return getColis(reel);
+      throw 'Colis introuvable';
+    }
+    Colis c;
+    try {
+      c = Colis.fromJson(
+        await _db
+            .from('colis_detail')
+            .select()
+            .eq('id', id)
+            .single()
+            .timeout(_delaiLecture),
+      );
+      await LocalStore.writeCapped('colis', id, c.toJson());
+    } catch (e) {
+      if (!estErreurReseau(e)) rethrow;
+      final copie = await LocalStore.readCapped('colis', id);
+      if (copie != null) {
+        c = Colis.fromJson(Map<String, dynamic>.from(copie as Map));
+      } else {
+        final liste = await LocalStore.read('colis_list');
+        final trouve = liste == null
+            ? null
+            : _maps(liste)
+                  .map(Colis.fromJson)
+                  .where((x) => x.id == id)
+                  .firstOrNull;
+        if (trouve == null) rethrow;
+        c = trouve;
+      }
+    }
+    final ops = await Outbox.pending();
+    return ops.isEmpty ? c : Outbox.appliquer([c], ops).first;
+  }
+
+  /// Colis créé hors ligne et pas encore envoyé.
+  static Future<Colis?> _colisLocalParId(int id) async {
+    final ops = await Outbox.pending();
+    final tous = Outbox.appliquer(const [], ops, garesNoms: await _garesNoms());
+    return tous.where((c) => c.id == id).firstOrNull;
+  }
+
+  static Future<List<Colis>> _toutesLesCopies() async {
+    final liste = await LocalStore.read('colis_list');
+    return liste == null ? [] : _maps(liste).map(Colis.fromJson).toList();
+  }
 
   static Future<Colis?> getColisByNumero(String numero) async {
-    final r = await _db
-        .from('colis_detail')
-        .select()
-        .eq('numero', numero.trim())
-        .maybeSingle();
-    return r == null ? null : Colis.fromJson(r);
+    final n = numero.trim().toUpperCase();
+    try {
+      if (n.startsWith('LOC-')) {
+        // Étiquette imprimée hors ligne : le serveur conserve le numéro provisoire.
+        final r = await _db
+            .from('colis')
+            .select('id')
+            .eq('numero_provisoire', n)
+            .maybeSingle()
+            .timeout(_delaiLecture);
+        if (r != null) return await getColis(r['id'] as int);
+      } else {
+        final r = await _db
+            .from('colis_detail')
+            .select()
+            .eq('numero', n)
+            .maybeSingle()
+            .timeout(_delaiLecture);
+        if (r != null) {
+          final c = Colis.fromJson(r);
+          final ops = await Outbox.pending();
+          return ops.isEmpty ? c : Outbox.appliquer([c], ops).first;
+        }
+      }
+    } catch (e) {
+      if (!estErreurReseau(e)) rethrow;
+    }
+    // Sans réseau (ou colis créé hors ligne) : copies locales + opérations en attente.
+    final ops = await Outbox.pending();
+    final locaux = Outbox.appliquer(
+      await _toutesLesCopies(),
+      ops,
+      garesNoms: await _garesNoms(),
+    );
+    return locaux.where((c) => c.numero.toUpperCase() == n).firstOrNull;
   }
 
   static Future<List<Historique>> historique(int colisId) async {
-    final rows = await _db
-        .from('historique_detail')
-        .select()
-        .eq('colis_id', colisId)
-        .order('date_changement');
-    return rows.map(Historique.fromJson).toList();
+    List<Historique> base = [];
+    if (colisId >= 0) {
+      try {
+        final rows = await _db
+            .from('historique_detail')
+            .select()
+            .eq('colis_id', colisId)
+            .order('date_changement')
+            .timeout(_delaiLecture);
+        base = rows.map(Historique.fromJson).toList();
+        await LocalStore.writeCapped(
+          'histo',
+          colisId,
+          base.map((h) => h.toJson()).toList(),
+        );
+      } catch (e) {
+        if (!estErreurReseau(e)) rethrow;
+        final c = await LocalStore.readCapped('histo', colisId);
+        if (c != null) base = _maps(c).map(Historique.fromJson).toList();
+      }
+    }
+    final ops = await Outbox.pending();
+    if (ops.isEmpty) return base;
+    Colis? colis;
+    try {
+      colis = await getColis(colisId);
+    } catch (_) {}
+    return Outbox.historiqueLocal(colis, base, ops);
   }
 
-  static Future<Colis> creerColis(Map<String, dynamic> data) async {
-    final r = await _db.from('colis').insert(data).select('id').single();
-    return getColis(r['id'] as int);
+  /// Enregistre un colis. Sans internet, il est gardé sur l'appareil avec un numéro provisoire
+  /// (LOC-…) et envoyé automatiquement au retour du réseau (alors `enAttente` vaut vrai).
+  static Future<Colis> creerColis(
+    Map<String, dynamic> data, {
+    String? agentNom,
+  }) async {
+    final ref = Outbox.nouvelleRef();
+    final payload = {
+      ...data,
+      'client_ref': ref,
+      'numero_provisoire': Outbox.provisoire(ref),
+    };
+    try {
+      return await _envoyerCreation(payload).timeout(_delaiEcriture);
+    } catch (e) {
+      if (!estErreurReseau(e)) rethrow;
+    }
+    final op = await Outbox.ajouter('creer', {
+      ...payload,
+      '_agent_nom': agentNom,
+    });
+    return Outbox.colisLocal(
+      op.payload,
+      garesNoms: await _garesNoms(),
+      agentNom: agentNom,
+    );
   }
 
-  static Future<void> changerStatut(int id, String statut, String? notes) =>
+  /// Insère le colis ; si une tentative précédente est déjà passée (réponse perdue), la retrouve au lieu de créer un doublon.
+  static Future<Colis> _envoyerCreation(Map<String, dynamic> payload) async {
+    final data = Map<String, dynamic>.from(payload)..remove('_agent_nom');
+    int id;
+    try {
+      final r = await _db.from('colis').insert(data).select('id').single();
+      id = r['id'] as int;
+    } on PostgrestException catch (e) {
+      if (e.code != '23505') rethrow;
+      final r = await _db
+          .from('colis')
+          .select('id')
+          .eq('client_ref', data['client_ref'] as String)
+          .single();
+      id = r['id'] as int;
+    }
+    await Outbox.memoriserIdReel(data['client_ref'] as String, id);
+    return Colis.fromJson(
+      await _db.from('colis_detail').select().eq('id', id).single(),
+    );
+  }
+
+  /// Renvoie `true` si le serveur a pris en compte le changement, `false` s'il est en attente d'envoi.
+  static Future<bool> changerStatut(
+    int id,
+    String statut,
+    String? notes,
+  ) async {
+    final cible = await _cible(id);
+    if (id >= 0) {
+      try {
+        await _rpcStatut(id, statut, notes).timeout(_delaiEcriture);
+        return true;
+      } catch (e) {
+        if (!estErreurReseau(e)) rethrow;
+      }
+    }
+    await Outbox.ajouter('statut', {
+      ...cible,
+      'statut': statut,
+      'notes': notes,
+    });
+    return false;
+  }
+
+  static Future<void> _rpcStatut(int id, String statut, String? notes) =>
       _db.rpc(
         'changer_statut',
         params: {'p_id': id, 'p_statut': statut, 'p_notes': notes},
       );
 
+  /// Désigne le colis visé par une opération : vrai identifiant, ou référence s'il n'existe encore que sur l'appareil.
+  static Future<Map<String, dynamic>> _cible(int id) async {
+    if (id >= 0) return {'id': id};
+    final ref = await Outbox.refPourId(id);
+    if (ref == null) throw 'Colis introuvable';
+    return {'ref': ref};
+  }
+
   /// Embarquement / déchargement de plusieurs colis d'un coup (scan rapide).
+  /// Sans internet, le lot est mis en attente et les résultats sont marqués « en attente d'envoi ».
   static Future<List<ScanResult>> scanLot(
+    String mode,
+    List<String> numeros,
+  ) async {
+    try {
+      return await _scanLotServeur(mode, numeros).timeout(_delaiEcriture);
+    } catch (e) {
+      if (!estErreurReseau(e)) rethrow;
+    }
+    await Outbox.ajouter('scan', {'mode': mode, 'numeros': numeros});
+    return [
+      for (final n in numeros)
+        ScanResult(
+          n,
+          true,
+          mode == 'embarquement'
+              ? 'Embarqué — en attente d\'envoi'
+              : 'Déchargé — en attente d\'envoi',
+        ),
+    ];
+  }
+
+  static Future<List<ScanResult>> _scanLotServeur(
     String mode,
     List<String> numeros,
   ) async {
@@ -276,13 +543,46 @@ class Repo {
         .toList();
   }
 
-  static Future<void> retirer(
+  /// Renvoie `true` si le retrait est enregistré sur le serveur, `false` s'il est en attente d'envoi.
+  static Future<bool> retirer(
     int id, {
     required String nom,
     required String telephone,
     String? piece,
     String? signature,
-  }) => _db.rpc(
+  }) async {
+    final cible = await _cible(id);
+    if (id >= 0) {
+      try {
+        await _rpcRetrait(
+          id,
+          nom,
+          telephone,
+          piece,
+          signature,
+        ).timeout(_delaiEcriture);
+        return true;
+      } catch (e) {
+        if (!estErreurReseau(e)) rethrow;
+      }
+    }
+    await Outbox.ajouter('retirer', {
+      ...cible,
+      'nom': nom,
+      'telephone': telephone,
+      'piece': piece,
+      'signature': signature,
+    });
+    return false;
+  }
+
+  static Future<void> _rpcRetrait(
+    int id,
+    String nom,
+    String telephone,
+    String? piece,
+    String? signature,
+  ) => _db.rpc(
     'retirer_colis',
     params: {
       'p_id': id,
@@ -293,11 +593,102 @@ class Repo {
     },
   );
 
+  // ── Synchronisation des opérations faites hors ligne ──
+  static bool _erreurSession(Object e) =>
+      e is AuthException ||
+      (e is PostgrestException &&
+          (e.code == 'PGRST301' ||
+              e.code == '401' ||
+              e.message.contains('JWT')));
+
+  static String _message(Object e) => e is PostgrestException
+      ? e.message
+      : e is String
+      ? e
+      : e.toString().replaceFirst('Exception: ', '');
+
+  /// Envoie dans l'ordre les opérations en attente. S'arrête au premier problème de réseau ou de session
+  /// (elles seront renvoyées plus tard) ; une opération refusée par le serveur est mise de côté avec son motif.
+  /// Renvoie le nombre d'opérations traitées.
+  static Future<int> synchroniser() async {
+    var faits = 0;
+    while (true) {
+      final ops = await Outbox.pending();
+      if (ops.isEmpty) return faits;
+      final op = ops.first;
+      try {
+        await _executer(op);
+        await Outbox.terminer(op.id);
+        faits++;
+      } catch (e) {
+        if (estErreurReseau(e) || _erreurSession(e)) return faits;
+        await Outbox.rejeter(op, _message(e));
+        faits++;
+      }
+    }
+  }
+
+  static Future<int> _idDe(Map<String, dynamic> p) async {
+    final id = (p['id'] as num?)?.toInt();
+    if (id != null) return id;
+    final reel = await Outbox.idReel(p['ref'] as String);
+    if (reel == null) throw 'Le colis n\'a pas pu être créé';
+    return reel;
+  }
+
+  static Future<void> _executer(OutboxOp op) async {
+    final p = op.payload;
+    switch (op.type) {
+      case 'creer':
+        await _envoyerCreation(p);
+      case 'statut':
+        await _rpcStatut(
+          await _idDe(p),
+          p['statut'] as String,
+          p['notes'] as String?,
+        );
+      case 'retirer':
+        await _rpcRetrait(
+          await _idDe(p),
+          p['nom'] as String,
+          p['telephone'] as String,
+          p['piece'] as String?,
+          p['signature'] as String?,
+        );
+      case 'scan':
+        final res = await _scanLotServeur(
+          p['mode'] as String,
+          List<String>.from(p['numeros'] as List),
+        );
+        for (final r in res.where((r) => !r.ok)) {
+          await Outbox.rejeter(
+            OutboxOp(
+              id: Outbox.nouvelleRef(),
+              type: 'scan',
+              payload: {
+                'mode': p['mode'],
+                'numeros': [r.numero],
+              },
+              createdAt: op.createdAt,
+            ),
+            '${r.numero} : ${r.message}',
+          );
+        }
+      default:
+        throw 'Opération inconnue';
+    }
+  }
+
   // ── Gares ─────────────────────────────────────────────
-  static Future<List<Gare>> gares() async =>
-      (await _db.from('gares').select().order('nom'))
-          .map(Gare.fromJson)
-          .toList();
+  static Future<List<Gare>> gares() => _lire(
+    'gares',
+    () async =>
+        (await _db.from('gares').select().order('nom'))
+            .map(Gare.fromJson)
+            .toList(),
+    (l) => l.map((g) => g.toJson()).toList(),
+    (o) => _maps(o).map(Gare.fromJson).toList(),
+  );
 
   static Future<void> saveGare(int? id, Map<String, dynamic> data) async {
     if (id == null) {
@@ -311,10 +702,15 @@ class Repo {
       _db.from('gares').delete().eq('id', id);
 
   // ── Utilisateurs ──────────────────────────────────────
-  static Future<List<Profil>> profils() async =>
-      (await _db.from('vip_profiles').select().order('nom'))
-          .map(Profil.fromJson)
-          .toList();
+  static Future<List<Profil>> profils() => _lire(
+    'profils',
+    () async =>
+        (await _db.from('vip_profiles').select().order('nom'))
+            .map(Profil.fromJson)
+            .toList(),
+    (l) => l.map((p) => p.toJson()).toList(),
+    (o) => _maps(o).map(Profil.fromJson).toList(),
+  );
 
   static Future<void> creerUtilisateur({
     required String username,
@@ -344,34 +740,55 @@ class Repo {
   );
 
   // ── Paramètres société ────────────────────────────────
-  static Future<CompanySettings> settings() async {
-    final r = await _db
-        .from('company_settings')
-        .select()
-        .limit(1)
-        .maybeSingle();
-    return r == null ? CompanySettings.defaults : CompanySettings.fromJson(r);
-  }
+  static Future<CompanySettings> settings() => _lire(
+    'settings',
+    () async {
+      final r = await _db
+          .from('company_settings')
+          .select()
+          .limit(1)
+          .maybeSingle();
+      return r == null ? CompanySettings.defaults : CompanySettings.fromJson(r);
+    },
+    (c) => c.toJson(),
+    (o) => CompanySettings.fromJson(Map<String, dynamic>.from(o as Map)),
+  );
 
   static Future<void> saveSettings(int companyId, Map<String, dynamic> data) =>
       _db.from('company_settings').update(data).eq('company_id', companyId);
 
   // ── Rapports ──────────────────────────────────────────
-  static Future<DashboardStats> dashboard() async => DashboardStats(
-    Map<String, dynamic>.from(await _db.rpc('dashboard_stats') as Map),
+  static Future<DashboardStats> dashboard() => _lire(
+    'dashboard',
+    () async => DashboardStats(
+      Map<String, dynamic>.from(await _db.rpc('dashboard_stats') as Map),
+    ),
+    (d) => d.m,
+    (o) => DashboardStats(Map<String, dynamic>.from(o as Map)),
+  );
+
+  /// Résultat brut d'une fonction de rapport (liste de lignes), avec copie locale pour le hors ligne.
+  static Future<List<Map<String, dynamic>>> _rapport(
+    String cle,
+    String fonction, [
+    Map<String, dynamic>? params,
+  ]) => _lire<List<Map<String, dynamic>>>(
+    cle,
+    () async => _maps(await _db.rpc(fonction, params: params) as List),
+    (l) => l,
+    _maps,
   );
 
   static Future<List<JourStat>> colisParJour(
     DateTime? debut,
     DateTime? fin,
   ) async {
-    final rows = await _db.rpc(
-      'colis_par_jour',
-      params: {
-        'p_debut': debut == null ? null : _iso(debut),
-        'p_fin': fin == null ? null : _iso(fin),
-      },
-    ) as List;
+    final d = debut == null ? '' : _iso(debut);
+    final f = fin == null ? '' : _iso(fin);
+    final rows = await _rapport('rapport_jour_${d}_$f', 'colis_par_jour', {
+      'p_debut': debut == null ? null : d,
+      'p_fin': fin == null ? null : f,
+    });
     return rows
         .map(
           (r) => JourStat(
@@ -384,7 +801,7 @@ class Repo {
   }
 
   static Future<List<LigneStat>> recettesParGare() async {
-    final rows = await _db.rpc('recettes_par_gare') as List;
+    final rows = await _rapport('rapport_gare', 'recettes_par_gare');
     return rows
         .map(
           (r) => LigneStat(
@@ -397,7 +814,7 @@ class Repo {
   }
 
   static Future<List<LigneStat>> recettesParAgent() async {
-    final rows = await _db.rpc('recettes_par_agent') as List;
+    final rows = await _rapport('rapport_agent', 'recettes_par_agent');
     return rows
         .map(
           (r) => LigneStat(
@@ -410,7 +827,7 @@ class Repo {
   }
 
   static Future<Map<String, int>> statutsSummary() async {
-    final rows = await _db.rpc('statuts_summary') as List;
+    final rows = await _rapport('rapport_statuts', 'statuts_summary');
     return {
       for (final r in rows) r['statut'] as String: (r['total'] as num).toInt(),
     };
