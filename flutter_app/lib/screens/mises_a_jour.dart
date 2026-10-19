@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -53,7 +54,7 @@ class MisesAJourScreen extends ConsumerWidget {
                   const SizedBox(height: 6),
                   const Text(
                     '1. Construisez l\'APK (GitHub → Actions → Application mobile). Il porte un numéro de build.\n'
-                    '2. Mettez le fichier en ligne (stockage « app-releases » de votre serveur, ou n\'importe quel lien public).\n'
+                    '2. Cliquez sur « Publier », choisissez le fichier APK : il est téléversé sur votre serveur (ou saisissez un lien public).\n'
                     '3. Publiez ici le numéro de build et le lien : les téléphones ayant un numéro plus ancien '
                     'verront la proposition de mise à jour au prochain démarrage.\n'
                     'Le workflow GitHub peut faire les étapes 2 et 3 automatiquement (voir le README).',
@@ -100,6 +101,7 @@ class MisesAJourScreen extends ConsumerWidget {
     final url = TextEditingController();
     final notes = TextEditingController();
     var obligatoire = false;
+    PlatformFile? fichier;
     final key = GlobalKey<FormState>();
     String? req(String? v) => (v ?? '').trim().isEmpty ? 'Requis' : null;
 
@@ -150,16 +152,52 @@ class MisesAJourScreen extends ConsumerWidget {
                           : null,
                     ),
                     const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 48),
+                      ),
+                      onPressed: () async {
+                        try {
+                          final f = await FilePicker.pickFile(
+                            type: FileType.custom,
+                            allowedExtensions: const ['apk'],
+                            dialogTitle: 'Choisir l\'APK à publier',
+                          );
+                          if (f == null) return;
+                          // Un nom comme « tchi-12.apk » renseigne le numéro de build.
+                          final n = RegExp(r'(\d+)\.apk$', caseSensitive: false).firstMatch(f.name);
+                          setS(() {
+                            fichier = f;
+                            if (n != null && build.text.isEmpty) build.text = n.group(1)!;
+                          });
+                        } catch (e) {
+                          if (ctx.mounted) {
+                            toast(ctx, 'Impossible d\'ouvrir le fichier : ${errMsg(e)}', error: true);
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.attach_file_rounded),
+                      label: Text(
+                        fichier == null
+                            ? 'Choisir le fichier APK (téléversement)'
+                            : '${fichier!.name}  ·  ${((fichier!.lengthSync() ?? 0) / 1048576).toStringAsFixed(1)} Mo',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
                     TextFormField(
                       controller: url,
                       keyboardType: TextInputType.url,
-                      decoration: const InputDecoration(
-                        labelText: 'Lien de l\'APK *',
+                      decoration: InputDecoration(
+                        labelText: fichier == null
+                            ? 'ou lien de l\'APK *'
+                            : 'Lien de l\'APK (inutile : le fichier sera téléversé)',
                         hintText: 'https://…/tchi-15.apk',
                       ),
-                      validator: (v) => (v ?? '').trim().startsWith('http')
+                      validator: (v) =>
+                          fichier != null || (v ?? '').trim().startsWith('http')
                           ? null
-                          : 'Lien https requis',
+                          : 'Choisissez un fichier ou saisissez un lien https',
                     ),
                     const SizedBox(height: 10),
                     TextFormField(
@@ -205,17 +243,43 @@ class MisesAJourScreen extends ConsumerWidget {
       ),
     );
     if (ok != true) return;
+    var enCours = false;
     try {
+      var lien = url.text.trim();
+      if (fichier != null) {
+        // Téléversement de l'APK sur le serveur (plusieurs dizaines de Mo : on affiche une attente).
+        enCours = true;
+        if (context.mounted) {
+          showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => const AlertDialog(
+              content: Row(
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(width: 18),
+                  Expanded(child: Text('Téléversement de l\'APK…')),
+                ],
+              ),
+            ),
+          );
+        }
+        final octets = await fichier!.readAsBytes();
+        lien = await Repo.televerserApk(octets, int.parse(build.text));
+        if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+        enCours = false;
+      }
       await Repo.publierVersion(
         versionName: nom.text.trim(),
         buildNumber: int.parse(build.text),
-        apkUrl: url.text.trim(),
+        apkUrl: lien,
         notes: notes.text.trim().isEmpty ? null : notes.text.trim(),
         obligatoire: obligatoire,
       );
       ref.invalidate(_versionsProvider);
       if (context.mounted) toast(context, 'Version publiée');
     } catch (e) {
+      if (enCours && context.mounted) Navigator.of(context, rootNavigator: true).pop();
       if (context.mounted) {
         toast(
           context,

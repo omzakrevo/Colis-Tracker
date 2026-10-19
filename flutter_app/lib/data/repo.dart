@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/identifiant.dart';
@@ -120,6 +122,22 @@ class Repo {
         .maybeSingle()
         .timeout(_delai);
     return r == null ? null : AppVersion.fromJson(r);
+  }
+
+  /// Téléverse l'APK dans le stockage public « app-releases » et renvoie son lien (réservé au super administrateur).
+  static Future<String> televerserApk(Uint8List octets, int buildNumber) async {
+    final chemin = 'tchi-$buildNumber-${DateTime.now().millisecondsSinceEpoch}.apk';
+    await _db.storage
+        .from('app-releases')
+        .uploadBinary(
+          chemin,
+          octets,
+          fileOptions: const FileOptions(
+            contentType: 'application/vnd.android.package-archive',
+            upsert: true,
+          ),
+        );
+    return _db.storage.from('app-releases').getPublicUrl(chemin);
   }
 
   static Future<List<AppVersion>> versions() async {
