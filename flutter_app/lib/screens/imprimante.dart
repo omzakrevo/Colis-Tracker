@@ -1,3 +1,4 @@
+import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -19,7 +20,8 @@ class ImprimanteScreen extends ConsumerStatefulWidget {
   ConsumerState<ImprimanteScreen> createState() => _ImprimanteScreenState();
 }
 
-class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> {
+class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen>
+    with WidgetsBindingObserver {
   ImprimanteConfig _cfg = const ImprimanteConfig();
   List<BluetoothInfo> _bt = [];
   List<Printer> _sys = [];
@@ -29,10 +31,47 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     Imprimante.lire().then((c) {
       if (mounted) setState(() => _cfg = c);
+      // Sur téléphone, la liste des imprimantes appairées s'affiche tout de suite.
+      if (Imprimante.bluetoothPossible || Imprimante.systemePossible) _chercher();
     });
   }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Retour depuis les réglages Bluetooth du téléphone : on relit la liste (l'imprimante vient d'être appairée).
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && Imprimante.bluetoothPossible && _ouvertReglages) {
+      _ouvertReglages = false;
+      _chercher();
+    }
+  }
+
+  bool _ouvertReglages = false;
+
+  Future<void> _ouvrirReglagesBluetooth() async {
+    _ouvertReglages = true;
+    try {
+      await const AndroidIntent(action: 'android.settings.BLUETOOTH_SETTINGS').launch();
+    } catch (_) {
+      _ouvertReglages = false;
+      if (mounted) {
+        toast(context, 'Ouvrez les réglages Bluetooth du téléphone et appairez l\'imprimante.', error: true);
+      }
+    }
+  }
+
+  Future<void> _testerConnexion() => avecMessage(context, () async {
+    await Imprimante.verifierConnexion();
+    if (mounted) toast(context, 'Imprimante connectée');
+  });
 
   Future<void> _chercher() async {
     setState(() {
@@ -175,6 +214,18 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> {
                           : const Icon(Icons.search_rounded),
                       label: Text(bt ? 'Chercher les imprimantes Bluetooth' : 'Chercher les imprimantes'),
                     ),
+                  if (bt)
+                    OutlinedButton.icon(
+                      onPressed: _ouvrirReglagesBluetooth,
+                      icon: const Icon(Icons.bluetooth_searching_rounded),
+                      label: const Text('Appairer une imprimante'),
+                    ),
+                  if (bt && _cfg.configuree)
+                    OutlinedButton.icon(
+                      onPressed: _testerConnexion,
+                      icon: const Icon(Icons.bluetooth_connected_rounded),
+                      label: const Text('Tester la connexion'),
+                    ),
                   OutlinedButton.icon(
                     onPressed: _cfg.configuree ? _tester : null,
                     icon: const Icon(Icons.receipt_long_rounded),
@@ -195,8 +246,8 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> {
                 const Padding(
                   padding: EdgeInsets.only(top: 12),
                   child: Text(
-                    '1) Allumez l\'imprimante (MS-B58A…). 2) Dans les réglages Bluetooth du téléphone, appairez-la '
-                    '(code 0000 ou 1234). 3) Revenez ici et touchez « Chercher ».',
+                    '1) Allumez l\'imprimante (MS-B58A…). 2) Touchez « Appairer une imprimante » et choisissez-la '
+                    'dans la liste (code 0000 ou 1234). 3) Revenez ici : elle apparaît dans « Appareils appairés », touchez-la.',
                     style: TextStyle(color: Brand.muted, fontSize: 13),
                   ),
                 ),

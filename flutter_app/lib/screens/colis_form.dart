@@ -145,6 +145,11 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
             onPressed: () => Navigator.pop(ctx, 'non'),
             child: const Text('Plus tard'),
           ),
+          TextButton.icon(
+            onPressed: () => Navigator.pop(ctx, 'config'),
+            icon: const Icon(Icons.settings_bluetooth_rounded),
+            label: const Text('Imprimante'),
+          ),
           OutlinedButton.icon(
             onPressed: () => Navigator.pop(ctx, 'a4'),
             icon: const Icon(Icons.print_rounded),
@@ -158,6 +163,13 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
         ],
       ),
     );
+    if (choix == 'config') {
+      // Réglage de l'imprimante (Bluetooth…), puis on repropose l'impression.
+      if (!mounted) return;
+      await context.push('/imprimante');
+      if (mounted) await _proposerImpression(c);
+      return;
+    }
     if (choix == null || choix == 'non') return;
     try {
       final co = await ref.read(settingsProvider.future);

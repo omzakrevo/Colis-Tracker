@@ -7,6 +7,7 @@ environment:
   sdk: ^3.13.5
 
 dependencies:
+  android_intent_plus: ^6.1.0
   connectivity_plus: ^7.3.2
   cryptography: ^2.9.0
   esc_pos_utils_plus: ^2.0.4

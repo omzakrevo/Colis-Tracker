@@ -86,6 +86,19 @@ class Imprimante {
     return PrintBluetoothThermal.pairedBluetooths;
   }
 
+  /// Vérifie que l'imprimante Bluetooth réglée répond (allumée, appairée, à portée).
+  static Future<void> verifierConnexion() async {
+    final c = await lire();
+    if (c.type != 'bluetooth' || !c.configuree) {
+      throw 'Aucune imprimante Bluetooth n\'est réglée.';
+    }
+    if (await PrintBluetoothThermal.connectionStatus) return;
+    final ok = await PrintBluetoothThermal.connect(macPrinterAddress: c.adresse);
+    if (!ok) {
+      throw 'Impossible de se connecter à « ${c.nom} ». Vérifiez qu\'elle est allumée, appairée et à portée.';
+    }
+  }
+
   /// Imprimantes installées sur l'ordinateur.
   static Future<List<Printer>> imprimantesSysteme() async =>
       systemePossible ? await Printing.listPrinters() : <Printer>[];
