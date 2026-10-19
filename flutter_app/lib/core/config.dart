@@ -16,8 +16,7 @@ class AppConfig {
   static const supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
     // Clé « anon » publique (rôle anon, protégée par les règles RLS) : sans danger dans l'app.
-    defaultValue:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzkxNzYwNDE2LCJleHAiOjE5NDk0NDA0MTZ9.-vOE-tocfgxzGsgyJapk406z8f55e8merKLYIy9oq7w',
+    defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzkxNzYwNDE2LCJleHAiOjE5NDk0NDA0MTZ9.-vOE-tocfgxzGsgyJapk406z8f55e8merKLYIy9oq7w',
   );
 
   static bool get isConfigured =>

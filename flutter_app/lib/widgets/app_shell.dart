@@ -11,6 +11,7 @@ import '../core/theme.dart';
 import '../data/models.dart';
 import '../data/providers.dart';
 import 'update_dialog.dart';
+import 'sync_banner.dart';
 
 class _Item {
   const _Item(this.path, this.label, this.icon);
@@ -25,7 +26,9 @@ const _principaux = [
   _Item('/recherche', 'Recherche', Icons.search_rounded),
 ];
 
-List<_Item> _menu(Profil me) => me.isSuper
+List<_Item> _menu(Profil me) => me.isBarragiste
+    ? const [_Item('/scanner', 'Scanner', Icons.qr_code_scanner_rounded)]
+    : me.isSuper
     ? const [
         _Item('/entreprises', 'Entreprises', Icons.business_rounded),
         _Item('/mises-a-jour', 'Mises à jour', Icons.system_update_rounded),
@@ -97,7 +100,7 @@ class AppShell extends ConsumerWidget {
     });
     final body = Column(
       children: [
-        if (offline) const _OfflineBanner(),
+        SyncBanner(offline: offline),
         Expanded(child: child),
       ],
     );
@@ -168,7 +171,8 @@ class AppShell extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
         child: body,
       ),
-      floatingActionButton: (location.startsWith('/scanner') || me.isSuper)
+      floatingActionButton:
+          (location.startsWith('/scanner') || me.isSuper || me.isBarragiste)
           ? null
           : FloatingActionButton.extended(
               onPressed: () => context.push('/colis/nouveau'),
@@ -184,7 +188,7 @@ class AppShell extends ConsumerWidget {
               duration: 500.ms,
               curve: Curves.easeOutBack,
             ),
-      bottomNavigationBar: me.isSuper
+      bottomNavigationBar: (me.isSuper || me.isBarragiste)
           ? null
           : NavigationBar(
               selectedIndex: bottomIdx < 0 ? 0 : bottomIdx,
@@ -382,35 +386,4 @@ class _SideTile extends StatelessWidget {
       ),
     ),
   );
-}
-
-class _OfflineBanner extends StatelessWidget {
-  const _OfflineBanner();
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    margin: const EdgeInsets.only(bottom: 10),
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFEF3C7),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: const Row(
-      children: [
-        Icon(Icons.cloud_off_rounded, size: 18, color: Color(0xFFB45309)),
-        SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            'Hors connexion — les données se mettront à jour au retour d\'internet.',
-            style: TextStyle(
-              fontSize: 12.5,
-              color: Color(0xFF92400E),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    ),
-  ).animate().fadeIn().slideY(begin: -.4, end: 0);
 }
