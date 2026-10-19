@@ -279,7 +279,29 @@ class MisesAJourScreen extends ConsumerWidget {
       ref.invalidate(_versionsProvider);
       if (context.mounted) toast(context, 'Version publiée');
     } catch (e) {
+      final pendantEnvoi = enCours;
       if (enCours && context.mounted) Navigator.of(context, rootNavigator: true).pop();
+      if (pendantEnvoi && context.mounted) {
+        // Un échec pendant l'envoi du fichier n'est pas forcément « pas d'internet » : on montre la vraie cause.
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Téléversement impossible', style: TextStyle(fontWeight: FontWeight.w800)),
+            content: SingleChildScrollView(
+              child: SelectableText(
+                'La connexion à votre serveur fonctionne (vous êtes connecté), mais l\'envoi du fichier a échoué.\n\n'
+                'Causes fréquentes : le serveur ou son reverse-proxy (nginx, Caddy…) refuse les gros fichiers '
+                '(limite « client_max_body_size » / « FILE_SIZE_LIMIT » du service Storage), ou le script '
+                'rattrapage.sql n\'a pas été exécuté (règle d\'écriture du super administrateur).\n\n'
+                'Solution de repli : GitHub → Actions → Application mobile (Android) → Run workflow, en cochant « Publier ».\n\n'
+                'Détail technique : ${e.runtimeType} — $e',
+              ),
+            ),
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer'))],
+          ),
+        );
+        return;
+      }
       if (context.mounted) {
         toast(
           context,
