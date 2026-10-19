@@ -640,10 +640,15 @@ class SmsConfig {
     this.tplArrive = '',
     this.tplRetire = '',
     this.tplBillet = '',
+    this.terminalId = '',
+    this.soldeTexte,
+    this.soldeLe,
   });
 
   final bool actif, colisEnvoi, colisArrive, colisRetire, billet;
-  final String username, sender, indicatif;
+  final String username, sender, indicatif, terminalId;
+  final String? soldeTexte;
+  final DateTime? soldeLe;
   final int port;
   final String tplEnvoiExp, tplEnvoiDest, tplArrive, tplRetire, tplBillet;
 
@@ -662,6 +667,9 @@ class SmsConfig {
     tplArrive: j['tpl_arrive'] as String? ?? '',
     tplRetire: j['tpl_retire'] as String? ?? '',
     tplBillet: j['tpl_billet'] as String? ?? '',
+    terminalId: j['terminal_id'] as String? ?? '',
+    soldeTexte: j['solde_texte'] as String?,
+    soldeLe: j['solde_le'] == null ? null : DateTime.parse(j['solde_le'] as String).toLocal(),
   );
 }
 

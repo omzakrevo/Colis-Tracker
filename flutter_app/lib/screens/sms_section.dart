@@ -21,6 +21,10 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
   final _pass = TextEditingController();
   final _sender = TextEditingController();
   final _port = TextEditingController(text: '7170');
+  final _terminal = TextEditingController();
+  String? _solde;
+  DateTime? _soldeLe;
+  bool _soldeEnCours = false;
   final _indicatif = TextEditingController(text: '226');
   final _tests = TextEditingController();
   final _tpl = <String, TextEditingController>{
@@ -32,7 +36,7 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
 
   @override
   void dispose() {
-    for (final c in [_user, _pass, _sender, _port, _indicatif, _tests, ..._tpl.values]) {
+    for (final c in [_user, _pass, _sender, _port, _terminal, _indicatif, _tests, ..._tpl.values]) {
       c.dispose();
     }
     super.dispose();
@@ -48,6 +52,9 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
     _retire = c.colisRetire;
     _billet = c.billet;
     _user.text = c.username;
+    _terminal.text = c.terminalId;
+    _solde = c.soldeTexte;
+    _soldeLe = c.soldeLe;
     _sender.text = c.sender;
     _port.text = '${c.port}';
     _indicatif.text = c.indicatif;
@@ -64,6 +71,7 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
       await Repo.enregistrerSms({
         'actif': _actif,
         'username': _user.text.trim(),
+        'terminal_id': _terminal.text.trim(),
         if (_pass.text.isNotEmpty) 'password': _pass.text,
         'sender': _sender.text.trim(),
         'port': int.tryParse(_port.text.trim()) ?? 7170,
@@ -85,6 +93,23 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
       if (mounted) toast(context, errMsg(e), error: true);
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _actualiserSolde() async {
+    setState(() => _soldeEnCours = true);
+    try {
+      // Enregistre d'abord l'identifiant Terminal Web saisi.
+      await Repo.enregistrerSms({'terminal_id': _terminal.text.trim()});
+      final r = await Repo.soldeSms();
+      if (mounted) setState(() {
+        _solde = r.solde;
+        _soldeLe = r.le;
+      });
+    } catch (e) {
+      if (mounted) toast(context, errMsg(e), error: true);
+    } finally {
+      if (mounted) setState(() => _soldeEnCours = false);
     }
   }
 
@@ -184,6 +209,50 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
                       ),
                     ],
                   ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            SectionCard(
+              title: 'Solde SMS',
+              icon: Icons.account_balance_wallet_rounded,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: _terminal,
+                    decoration: const InputDecoration(
+                      labelText: 'Identifiant Terminal Web SMSBUS',
+                      helperText: 'Indiqué dans votre compte SMSBUS (« Terminal Web »)',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _solde == null ? 'Solde inconnu' : _solde!,
+                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: _soldeEnCours ? null : _actualiserSolde,
+                        icon: _soldeEnCours
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.refresh_rounded),
+                        label: const Text('Actualiser le solde'),
+                      ),
+                    ],
+                  ),
+                  if (_soldeLe != null)
+                    Text(
+                      'Mis à jour le ${dateHeureFr(_soldeLe!)}',
+                      style: const TextStyle(color: Brand.muted, fontSize: 12.5),
+                    ),
                 ],
               ),
             ),

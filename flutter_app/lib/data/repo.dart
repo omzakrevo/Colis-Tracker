@@ -837,6 +837,25 @@ class Repo {
     return rows.map(SmsLigne.fromJson).toList();
   }
 
+  /// Demande le solde à SMSBUS puis le lit (la réponse arrive quelques secondes plus tard).
+  static Future<({String? solde, DateTime? le})> soldeSms() async {
+    await _db.rpc('sms_solde_demander');
+    for (var i = 0; i < 6; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
+      final rows = await _db.rpc('sms_solde_lire');
+      final l = _maps(rows);
+      final m = l.isEmpty ? null : l.first;
+      final le = m?['mis_a_jour'] == null
+          ? null
+          : DateTime.parse(m!['mis_a_jour'] as String).toLocal();
+      // Un solde reçu il y a moins de 20 s est celui qu'on vient de demander.
+      if (le != null && DateTime.now().difference(le).inSeconds < 20) {
+        return (solde: m!['solde'] as String?, le: le);
+      }
+    }
+    throw 'SMSBUS n\'a pas répondu. Vérifiez l\'identifiant Terminal Web et le port.';
+  }
+
   static Future<void> renvoyerSms(int id) =>
       _db.rpc('sms_renvoyer', params: {'p_id': id});
 
