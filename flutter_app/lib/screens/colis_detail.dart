@@ -77,6 +77,7 @@ class ColisDetailScreen extends ConsumerWidget {
                 InfoRow('Description', c.description),
                 InfoRow('Nombre', '${c.nombre}'),
                 if (c.poids != null) InfoRow('Poids', '${c.poids} kg'),
+                if (c.valeur != null) InfoRow('Valeur déclarée', fcfa(c.valeur!)),
                 InfoRow('Prix', fcfa(c.prix), bold: true),
                 if (c.notes != null) InfoRow('Notes', c.notes!),
               ],

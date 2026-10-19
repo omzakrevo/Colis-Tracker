@@ -123,6 +123,7 @@ pw.Widget _recu(
       row('Description', c.description),
       row('Nombre', '${c.nombre}'),
       if (c.poids != null) row('Poids', '${c.poids} kg'),
+      if (c.valeur != null) row('Valeur', fcfa(c.valeur!)),
       divider(),
       pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,

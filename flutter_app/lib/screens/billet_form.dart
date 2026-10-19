@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../core/format.dart';
 import '../data/models.dart';
@@ -29,6 +28,23 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
   int? depart, arrivee;
   DateTime date = DateTime.now();
   bool _init = false, _saving = false;
+  bool _prixManuel = false;
+
+  /// Trajet fixé par l'administrateur pour le départ/arrivée choisis (prix et heures proposés).
+  Trajet? get _trajet {
+    final l = ref.read(trajetsProvider).value ?? const <Trajet>[];
+    return l
+        .where((t) => t.gareDepartId == depart && t.gareArriveeId == arrivee)
+        .firstOrNull;
+  }
+
+  /// Applique le prix du trajet (sauf si l'agent l'a modifié à la main) et l'heure s'il n'y en a qu'une.
+  void _appliquerTrajet() {
+    final t = _trajet;
+    if (t == null) return;
+    if (!_prixManuel) prix.text = '${t.prix.round()}';
+    if (t.horaires.length == 1 && heure.text.isEmpty) heure.text = t.horaires.first;
+  }
 
   @override
   void dispose() {
@@ -65,7 +81,18 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
             : 'Billet ${t.numero} enregistré !',
       );
       await _proposerImpression(t);
-      if (mounted) context.go('/billets/${t.id}');
+      // On reste sur la vente : même trajet, nouveau client, pour enchaîner les billets.
+      if (mounted) {
+        nom.clear();
+        tel.clear();
+        siege.clear();
+        final p = prix.text, h = heure.text;
+        _form.currentState?.reset(); // efface aussi les messages d'erreur
+        prix.text = p;
+        heure.text = h;
+        _prixManuel = false;
+        setState(() {});
+      }
     } catch (e) {
       if (mounted) toast(context, errMsg(e), error: true);
     } finally {
@@ -111,6 +138,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(trajetsProvider);
     final gares = ref.watch(garesProvider).value ?? const <Gare>[];
     final me = ref.watch(profilProvider).value;
     if (!_init && me != null) {
@@ -140,6 +168,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                     onPick: (c) => setState(() {
                       if (!lockDepart && depart == null) depart = c.dernierDepartId;
                       arrivee ??= c.dernierArriveeId;
+                      _appliquerTrajet();
                     }),
                   ),
                 ),
@@ -158,7 +187,12 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                             if (!lockDepart || g.id == me.gareId)
                               DropdownMenuItem(value: g.id, child: Text(g.nom)),
                         ],
-                        onChanged: lockDepart ? null : (v) => setState(() => depart = v),
+                        onChanged: lockDepart
+                            ? null
+                            : (v) => setState(() {
+                                depart = v;
+                                _appliquerTrajet();
+                              }),
                         validator: (v) => v == null ? 'Choisissez une gare' : null,
                       ),
                       const SizedBox(height: 12),
@@ -170,7 +204,10 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                           for (final g in gares)
                             DropdownMenuItem(value: g.id, child: Text(g.nom)),
                         ],
-                        onChanged: (v) => setState(() => arrivee = v),
+                        onChanged: (v) => setState(() {
+                          arrivee = v;
+                          _appliquerTrajet();
+                        }),
                         validator: (v) => v == null
                             ? 'Choisissez une gare'
                             : (v == depart ? 'Doit différer du départ' : null),
@@ -195,6 +232,24 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                           child: Text(dateFr(date)),
                         ),
                       ),
+                      if ((_trajet?.horaires ?? const <String>[]).isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: [
+                              for (final h in _trajet!.horaires)
+                                ChoiceChip(
+                                  label: Text(h),
+                                  selected: heure.text == h,
+                                  onSelected: (_) => setState(() => heure.text = h),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       Row(
                         children: [
@@ -219,9 +274,13 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: prix,
+                        onChanged: (_) => _prixManuel = true,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
-                        decoration: const InputDecoration(labelText: 'Prix (FCFA) *'),
+                        decoration: InputDecoration(
+                          labelText: 'Prix (FCFA) *',
+                          helperText: _trajet == null ? null : 'Prix du trajet : ${fcfa(_trajet!.prix)}',
+                        ),
                         validator: (v) {
                           final n = double.tryParse((v ?? '').replaceAll(',', '.'));
                           return n == null || n < 0 ? 'Prix invalide' : null;

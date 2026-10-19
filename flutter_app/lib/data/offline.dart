@@ -101,6 +101,7 @@ class OutboxOp {
     'statut' => 'Changement de statut',
     'retirer' => 'Retrait du colis',
     'ticket' => 'Billet ${payload['numero_provisoire'] ?? ''}',
+    'verif' => 'Vérification du billet ${payload['numero'] ?? ''}',
     'scan' =>
       payload['mode'] == 'embarquement' ? 'Embarquement' : 'Déchargement',
     _ => type,
@@ -275,6 +276,7 @@ class Outbox {
       description: data['description'] as String,
       nombre: data['nombre'] as int,
       poids: (data['poids'] as num?)?.toDouble(),
+      valeur: (data['valeur'] as num?)?.toDouble(),
       prix: (data['prix'] as num).toDouble(),
       statut: 'enregistre',
       dateEnvoi: DateTime.parse(data['date_envoi'] as String),

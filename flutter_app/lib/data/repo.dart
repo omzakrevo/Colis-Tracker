@@ -665,6 +665,157 @@ class Repo {
     return trouves.values.toList();
   }
 
+  // ── Trajets (prix et horaires) ────────────────────────
+  static Future<List<Trajet>> trajets() => _lire(
+    'trajets',
+    () async =>
+        (await _db.from('trajets').select().order('gare_depart_id'))
+            .map(Trajet.fromJson)
+            .toList(),
+    (l) => l.map((t) => t.toJson()).toList(),
+    (o) => _maps(o).map(Trajet.fromJson).toList(),
+  );
+
+  static Future<void> enregistrerTrajet(
+    int? id,
+    Map<String, dynamic> data,
+  ) async {
+    if (id == null) {
+      await _db.from('trajets').insert(data);
+    } else {
+      await _db.from('trajets').update(data).eq('id', id);
+    }
+  }
+
+  static Future<void> supprimerTrajet(int id) =>
+      _db.from('trajets').delete().eq('id', id);
+
+  // ── Vérification des billets (utilisable sans internet) ──
+  static const _kVerif = 'billets_verif';
+
+  /// Recopie sur le téléphone les billets récents et à venir, pour pouvoir les vérifier sans internet.
+  static Future<void> rafraichirBilletsAVerifier() async {
+    try {
+      final rows = await _db
+          .rpc('billets_a_verifier')
+          .timeout(const Duration(seconds: 12));
+      final locales = await _verifsLocales();
+      final liste = [
+        for (final m in _maps(rows))
+          BilletVerif.fromJson(m).avecVerifications(
+            (m['nb_verifications'] as num).toInt() +
+                (locales[(m['numero'] as String)] ?? 0),
+          ),
+      ];
+      await LocalStore.write(_kVerif, liste.map((b) => b.toJson()).toList());
+    } catch (_) {
+      // hors ligne ou rôle sans accès : on garde la copie existante
+    }
+  }
+
+  /// Nombre de vérifications faites hors ligne, pas encore envoyées, par numéro de billet.
+  static Future<Map<String, int>> _verifsLocales() async {
+    final n = <String, int>{};
+    for (final o in await Outbox.pending()) {
+      if (o.type == 'verif') {
+        final num = o.payload['numero'] as String;
+        n[num] = (n[num] ?? 0) + 1;
+      }
+    }
+    return n;
+  }
+
+  static Future<List<BilletVerif>> _billetsLocaux() async {
+    final c = await LocalStore.read(_kVerif);
+    final liste = c == null
+        ? <BilletVerif>[]
+        : _maps(c).map(BilletVerif.fromJson).toList();
+    // Billets vendus sur cet appareil et pas encore envoyés : vérifiables aussi.
+    final ops = await Outbox.pending();
+    for (final t in Outbox.appliquerTickets(
+      const [],
+      ops,
+      garesNoms: await _garesNoms(),
+    )) {
+      liste.add(
+        BilletVerif(
+          id: t.id,
+          numero: t.numero,
+          clientNom: t.clientNom,
+          clientTelephone: t.clientTelephone,
+          gareDepartNom: t.gareDepartNom,
+          gareArriveeNom: t.gareArriveeNom,
+          dateVoyage: t.dateVoyage,
+          heureDepart: t.heureDepart,
+          siege: t.siege,
+          statut: 'emis',
+        ),
+      );
+    }
+    return liste;
+  }
+
+  /// Vérifie un billet à l'embarquement (autant de fois que nécessaire). Sans internet, la vérification
+  /// se fait dans la copie gardée sur le téléphone et sera enregistrée au retour du réseau.
+  static Future<VerifResultat> verifierBillet(String numero) async {
+    final num = numero.trim().toUpperCase();
+    final ref = Outbox.nouvelleRef();
+    try {
+      final rows = await _db
+          .rpc(
+            'verifier_billet',
+            params: {'p_numero': num, 'p_ref': ref},
+          )
+          .timeout(const Duration(seconds: 8));
+      final l = _maps(rows);
+      if (l.isEmpty) {
+        // Un billet vendu hors ligne sur cet appareil n'est pas encore connu du serveur.
+        final local = (await _billetsLocaux())
+            .where((b) => b.numero == num && b.id < 0)
+            .firstOrNull;
+        if (local != null) return await _verifLocale(local, num);
+        return VerifResultat(message: 'Billet introuvable');
+      }
+      final b = BilletVerif.fromJson(l.first);
+      await _memoriserVerif(b);
+      return VerifResultat(billet: b);
+    } catch (e) {
+      if (!estErreurReseau(e)) rethrow;
+    }
+    final local = (await _billetsLocaux())
+        .where((b) => b.numero == num)
+        .firstOrNull;
+    if (local == null) {
+      return VerifResultat(
+        message:
+            'Billet introuvable dans la mémoire du téléphone. Sans internet, seuls les billets déjà synchronisés peuvent être vérifiés.',
+        horsLigne: true,
+      );
+    }
+    return _verifLocale(local, num);
+  }
+
+  static Future<VerifResultat> _verifLocale(BilletVerif local, String num) async {
+    await Outbox.ajouter('verif', {
+      'numero': num,
+      'ref': Outbox.nouvelleRef(),
+      'at': DateTime.now().toUtc().toIso8601String(),
+    });
+    final b = local.avecVerifications(local.nbVerifications + 1);
+    await _memoriserVerif(b);
+    return VerifResultat(billet: b, horsLigne: true);
+  }
+
+  static Future<void> _memoriserVerif(BilletVerif b) async {
+    final c = await LocalStore.read(_kVerif);
+    if (c == null) return;
+    final liste = _maps(c).map(BilletVerif.fromJson).toList();
+    final i = liste.indexWhere((x) => x.numero == b.numero);
+    if (i < 0) return;
+    liste[i] = b;
+    await LocalStore.write(_kVerif, liste.map((x) => x.toJson()).toList());
+  }
+
   // ── SMS (SMSBUS) ──────────────────────────────────────
   static Future<SmsConfig?> smsConfig() async {
     final rows = await _db.from('sms_settings').select();
@@ -872,6 +1023,16 @@ class Repo {
         await _envoyerCreation(p);
       case 'ticket':
         await _envoyerTicket(p);
+      case 'verif':
+        final rows = await _db.rpc(
+          'verifier_billet',
+          params: {
+            'p_numero': p['numero'],
+            'p_ref': p['ref'],
+            'p_at': p['at'],
+          },
+        );
+        if (_maps(rows).isEmpty) throw 'Billet ${p['numero']} introuvable';
       case 'statut':
         await _rpcStatut(
           await _idDe(p),

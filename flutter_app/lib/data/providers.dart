@@ -285,8 +285,11 @@ class SyncNotifier extends Notifier<SyncState> {
       if (!r.contains(ConnectivityResult.none)) sync();
     });
     final timer = Timer.periodic(const Duration(seconds: 45), (_) => sync());
+    // Billets à vérifier : copie mise à jour sur le téléphone à chaque changement et régulièrement.
+    ref.listen(tickProvider, (_, _) => _majVerif());
     ref.listen(authProvider, (_, next) {
       _refresh();
+      if (next.value?.profil != null) _majVerif();
       final d = next.value;
       if (d?.profil != null && !d!.offline) sync();
     });
@@ -302,6 +305,12 @@ class SyncNotifier extends Notifier<SyncState> {
     return const SyncState();
   }
 
+  Future<void> _majVerif() async {
+    final me = ref.read(profilProvider).value;
+    if (me == null || !me.peutVerifierBillets || !Repo.aUneSession) return;
+    await Repo.rafraichirBilletsAVerifier();
+  }
+
   Future<void> _refresh() async {
     final p = await Outbox.pending();
     final r = await Outbox.rejected();
@@ -313,12 +322,16 @@ class SyncNotifier extends Notifier<SyncState> {
     if (_busy || !Repo.aUneSession) return;
     final me = ref.read(profilProvider).value;
     if (me == null || me.isSuper) return;
-    if ((await Outbox.pending()).isEmpty) return;
+    if ((await Outbox.pending()).isEmpty) {
+      await _majVerif();
+      return;
+    }
     _busy = true;
     await _refresh();
     try {
       final n = await Repo.synchroniser();
       if (n > 0 && ref.mounted) ref.read(tickProvider.notifier).bump();
+      await _majVerif();
     } catch (_) {
       // réseau ou session : on réessaiera au prochain passage
     } finally {
@@ -407,6 +420,11 @@ final ticketsProvider = FutureProvider<List<Ticket>>((ref) {
 final ticketProvider = FutureProvider.family<Ticket, int>((ref, id) {
   ref.watch(tickProvider);
   return Repo.getTicket(id);
+});
+
+final trajetsProvider = FutureProvider<List<Trajet>>((ref) {
+  ref.watch(tickProvider);
+  return Repo.trajets();
 });
 
 final smsConfigProvider = FutureProvider<SmsConfig?>((ref) => Repo.smsConfig());

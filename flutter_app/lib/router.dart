@@ -6,6 +6,7 @@ import 'data/providers.dart';
 import 'screens/attente.dart';
 import 'screens/billet_detail.dart';
 import 'screens/billet_form.dart';
+import 'screens/billet_verif.dart';
 import 'screens/billets_list.dart';
 import 'screens/colis_detail.dart';
 import 'screens/colis_form.dart';
@@ -20,6 +21,7 @@ import 'screens/parametres.dart';
 import 'screens/rapports.dart';
 import 'screens/recherche.dart';
 import 'screens/scanner.dart';
+import 'screens/trajets.dart';
 import 'screens/utilisateurs.dart';
 import 'widgets/app_shell.dart';
 
@@ -79,7 +81,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           loc == '/mises-a-jour' ||
           loc.startsWith('/entreprises'))
         return '/';
-      const adminOnly = ['/gares', '/utilisateurs', '/parametres'];
+      const adminOnly = ['/gares', '/utilisateurs', '/parametres', '/trajets'];
       if (!p.isAdmin && adminOnly.any(loc.startsWith)) return '/';
       return null;
     },
@@ -134,6 +136,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/billets/nouveau',
             pageBuilder: (c, s) => _page(s, const BilletFormScreen()),
+          ),
+          GoRoute(
+            path: '/billets/verifier',
+            pageBuilder: (c, s) => _page(s, const BilletVerifScreen()),
+          ),
+          GoRoute(
+            path: '/trajets',
+            pageBuilder: (c, s) => _page(s, const TrajetsScreen()),
           ),
           GoRoute(
             path: '/billets/:id',

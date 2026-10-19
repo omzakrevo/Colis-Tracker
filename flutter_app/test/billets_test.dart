@@ -56,4 +56,54 @@ void main() {
     expect(roll.length, greaterThan(1000));
     expect(a4.length, greaterThan(1000));
   });
+
+  test('trajet : horaires et prix lus depuis le serveur', () {
+    final t = Trajet.fromJson({
+      'id': 1,
+      'gare_depart_id': 1,
+      'gare_arrivee_id': 2,
+      'prix': 5000,
+      'horaires': ['06:30', '14:00'],
+    });
+    expect(t.prix, 5000);
+    expect(t.horaires, ['06:30', '14:00']);
+    expect(Trajet.fromJson(t.toJson()).horaires, hasLength(2));
+  });
+
+  test('billet à vérifier : autre jour, annulé, compteur', () {
+    final b = BilletVerif.fromJson({
+      'id': 3,
+      'numero': 'BIL-2026-1000',
+      'client_nom': 'Awa',
+      'client_telephone': '70123456',
+      'date_voyage': '2026-10-20',
+      'statut': 'emis',
+      'nb_verifications': 1,
+    });
+    expect(b.annule, isFalse);
+    expect(b.autreJour(DateTime(2026, 10, 20, 15)), isFalse);
+    expect(b.autreJour(DateTime(2026, 10, 21)), isTrue);
+    expect(b.avecVerifications(2).nbVerifications, 2);
+    expect(BilletVerif.fromJson(b.toJson()).numero, b.numero);
+  });
+
+  test('la valeur du colis est conservée', () {
+    final c = Outbox.colisLocal({
+      'expediteur_nom': 'A',
+      'expediteur_telephone': '70000000',
+      'destinataire_nom': 'B',
+      'destinataire_telephone': '71000000',
+      'gare_depart_id': 1,
+      'gare_arrivee_id': 2,
+      'description': 'Sac',
+      'nombre': 1,
+      'prix': 1500,
+      'valeur': 250000,
+      'date_envoi': '2026-10-20',
+      'client_ref': Outbox.nouvelleRef(),
+      'numero_provisoire': 'LOC-1',
+    }, garesNoms: const {});
+    expect(c.valeur, 250000);
+    expect(Colis.fromJson(c.toJson()).valeur, 250000);
+  });
 }

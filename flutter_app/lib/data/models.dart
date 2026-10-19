@@ -75,6 +75,9 @@ class Profil {
   bool get voitBillets => peutVendreBillets || role == 'chef_gare';
 
   /// Accède aux écrans de colis (liste, saisie, recherche, rapports).
+  /// Vérifie les billets à l'embarquement (facultatif).
+  bool get peutVerifierBillets => isAdmin || isGuichet || isConvoyeur || role == 'chef_gare' || role == 'agent';
+
   bool get voitColis => !isSuper && !scanRestreint;
 
   Map<String, dynamic> toJson() => {
@@ -208,6 +211,7 @@ class Colis {
     this.gareDepartNom,
     this.gareArriveeNom,
     this.poids,
+    this.valeur,
     this.agentNom,
     this.retraitNom,
     this.retraitTelephone,
@@ -233,6 +237,9 @@ class Colis {
   final String? retraitNom, retraitTelephone, retraitPieceIdentite;
   final String? retraitSignature, photo, notes;
   final double? poids;
+
+  /// Valeur déclarée du colis (FCFA).
+  final double? valeur;
   final double prix;
   final DateTime dateEnvoi, createdAt;
   final DateTime? retraitDate;
@@ -251,6 +258,7 @@ class Colis {
     description: j['description'] as String,
     nombre: j['nombre'] as int,
     poids: j['poids'] == null ? null : _d(j['poids']),
+    valeur: j['valeur'] == null ? null : _d(j['valeur']),
     prix: _d(j['prix']),
     statut: j['statut'] as String,
     dateEnvoi: DateTime.parse(j['date_envoi'] as String),
@@ -285,6 +293,7 @@ class Colis {
     'description': description,
     'nombre': nombre,
     'poids': poids,
+    'valeur': valeur,
     'prix': prix,
     'statut': statut,
     'date_envoi': dateEnvoi.toIso8601String(),
@@ -323,6 +332,7 @@ class Colis {
     description: description,
     nombre: nombre,
     poids: poids,
+    valeur: valeur,
     prix: prix,
     statut: statut ?? this.statut,
     dateEnvoi: dateEnvoi,
@@ -690,4 +700,116 @@ class SmsLigne {
     'billet' => 'Billet',
     _ => 'Test',
   };
+}
+
+/// Trajet : prix et heures de départ fixés par l'administrateur entre deux gares.
+class Trajet {
+  Trajet({
+    required this.id,
+    required this.gareDepartId,
+    required this.gareArriveeId,
+    required this.prix,
+    this.horaires = const [],
+  });
+
+  final int id, gareDepartId, gareArriveeId;
+  final double prix;
+  final List<String> horaires;
+
+  factory Trajet.fromJson(Map<String, dynamic> j) => Trajet(
+    id: j['id'] as int,
+    gareDepartId: j['gare_depart_id'] as int,
+    gareArriveeId: j['gare_arrivee_id'] as int,
+    prix: _d(j['prix']),
+    horaires: [for (final h in (j['horaires'] as List? ?? const [])) '$h'],
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'gare_depart_id': gareDepartId,
+    'gare_arrivee_id': gareArriveeId,
+    'prix': prix,
+    'horaires': horaires,
+  };
+}
+
+/// Billet vu par la vérification (copie gardée sur le téléphone pour fonctionner sans internet).
+class BilletVerif {
+  BilletVerif({
+    required this.id,
+    required this.numero,
+    required this.clientNom,
+    required this.clientTelephone,
+    required this.dateVoyage,
+    required this.statut,
+    this.gareDepartNom,
+    this.gareArriveeNom,
+    this.heureDepart,
+    this.siege,
+    this.nbVerifications = 0,
+  });
+
+  final int id, nbVerifications;
+  final String numero, clientNom, clientTelephone, statut;
+  final String? gareDepartNom, gareArriveeNom, heureDepart, siege;
+  final DateTime dateVoyage;
+
+  bool get annule => statut == 'annule';
+
+  /// Le billet est-il pour un autre jour que `jour` ?
+  bool autreJour(DateTime jour) =>
+      DateTime(dateVoyage.year, dateVoyage.month, dateVoyage.day) !=
+      DateTime(jour.year, jour.month, jour.day);
+
+  BilletVerif avecVerifications(int n) => BilletVerif(
+    id: id,
+    numero: numero,
+    clientNom: clientNom,
+    clientTelephone: clientTelephone,
+    dateVoyage: dateVoyage,
+    statut: statut,
+    gareDepartNom: gareDepartNom,
+    gareArriveeNom: gareArriveeNom,
+    heureDepart: heureDepart,
+    siege: siege,
+    nbVerifications: n,
+  );
+
+  factory BilletVerif.fromJson(Map<String, dynamic> j) => BilletVerif(
+    id: (j['id'] as num).toInt(),
+    numero: j['numero'] as String,
+    clientNom: j['client_nom'] as String,
+    clientTelephone: j['client_telephone'] as String,
+    gareDepartNom: j['gare_depart_nom'] as String?,
+    gareArriveeNom: j['gare_arrivee_nom'] as String?,
+    dateVoyage: DateTime.parse(j['date_voyage'] as String),
+    heureDepart: j['heure_depart'] as String?,
+    siege: j['siege'] as String?,
+    statut: (j['statut'] as String?) ?? 'emis',
+    nbVerifications: (j['nb_verifications'] as num?)?.toInt() ?? 0,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'numero': numero,
+    'client_nom': clientNom,
+    'client_telephone': clientTelephone,
+    'gare_depart_nom': gareDepartNom,
+    'gare_arrivee_nom': gareArriveeNom,
+    'date_voyage': dateVoyage.toIso8601String(),
+    'heure_depart': heureDepart,
+    'siege': siege,
+    'statut': statut,
+    'nb_verifications': nbVerifications,
+  };
+}
+
+/// Résultat d'une vérification de billet.
+class VerifResultat {
+  VerifResultat({this.billet, this.horsLigne = false, this.message});
+  final BilletVerif? billet;
+
+  /// Vérifié sans internet : sera enregistré au retour du réseau.
+  final bool horsLigne;
+  final String? message;
 }

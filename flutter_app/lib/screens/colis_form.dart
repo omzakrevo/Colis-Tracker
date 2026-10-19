@@ -37,6 +37,7 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
   final description = TextEditingController(),
       nb = TextEditingController(text: '1');
   final poids = TextEditingController(), prix = TextEditingController();
+  final valeur = TextEditingController();
   final notes = TextEditingController();
   int? depart, arrivee;
   DateTime date = DateTime.now();
@@ -54,6 +55,7 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
       nb,
       poids,
       prix,
+      valeur,
       notes,
     ]) {
       c.dispose();
@@ -102,6 +104,9 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
         'poids': poids.text.trim().isEmpty
             ? null
             : double.parse(poids.text.replaceAll(',', '.')),
+        'valeur': valeur.text.trim().isEmpty
+            ? null
+            : double.parse(valeur.text.replaceAll(',', '.')),
         'prix': double.parse(prix.text.replaceAll(',', '.')),
         'date_envoi': dateIso(date),
         'photo': photo,
@@ -452,6 +457,28 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
                           0
                       ? 'Le prix doit être supérieur à 0'
                       : null,
+                ),
+              ),
+              const SizedBox(height: 14),
+              SectionCard(
+                title: 'Valeur du colis',
+                icon: Icons.diamond_rounded,
+                accent: const Color(0xFF7C3AED),
+                child: TextFormField(
+                  controller: valeur,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Valeur déclarée (FCFA)',
+                    helperText: 'Facultatif — valeur des marchandises transportées',
+                    suffixText: 'FCFA',
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return null;
+                    final n = double.tryParse(v.replaceAll(',', '.'));
+                    return n == null || n < 0 ? 'Valeur invalide' : null;
+                  },
                 ),
               ),
               const SizedBox(height: 14),

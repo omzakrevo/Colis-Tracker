@@ -27,11 +27,12 @@ const _principaux = [
 ];
 
 const _billets = _Item('/billets', 'Billets', Icons.confirmation_number_rounded);
+const _verifier = _Item('/billets/verifier', 'Vérifier', Icons.fact_check_rounded);
 const _scanner = _Item('/scanner', 'Scanner', Icons.qr_code_scanner_rounded);
 
 /// Onglets du bas (téléphone) selon le rôle.
 List<_Item> _onglets(Profil me) => me.isConvoyeur
-    ? const [_billets, _scanner]
+    ? const [_billets, _verifier, _scanner]
     : me.isGuichet
     ? [..._principaux.take(2), _billets, ..._principaux.skip(2)]
     : _principaux;
@@ -39,7 +40,7 @@ List<_Item> _onglets(Profil me) => me.isConvoyeur
 List<_Item> _menu(Profil me) => me.isBarragiste
     ? const [_scanner]
     : me.isConvoyeur
-    ? const [_billets, _scanner]
+    ? const [_billets, _verifier, _scanner]
     : me.isSuper
     ? const [
         _Item('/entreprises', 'Entreprises', Icons.business_rounded),
@@ -48,9 +49,11 @@ List<_Item> _menu(Profil me) => me.isBarragiste
     : [
         ..._onglets(me),
         if (me.voitBillets && !me.isGuichet) _billets,
+        if (me.peutVerifierBillets) _verifier,
         const _Item('/rapports', 'Rapports', Icons.insights_rounded),
         if (me.isAdmin) ...const [
           _Item('/gares', 'Gares', Icons.location_city_rounded),
+          _Item('/trajets', 'Trajets et prix', Icons.route_rounded),
           _Item('/utilisateurs', 'Utilisateurs', Icons.groups_rounded),
           _Item('/parametres', 'Paramètres', Icons.tune_rounded),
         ],
@@ -91,8 +94,11 @@ class AppShell extends ConsumerWidget {
   final Widget child;
   final String location;
 
-  bool _active(String path) =>
-      path == '/' ? location == '/' : location.startsWith(path);
+  bool _active(String path) => path == '/'
+      ? location == '/'
+      : path == '/billets'
+      ? location.startsWith('/billets') && !location.startsWith('/billets/verifier')
+      : location.startsWith(path);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -188,6 +194,7 @@ class AppShell extends ConsumerWidget {
       floatingActionButton:
           (location.startsWith('/scanner') ||
               location.endsWith('/nouveau') ||
+              location.startsWith('/billets/verifier') ||
               me.isSuper ||
               me.isBarragiste ||
               (location.startsWith('/billets') && !me.peutVendreBillets))
