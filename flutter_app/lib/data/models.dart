@@ -59,6 +59,24 @@ class Profil {
   /// Barragiste : ne peut que scanner (embarquement / déchargement).
   bool get isBarragiste => role == 'barragiste';
 
+  /// Guichet : travaille dans une gare (colis) et vend les billets de cette gare.
+  bool get isGuichet => role == 'guichet';
+
+  /// Convoyeur : vend des billets à bord et scanne les colis ; aucun accès aux données des clients.
+  bool get isConvoyeur => role == 'convoyeur';
+
+  /// Ne fait que scanner (modes embarquement / déchargement, sans consultation).
+  bool get scanRestreint => isBarragiste || isConvoyeur;
+
+  /// Peut créer des billets de transport.
+  bool get peutVendreBillets => isAdmin || isGuichet || isConvoyeur;
+
+  /// Peut consulter la liste des billets (vendeurs, administrateur et chef de gare).
+  bool get voitBillets => peutVendreBillets || role == 'chef_gare';
+
+  /// Accède aux écrans de colis (liste, saisie, recherche, rapports).
+  bool get voitColis => !isSuper && !scanRestreint;
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'nom': nom,
@@ -320,6 +338,149 @@ class Colis {
     enAttente: enAttente ?? this.enAttente,
     clientRef: clientRef,
   );
+}
+
+/// Billet de transport vendu à un passager.
+class Ticket {
+  Ticket({
+    required this.id,
+    required this.numero,
+    required this.clientNom,
+    required this.clientTelephone,
+    required this.gareDepartId,
+    required this.gareArriveeId,
+    required this.dateVoyage,
+    required this.prix,
+    required this.statut,
+    required this.createdAt,
+    this.gareDepartNom,
+    this.gareArriveeNom,
+    this.heureDepart,
+    this.siege,
+    this.vendeurNom,
+    this.notes,
+    this.clientRef,
+    this.enAttente = false,
+  });
+
+  final int id, gareDepartId, gareArriveeId;
+  final String numero, clientNom, clientTelephone, statut;
+  final String? gareDepartNom, gareArriveeNom, heureDepart, siege, vendeurNom, notes;
+  final DateTime dateVoyage, createdAt;
+  final double prix;
+
+  /// Identifiant client d'un billet créé hors ligne (numéro provisoire LOC-…).
+  final String? clientRef;
+
+  /// Créé hors connexion, pas encore envoyé au serveur.
+  final bool enAttente;
+
+  bool get annule => statut == 'annule';
+
+  factory Ticket.fromJson(Map<String, dynamic> j) => Ticket(
+    id: j['id'] as int,
+    numero: j['numero'] as String,
+    clientNom: j['client_nom'] as String,
+    clientTelephone: j['client_telephone'] as String,
+    gareDepartId: j['gare_depart_id'] as int,
+    gareArriveeId: j['gare_arrivee_id'] as int,
+    gareDepartNom: j['gare_depart_nom'] as String?,
+    gareArriveeNom: j['gare_arrivee_nom'] as String?,
+    dateVoyage: DateTime.parse(j['date_voyage'] as String),
+    heureDepart: j['heure_depart'] as String?,
+    siege: j['siege'] as String?,
+    prix: _d(j['prix']),
+    statut: (j['statut'] as String?) ?? 'emis',
+    vendeurNom: j['vendeur_nom'] as String?,
+    notes: j['notes'] as String?,
+    createdAt: DateTime.parse(j['created_at'] as String),
+    clientRef: j['client_ref'] as String?,
+    enAttente: j['en_attente'] as bool? ?? false,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'numero': numero,
+    'client_nom': clientNom,
+    'client_telephone': clientTelephone,
+    'gare_depart_id': gareDepartId,
+    'gare_arrivee_id': gareArriveeId,
+    'gare_depart_nom': gareDepartNom,
+    'gare_arrivee_nom': gareArriveeNom,
+    'date_voyage': dateVoyage.toIso8601String(),
+    'heure_depart': heureDepart,
+    'siege': siege,
+    'prix': prix,
+    'statut': statut,
+    'vendeur_nom': vendeurNom,
+    'notes': notes,
+    'created_at': createdAt.toIso8601String(),
+    'client_ref': clientRef,
+    'en_attente': enAttente,
+  };
+
+  Ticket copyWith({String? statut, bool? enAttente}) => Ticket(
+    id: id,
+    numero: numero,
+    clientNom: clientNom,
+    clientTelephone: clientTelephone,
+    gareDepartId: gareDepartId,
+    gareArriveeId: gareArriveeId,
+    gareDepartNom: gareDepartNom,
+    gareArriveeNom: gareArriveeNom,
+    dateVoyage: dateVoyage,
+    heureDepart: heureDepart,
+    siege: siege,
+    prix: prix,
+    statut: statut ?? this.statut,
+    vendeurNom: vendeurNom,
+    notes: notes,
+    createdAt: createdAt,
+    clientRef: clientRef,
+    enAttente: enAttente ?? this.enAttente,
+  );
+}
+
+/// Client déjà connu (retrouvé par téléphone ou par nom pendant la saisie).
+class ClientSuggestion {
+  ClientSuggestion({
+    required this.nom,
+    required this.telephone,
+    this.nbColis = 0,
+    this.nbTickets = 0,
+    this.dernierDepartId,
+    this.dernierArriveeId,
+  });
+
+  final String nom, telephone;
+  final int nbColis, nbTickets;
+  final int? dernierDepartId, dernierArriveeId;
+
+  factory ClientSuggestion.fromJson(Map<String, dynamic> j) => ClientSuggestion(
+    nom: j['nom'] as String,
+    telephone: j['telephone'] as String,
+    nbColis: (j['nb_colis'] as num?)?.toInt() ?? 0,
+    nbTickets: (j['nb_tickets'] as num?)?.toInt() ?? 0,
+    dernierDepartId: (j['dernier_depart_id'] as num?)?.toInt(),
+    dernierArriveeId: (j['dernier_arrivee_id'] as num?)?.toInt(),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'nom': nom,
+    'telephone': telephone,
+    'nb_colis': nbColis,
+    'nb_tickets': nbTickets,
+    'dernier_depart_id': dernierDepartId,
+    'dernier_arrivee_id': dernierArriveeId,
+  };
+
+  /// « 70 12 34 56 » (groupes de 2 chiffres).
+  String get telephoneAffiche {
+    final d = telephone;
+    final reste = d.length.isOdd ? d.substring(0, 1) : '';
+    final pairs = RegExp(r'..').allMatches(d.substring(reste.length)).map((m) => m.group(0)!).toList();
+    return [if (reste.isNotEmpty) reste, ...pairs].join(' ');
+  }
 }
 
 class Historique {
