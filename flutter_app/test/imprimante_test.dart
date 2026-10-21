@@ -42,4 +42,17 @@ void main() {
     img.fill(opaque, color: img.ColorRgba8(255, 255, 255, 255));
     expect(versNoirEtBlanc(opaque).getPixel(3, 3).r, 255);
   });
+
+  test('mode colonnes : une ligne de 24 points = une commande ESC * de 1152 octets + saut de ligne', () async {
+    final gen = Generator(PaperSize.mm58, await CapabilityProfile.load());
+    final image = versNoirEtBlanc(img.Image(width: 384, height: 24, numChannels: 3, backgroundColor: img.ColorRgb8(255, 255, 255)));
+    final octets = gen.image(image, align: PosAlign.left);
+    // ESC * 33 nL nH … (déclenche l'impression de colonnes en double densité 24 points)
+    final i = octets.indexOf(0x2A); // '*'
+    expect(octets[i - 1], 0x1B);
+    expect(octets[i + 1], 33);
+    expect(octets.length, greaterThan(1152));
+    expect(const ImprimanteConfig().mode, 0);
+    expect(ImprimanteConfig.fromJson(const ImprimanteConfig().avec(vitesse: 2).toJson()).vitesse, 2);
+  });
 }

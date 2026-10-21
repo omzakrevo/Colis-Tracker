@@ -28,6 +28,7 @@ class ImprimanteConfig {
     this.largeurMm = 58,
     this.auto = true,
     this.vitesse = 1,
+    this.mode = 0,
   });
 
   final String type, nom, adresse;
@@ -43,18 +44,23 @@ class ImprimanteConfig {
   /// qu'elle l'imprime avant d'envoyer le suivant (sinon sa mémoire déborde et les lignes se décalent).
   final int vitesse;
 
+  /// Façon d'envoyer l'image : 0 « colonnes » (ESC *, lignes de 24 points : la plus répandue, sans arrêt entre
+  /// les lignes), 1 « raster » (GS v 0, blocs d'image : laisse parfois des bandes blanches entre les blocs).
+  final int mode;
+
   /// Attente (en ms) par ligne d'image imprimée entre deux blocs.
   double get msParLigne => const [0.8, 1.3, 1.8][vitesse.clamp(0, 2)];
 
   bool get configuree => type != 'aucune' && adresse.isNotEmpty;
 
-  ImprimanteConfig avec({int? largeurMm, bool? auto, int? vitesse}) => ImprimanteConfig(
+  ImprimanteConfig avec({int? largeurMm, bool? auto, int? vitesse, int? mode}) => ImprimanteConfig(
     type: type,
     nom: nom,
     adresse: adresse,
     largeurMm: largeurMm ?? this.largeurMm,
     auto: auto ?? this.auto,
     vitesse: vitesse ?? this.vitesse,
+    mode: mode ?? this.mode,
   );
 
   Map<String, dynamic> toJson() => {
@@ -64,6 +70,7 @@ class ImprimanteConfig {
     'largeur': largeurMm,
     'auto': auto,
     'debit': vitesse,
+    'mode': mode,
   };
 
   factory ImprimanteConfig.fromJson(Map<String, dynamic> j) => ImprimanteConfig(
@@ -73,6 +80,7 @@ class ImprimanteConfig {
     largeurMm: (j['largeur'] as num?)?.toInt() ?? 58,
     auto: j['auto'] as bool? ?? true,
     vitesse: (j['debit'] as num?)?.toInt() ?? 1,
+    mode: (j['mode'] as num?)?.toInt() ?? 0,
   );
 }
 
@@ -225,20 +233,31 @@ class Imprimante {
     }
 
     await envoyer(gen.reset());
-    // Blocs de 96 lignes, chacun envoyé en UNE seule fois (une commande d'image coupée en morceaux espacés est
-    // abandonnée par ces imprimantes : texte illisible, rien qui sort), puis attente pendant l'impression du bloc.
-    const tranche = 96;
+    // Mode « colonnes » (ESC *) : lignes de 24 points ; mode « raster » (GS v 0) : blocs de 96 lignes.
+    // Chaque commande part d'un seul coup (une commande coupée en morceaux espacés est abandonnée par ces
+    // imprimantes), et on regroupe ~96 lignes par envoi puis on attend le temps de les imprimer.
+    final colonnes = c.mode == 0;
+    final tranche = colonnes ? 24 : 96;
+    var groupe = <int>[];
+    var lignesGroupe = 0;
+    Future<void> vider() async {
+      if (groupe.isEmpty) return;
+      final debut = DateTime.now();
+      await envoyer(groupe);
+      final attente = (lignesGroupe * c.msParLigne).round() - DateTime.now().difference(debut).inMilliseconds;
+      if (attente > 0) await Future<void>.delayed(Duration(milliseconds: attente));
+      groupe = <int>[];
+      lignesGroupe = 0;
+    }
+
     for (var y = 0; y < image.height; y += tranche) {
       final h = (y + tranche > image.height) ? image.height - y : tranche;
-      final bloc = gen.imageRaster(
-        img.copyCrop(image, x: 0, y: y, width: image.width, height: h),
-        align: PosAlign.left,
-      );
-      final debut = DateTime.now();
-      await envoyer(bloc);
-      final attente = (h * c.msParLigne).round() - DateTime.now().difference(debut).inMilliseconds;
-      if (attente > 0) await Future<void>.delayed(Duration(milliseconds: attente));
+      final part = img.copyCrop(image, x: 0, y: y, width: image.width, height: h);
+      groupe.addAll(colonnes ? gen.image(part, align: PosAlign.left) : gen.imageRaster(part, align: PosAlign.left));
+      lignesGroupe += h;
+      if (lignesGroupe >= 96) await vider();
     }
+    await vider();
     await envoyer(gen.feed(4));
   }
 }

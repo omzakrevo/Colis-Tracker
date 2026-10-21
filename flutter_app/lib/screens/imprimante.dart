@@ -195,6 +195,22 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with Widget
               onSelectionChanged: (s) => _choisir(r, c.avec(vitesse: s.first)),
             ),
           ],
+          if (bt) ...[
+            const SizedBox(height: 10),
+            const Text(
+              'Mode d\'impression — si des bandes blanches coupent les lignes, essayez l\'autre mode :',
+              style: TextStyle(fontSize: 13, color: Brand.muted),
+            ),
+            const SizedBox(height: 6),
+            SegmentedButton<int>(
+              segments: const [
+                ButtonSegment(value: 0, label: Text('Colonnes (conseillé)')),
+                ButtonSegment(value: 1, label: Text('Raster')),
+              ],
+              selected: {c.mode},
+              onSelectionChanged: (s) => _choisir(r, c.avec(mode: s.first)),
+            ),
+          ],
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             value: c.auto,
@@ -248,6 +264,7 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with Widget
                     largeurMm: c.largeurMm,
                     auto: c.auto,
                     vitesse: c.vitesse,
+                    mode: c.mode,
                   ),
                 ),
               ),
