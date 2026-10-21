@@ -181,7 +181,7 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with Widget
           if (bt) ...[
             const SizedBox(height: 10),
             const Text(
-              'Cadence d\'envoi — texte ou QR code décalés : essayez « Lente » ; si des bandes blanches apparaissent : « Rapide ».',
+              'Cadence d\'envoi — bandes blanches ou lignes coupées : choisissez « Rapide » ; texte décalé ou brouillé : « Lente ».',
               style: TextStyle(fontSize: 13, color: Brand.muted),
             ),
             const SizedBox(height: 6),

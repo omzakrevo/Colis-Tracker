@@ -44,7 +44,7 @@ class ImprimanteConfig {
   final int vitesse;
 
   /// Attente (en ms) par ligne d'image imprimée entre deux blocs.
-  double get msParLigne => const [1.0, 2.0, 3.5][vitesse.clamp(0, 2)];
+  double get msParLigne => const [0.8, 1.3, 1.8][vitesse.clamp(0, 2)];
 
   bool get configuree => type != 'aucune' && adresse.isNotEmpty;
 
@@ -225,9 +225,9 @@ class Imprimante {
     }
 
     await envoyer(gen.reset());
-    // Blocs de 48 lignes, chacun envoyé en UNE seule fois (une commande d'image coupée en morceaux espacés est
+    // Blocs de 96 lignes, chacun envoyé en UNE seule fois (une commande d'image coupée en morceaux espacés est
     // abandonnée par ces imprimantes : texte illisible, rien qui sort), puis attente pendant l'impression du bloc.
-    const tranche = 48;
+    const tranche = 96;
     for (var y = 0; y < image.height; y += tranche) {
       final h = (y + tranche > image.height) ? image.height - y : tranche;
       final bloc = gen.imageRaster(
