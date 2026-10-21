@@ -856,6 +856,35 @@ class Repo {
     throw 'SMSBUS n\'a pas répondu. Vérifiez l\'identifiant Terminal Web et le port.';
   }
 
+  static Future<SmsGlobal> smsGlobal() async {
+    final l = _maps(await _db.rpc('sms_global_lire'));
+    return l.isEmpty ? SmsGlobal() : SmsGlobal.fromJson(l.first);
+  }
+
+  static Future<void> enregistrerSmsGlobal(Map<String, dynamic> data) =>
+      _db.rpc('sms_global_enregistrer', params: {'p': data});
+
+  static Future<void> testerSmsGlobal(String telephone) =>
+      _db.rpc('sms_global_tester', params: {'p_tel': telephone});
+
+  /// Demande le solde du compte de la plateforme puis le lit.
+  static Future<({String? solde, DateTime? le})> soldeSmsGlobal() async {
+    await _db.rpc('sms_global_solde_demander');
+    for (var i = 0; i < 6; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
+      final g = await smsGlobal();
+      final le = g.soldeLe;
+      if (le != null && DateTime.now().difference(le).inSeconds < 20) return (solde: g.soldeTexte, le: le);
+    }
+    throw 'SMSBUS n\'a pas répondu. Vérifiez l\'identifiant Terminal Web et le port.';
+  }
+
+  static Future<List<SmsEntreprise>> smsEntreprises() async =>
+      _maps(await _db.rpc('sms_entreprises')).map(SmsEntreprise.fromJson).toList();
+
+  static Future<void> reglerSmsEntreprise(int companyId, {bool? bloque, String? source}) =>
+      _db.rpc('sms_entreprise_regler', params: {'p_company': companyId, 'p_bloque': bloque, 'p_source': source});
+
   static Future<void> renvoyerSms(int id) =>
       _db.rpc('sms_renvoyer', params: {'p_id': id});
 

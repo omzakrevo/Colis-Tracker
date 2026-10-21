@@ -45,6 +45,7 @@ List<_Item> _menu(Profil me) => me.isBarragiste
     : me.isSuper
     ? const [
         _Item('/entreprises', 'Entreprises', Icons.business_rounded),
+        _Item('/sms-plateforme', 'SMS', Icons.sms_rounded),
         _Item('/mises-a-jour', 'Mises à jour', Icons.system_update_rounded),
       ]
     : [

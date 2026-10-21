@@ -20,6 +20,7 @@ import 'screens/login.dart';
 import 'screens/mises_a_jour.dart';
 import 'screens/parametres.dart';
 import 'screens/sms.dart';
+import 'screens/sms_plateforme.dart';
 import 'screens/rapports.dart';
 import 'screens/recherche.dart';
 import 'screens/scanner.dart';
@@ -66,7 +67,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final p = d.profil;
       if (p == null) return publiques.contains(loc) ? null : '/login';
       if (p.isSuper)
-        return (loc == '/entreprises' || loc == '/mises-a-jour')
+        return (loc == '/entreprises' || loc == '/mises-a-jour' || loc == '/sms-plateforme')
             ? null
             : '/entreprises';
       if (d.bloque) return loc == '/attente' ? null : '/attente';
@@ -179,6 +180,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/utilisateurs',
             pageBuilder: (c, s) => _page(s, const UtilisateursScreen()),
+          ),
+          GoRoute(
+            path: '/sms-plateforme',
+            pageBuilder: (c, s) => _page(s, const SmsPlateformeScreen()),
           ),
           GoRoute(
             path: '/sms',

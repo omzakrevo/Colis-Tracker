@@ -428,6 +428,8 @@ final trajetsProvider = FutureProvider<List<Trajet>>((ref) {
 });
 
 final smsConfigProvider = FutureProvider<SmsConfig?>((ref) => Repo.smsConfig());
+final smsGlobalProvider = FutureProvider<SmsGlobal>((ref) => Repo.smsGlobal());
+final smsEntreprisesProvider = FutureProvider<List<SmsEntreprise>>((ref) => Repo.smsEntreprises());
 
 final garesProvider = FutureProvider<List<Gare>>((ref) => Repo.gares());
 final profilsProvider = FutureProvider<List<Profil>>((ref) => Repo.profils());

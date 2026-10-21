@@ -641,12 +641,17 @@ class SmsConfig {
     this.tplRetire = '',
     this.tplBillet = '',
     this.terminalId = '',
+    this.source = 'global',
+    this.bloque = false,
     this.soldeTexte,
     this.soldeLe,
   });
 
-  final bool actif, colisEnvoi, colisArrive, colisRetire, billet;
-  final String username, sender, indicatif, terminalId;
+  final bool actif, colisEnvoi, colisArrive, colisRetire, billet, bloque;
+  final String username, sender, indicatif, terminalId, source;
+
+  /// Compte SMSBUS propre à l'entreprise (sinon : celui de la plateforme).
+  bool get comptePropre => source == 'propre';
   final String? soldeTexte;
   final DateTime? soldeLe;
   final int port;
@@ -668,8 +673,70 @@ class SmsConfig {
     tplRetire: j['tpl_retire'] as String? ?? '',
     tplBillet: j['tpl_billet'] as String? ?? '',
     terminalId: j['terminal_id'] as String? ?? '',
+    source: j['source'] as String? ?? 'global',
+    bloque: j['bloque'] as bool? ?? false,
     soldeTexte: j['solde_texte'] as String?,
     soldeLe: j['solde_le'] == null ? null : DateTime.parse(j['solde_le'] as String).toLocal(),
+  );
+}
+
+/// Compte SMSBUS de la plateforme (superadmin) ; le mot de passe n'est jamais relu.
+class SmsGlobal {
+  SmsGlobal({
+    this.actif = false,
+    this.username = '',
+    this.sender = '',
+    this.port = 7170,
+    this.indicatif = '226',
+    this.terminalId = '',
+    this.motDePasseDefini = false,
+    this.soldeTexte,
+    this.soldeLe,
+  });
+
+  final bool actif, motDePasseDefini;
+  final String username, sender, indicatif, terminalId;
+  final int port;
+  final String? soldeTexte;
+  final DateTime? soldeLe;
+
+  factory SmsGlobal.fromJson(Map<String, dynamic> j) => SmsGlobal(
+    actif: j['actif'] as bool? ?? false,
+    username: j['username'] as String? ?? '',
+    sender: j['sender'] as String? ?? '',
+    port: (j['port'] as num?)?.toInt() ?? 7170,
+    indicatif: j['indicatif'] as String? ?? '226',
+    terminalId: j['terminal_id'] as String? ?? '',
+    motDePasseDefini: j['mot_de_passe_defini'] as bool? ?? false,
+    soldeTexte: j['solde_texte'] as String?,
+    soldeLe: j['solde_le'] == null ? null : DateTime.parse(j['solde_le'] as String).toLocal(),
+  );
+}
+
+/// Situation SMS d'une entreprise, vue du superadmin.
+class SmsEntreprise {
+  SmsEntreprise({
+    required this.companyId,
+    required this.nom,
+    required this.actif,
+    required this.bloque,
+    required this.source,
+    required this.envoyes,
+    required this.echecs,
+  });
+
+  final int companyId, envoyes, echecs;
+  final String nom, source;
+  final bool actif, bloque;
+
+  factory SmsEntreprise.fromJson(Map<String, dynamic> j) => SmsEntreprise(
+    companyId: (j['company_id'] as num).toInt(),
+    nom: j['nom'] as String,
+    actif: j['actif'] as bool? ?? true,
+    bloque: j['bloque'] as bool? ?? false,
+    source: j['source'] as String? ?? 'global',
+    envoyes: (j['nb_envoyes'] as num?)?.toInt() ?? 0,
+    echecs: (j['nb_echecs'] as num?)?.toInt() ?? 0,
   );
 }
 

@@ -31,6 +31,7 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
     for (final k in ['envoi_exp', 'envoi_dest', 'arrive', 'retire', 'billet'])
       k: TextEditingController(),
   };
+  String _source = 'global';
   bool _actif = false, _envoi = true, _arrive = true, _retire = true, _billet = true;
   bool _loaded = false, _saving = false;
 
@@ -47,6 +48,7 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
     _loaded = true;
     if (c == null) return;
     _actif = c.actif;
+    _source = c.source;
     _envoi = c.colisEnvoi;
     _arrive = c.colisArrive;
     _retire = c.colisRetire;
@@ -70,6 +72,7 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
     try {
       await Repo.enregistrerSms({
         'actif': _actif,
+        'source': _source,
         'username': _user.text.trim(),
         'terminal_id': _terminal.text.trim(),
         if (_pass.text.isNotEmpty) 'password': _pass.text,
@@ -159,6 +162,16 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
               'SMS automatiques',
               subtitle: 'Passerelle SMSBUS : prévenez expéditeurs, destinataires et passagers.',
             ),
+            if (c?.bloque ?? false)
+              SectionCard(
+                title: 'SMS désactivés',
+                icon: Icons.block_rounded,
+                child: const Text(
+                  'L\'administrateur de la plateforme a désactivé les SMS pour votre entreprise. '
+                  'Contactez-le pour les réactiver.',
+                ),
+              ),
+            if (c?.bloque ?? false) const SizedBox(height: 14),
             SectionCard(
               title: 'Compte SMSBUS',
               icon: Icons.sms_rounded,
@@ -167,9 +180,28 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     value: _actif,
-                    onChanged: (v) => setState(() => _actif = v),
+                    onChanged: (c?.bloque ?? false) ? null : (v) => setState(() => _actif = v),
                     title: const Text('Envoyer les SMS automatiquement'),
                   ),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'global', label: Text('Compte de la plateforme')),
+                      ButtonSegment(value: 'propre', label: Text('Mon compte SMSBUS')),
+                    ],
+                    selected: {_source},
+                    onSelectionChanged: (v) => setState(() => _source = v.first),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_source == 'global')
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Les SMS partent avec le compte SMSBUS de la plateforme : rien à configurer. '
+                        'Choisissez « Mon compte SMSBUS » pour utiliser vos propres identifiants.',
+                        style: TextStyle(color: Brand.muted, fontSize: 12.5),
+                      ),
+                    ),
+                  if (_source == 'propre') ...[
                   TextField(
                     controller: _user,
                     decoration: const InputDecoration(labelText: 'Identifiant (username)'),
@@ -217,10 +249,12 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
                       ),
                     ],
                   ),
+                  ],
                 ],
               ),
             ),
             const SizedBox(height: 14),
+            if (_source == 'propre')
             SectionCard(
               title: 'Solde SMS',
               icon: Icons.account_balance_wallet_rounded,
@@ -264,7 +298,7 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
                 ],
               ),
             ),
-            const SizedBox(height: 14),
+            if (_source == 'propre') const SizedBox(height: 14),
             SectionCard(
               title: 'Quand envoyer un SMS ?',
               icon: Icons.notifications_active_rounded,
