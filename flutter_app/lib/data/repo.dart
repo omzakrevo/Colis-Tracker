@@ -818,7 +818,12 @@ class Repo {
 
   // ── SMS (SMSBUS) ──────────────────────────────────────
   static Future<SmsConfig?> smsConfig() async {
-    final rows = await _db.from('sms_settings').select();
+    // Colonnes listées une à une : le mot de passe n'est pas lisible, « select * » serait refusé.
+    final rows = await _db.from('sms_settings').select(
+      'company_id, actif, username, sender, port, indicatif, sms_colis_envoi, sms_colis_arrive, sms_colis_retire, '
+      'sms_billet, tpl_envoi_exp, tpl_envoi_dest, tpl_arrive, tpl_retire, tpl_billet, terminal_id, solde_texte, '
+      'solde_le, source, bloque',
+    );
     return rows.isEmpty ? null : SmsConfig.fromJson(rows.first);
   }
 
