@@ -258,7 +258,10 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with Widget
             if (_sys.isEmpty)
               const Padding(
                 padding: EdgeInsets.only(top: 6),
-                child: Text('Aucune imprimante installée sur cet ordinateur.'),
+                child: Text(
+                  'Aucune imprimante installée sur cet ordinateur. Branchez-la (câble USB), installez son pilote '
+                  'dans Windows (Paramètres > Imprimantes et scanners), puis touchez « Chercher les imprimantes ».',
+                ),
               ),
             for (final p in _sys)
               ListTile(
@@ -266,6 +269,14 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with Widget
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.print_rounded),
                 title: Text(p.name),
+                subtitle: Text(
+                  [
+                    if (p.isDefault) 'Imprimante par défaut de Windows',
+                    if (!p.isAvailable) 'Hors ligne ou débranchée',
+                    if ((p.model ?? '').isNotEmpty) p.model!,
+                  ].join(' · '),
+                ),
+                trailing: c.adresse == p.url ? const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A)) : null,
                 selected: c.adresse == p.url,
                 onTap: () => _choisir(
                   r,
@@ -332,6 +343,15 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with Widget
                     'Sur le site web, l\'impression passe par la fenêtre du navigateur. '
                     'Pour imprimer directement, utilisez l\'application Android ou Windows.',
                     style: TextStyle(color: Brand.muted),
+                  ),
+                ),
+              if (sys)
+                const Padding(
+                  padding: EdgeInsets.only(top: 12),
+                  child: Text(
+                    'Branchez l\'imprimante par câble (USB) et installez-la dans Windows : elle apparaît alors '
+                    'dans la liste de chaque imprimante ci-dessous, où il suffit de la sélectionner.',
+                    style: TextStyle(color: Brand.muted, fontSize: 13),
                   ),
                 ),
               if (bt)
