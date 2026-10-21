@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/torche.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -225,6 +226,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           ),
         ),
         _Overlay(color: _mode.color),
+        BoutonTorche(controller: _ctl),
         if (_busy)
           Container(
             color: Colors.black38,

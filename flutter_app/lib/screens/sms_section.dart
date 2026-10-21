@@ -132,7 +132,15 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
     final cfg = ref.watch(smsConfigProvider);
     return cfg.when(
       loading: () => const SizedBox(height: 60),
-      error: (e, _) => Text(errMsg(e)),
+      error: (e, _) => SectionCard(
+        title: 'SMS indisponibles',
+        icon: Icons.sms_failed_rounded,
+        child: Text(
+          'Impossible de charger les réglages SMS : ${errMsg(e)}\n\n'
+          'Si le message parle d\'une table ou d\'une fonction introuvable, exécutez le script '
+          'supabase/rattrapage.sql dans Supabase (SQL Editor), puis rouvrez cette page.',
+        ),
+      ),
       data: (c) {
         _load(c);
         Widget tpl(String key, String label) => Padding(
@@ -171,7 +179,7 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
                     controller: _pass,
                     obscureText: true,
                     decoration: InputDecoration(
-                      labelText: 'Mot de passe',
+                      labelText: 'Mot de passe / clé API SMSBUS',
                       helperText: (c?.username ?? '').isEmpty
                           ? null
                           : 'Laissez vide pour conserver le mot de passe actuel',

@@ -57,6 +57,7 @@ List<_Item> _menu(Profil me) => me.isBarragiste
           _Item('/gares', 'Gares', Icons.location_city_rounded),
           _Item('/trajets', 'Trajets et prix', Icons.route_rounded),
           _Item('/utilisateurs', 'Utilisateurs', Icons.groups_rounded),
+          _Item('/sms', 'SMS', Icons.sms_rounded),
           _Item('/parametres', 'Paramètres', Icons.tune_rounded),
         ],
       ];

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/torche.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -96,6 +97,7 @@ class _BilletVerifScreenState extends ConsumerState<BilletVerifScreen> {
               ),
             ),
           ),
+          BoutonTorche(controller: _ctl),
           Center(
             child: FractionallySizedBox(
               widthFactor: .6,

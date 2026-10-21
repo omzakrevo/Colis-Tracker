@@ -19,6 +19,7 @@ import 'screens/inscription.dart';
 import 'screens/login.dart';
 import 'screens/mises_a_jour.dart';
 import 'screens/parametres.dart';
+import 'screens/sms.dart';
 import 'screens/rapports.dart';
 import 'screens/recherche.dart';
 import 'screens/scanner.dart';
@@ -84,7 +85,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           loc == '/mises-a-jour' ||
           loc.startsWith('/entreprises'))
         return '/';
-      const adminOnly = ['/gares', '/utilisateurs', '/parametres', '/trajets'];
+      const adminOnly = ['/gares', '/utilisateurs', '/parametres', '/trajets', '/sms'];
       if (!p.isAdmin && adminOnly.any(loc.startsWith)) return '/';
       return null;
     },
@@ -178,6 +179,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/utilisateurs',
             pageBuilder: (c, s) => _page(s, const UtilisateursScreen()),
+          ),
+          GoRoute(
+            path: '/sms',
+            pageBuilder: (c, s) => _page(s, const SmsScreen()),
           ),
           GoRoute(
             path: '/parametres',
