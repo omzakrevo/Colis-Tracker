@@ -101,7 +101,7 @@ class _Modele {
                 ),
               ),
               texte(activite, 9.5),
-              if (co.slogan.isNotEmpty) texte(co.slogan, 8, gras: false, italique: true),
+              if (co.slogan.isNotEmpty) texte(co.slogan, 8.5, italique: true),
             ],
           ),
         ),
@@ -133,14 +133,8 @@ class _Modele {
       children: [
         pw.SizedBox(width: f(15), child: pw.SvgImage(svg: svg, width: f(13), height: f(13))),
         pw.SizedBox(width: f(5)),
-        pw.SizedBox(
-          width: f(76),
-          child: pw.FittedBox(
-            fit: pw.BoxFit.scaleDown,
-            alignment: pw.Alignment.centerLeft,
-            child: texte(libelle, taille),
-          ),
-        ),
+        // Libellé long (DESTINATAIRE…) : police réduite pour tenir sur une ligne, sans changer l'alignement.
+        pw.SizedBox(width: f(76), child: texte(libelle, libelle.length >= 11 ? taille * .8 : taille)),
         pw.SizedBox(width: f(6), child: texte(':', taille)),
         pw.Expanded(child: texte(valeur, taille)),
       ],
@@ -167,7 +161,7 @@ class _Modele {
 
   pw.Widget pied(String message, {String? consigne}) => pw.Column(
     children: [
-      if (consigne != null) texte(consigne, 7.5, gras: true, align: pw.TextAlign.center),
+      if (consigne != null) texte(consigne, 8.5, gras: true, align: pw.TextAlign.center),
       trait(),
       centreAjuste(message, 15),
     ],
@@ -216,8 +210,8 @@ pw.Widget ticketVoyage(
       pw.SizedBox(height: m.v(2)),
       m.texte(
         'Scannez ce QR code pour vérifier le ticket au contrôle ou à l\'embarquement.',
-        7.5,
-        gras: false,
+        8.5,
+        gras: true,
         align: pw.TextAlign.center,
       ),
       m.pied('MERCI ET BON VOYAGE !'),
@@ -267,8 +261,8 @@ pw.Widget ticketColisClient(
       pw.SizedBox(height: m.v(2)),
       m.texte(
         'Conservez ce ticket : il vous sera demandé pour le retrait du colis. Suivi par QR code.',
-        7.5,
-        gras: false,
+        8.5,
+        gras: true,
         align: pw.TextAlign.center,
       ),
       m.pied('MERCI DE VOTRE CONFIANCE !'),

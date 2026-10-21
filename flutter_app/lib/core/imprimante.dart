@@ -27,6 +27,7 @@ class ImprimanteConfig {
     this.adresse = '',
     this.largeurMm = 58,
     this.auto = true,
+    this.vitesse = 0,
   });
 
   final String type, nom, adresse;
@@ -37,14 +38,22 @@ class ImprimanteConfig {
   /// Imprime tout seul dès l'enregistrement d'un colis ou d'un billet.
   final bool auto;
 
+  /// Vitesse d'envoi Bluetooth : 0 normale, 1 lente, 2 très lente (à choisir si l'impression est décalée).
+  final int vitesse;
+
+  /// Octets envoyés d'un coup à l'imprimante selon la vitesse (les petites imprimantes perdent des octets
+  /// quand on leur en envoie plus vite qu'elles n'impriment : l'image se décale).
+  int get octetsParEnvoi => const [256, 128, 64][vitesse.clamp(0, 2)];
+
   bool get configuree => type != 'aucune' && adresse.isNotEmpty;
 
-  ImprimanteConfig avec({int? largeurMm, bool? auto}) => ImprimanteConfig(
+  ImprimanteConfig avec({int? largeurMm, bool? auto, int? vitesse}) => ImprimanteConfig(
     type: type,
     nom: nom,
     adresse: adresse,
     largeurMm: largeurMm ?? this.largeurMm,
     auto: auto ?? this.auto,
+    vitesse: vitesse ?? this.vitesse,
   );
 
   Map<String, dynamic> toJson() => {
@@ -53,6 +62,7 @@ class ImprimanteConfig {
     'adresse': adresse,
     'largeur': largeurMm,
     'auto': auto,
+    'vitesse': vitesse,
   };
 
   factory ImprimanteConfig.fromJson(Map<String, dynamic> j) => ImprimanteConfig(
@@ -61,6 +71,7 @@ class ImprimanteConfig {
     adresse: j['adresse'] as String? ?? '',
     largeurMm: (j['largeur'] as num?)?.toInt() ?? 58,
     auto: j['auto'] as bool? ?? true,
+    vitesse: (j['vitesse'] as num?)?.toInt() ?? 0,
   );
 }
 
@@ -204,7 +215,7 @@ class Imprimante {
     );
     final octets = <int>[...gen.reset()];
     // Par tranches : les petites imprimantes ont une mémoire tampon limitée.
-    const tranche = 160;
+    const tranche = 24; // lignes par commande raster : petites, donc faciles à avaler pour l'imprimante
     for (var y = 0; y < image.height; y += tranche) {
       final h = (y + tranche > image.height) ? image.height - y : tranche;
       octets.addAll(
@@ -217,8 +228,9 @@ class Imprimante {
     octets.addAll(gen.feed(4));
 
     await _connecter(c);
-    // Envoi par morceaux pour ne pas saturer la liaison Bluetooth.
-    const bloc = 4096;
+    // Envoi par petits morceaux, plus lentement que l'imprimante n'imprime : sinon sa mémoire déborde,
+    // des octets se perdent et les lignes (texte, QR code) se décalent.
+    final bloc = c.octetsParEnvoi;
     for (var i = 0; i < octets.length; i += bloc) {
       final fin = (i + bloc > octets.length) ? octets.length : i + bloc;
       final ok = await PrintBluetoothThermal.writeBytes(octets.sublist(i, fin));
@@ -226,7 +238,7 @@ class Imprimante {
         _macConnectee = null;
         throw 'L\'envoi à l\'imprimante a échoué. Réessayez.';
       }
-      await Future<void>.delayed(const Duration(milliseconds: 40));
+      await Future<void>.delayed(const Duration(milliseconds: 30));
     }
   }
 }

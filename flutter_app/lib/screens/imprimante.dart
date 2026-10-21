@@ -178,6 +178,23 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with Widget
             selected: {c.largeurMm},
             onSelectionChanged: (s) => _choisir(r, c.avec(largeurMm: s.first)),
           ),
+          if (bt) ...[
+            const SizedBox(height: 10),
+            const Text(
+              'Vitesse d\'envoi — si le texte ou le QR code sortent décalés, choisissez plus lent :',
+              style: TextStyle(fontSize: 13, color: Brand.muted),
+            ),
+            const SizedBox(height: 6),
+            SegmentedButton<int>(
+              segments: const [
+                ButtonSegment(value: 0, label: Text('Normale')),
+                ButtonSegment(value: 1, label: Text('Lente')),
+                ButtonSegment(value: 2, label: Text('Très lente')),
+              ],
+              selected: {c.vitesse},
+              onSelectionChanged: (s) => _choisir(r, c.avec(vitesse: s.first)),
+            ),
+          ],
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             value: c.auto,
@@ -230,6 +247,7 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with Widget
                     adresse: b.macAdress,
                     largeurMm: c.largeurMm,
                     auto: c.auto,
+                    vitesse: c.vitesse,
                   ),
                 ),
               ),
