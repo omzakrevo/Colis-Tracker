@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/format.dart';
+import '../core/imprimante.dart';
 import '../data/models.dart';
 import '../data/providers.dart';
 import '../data/repo.dart';
@@ -81,7 +82,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
             ? 'Billet ${t.numero} enregistré hors ligne — il sera envoyé dès le retour d\'internet'
             : 'Billet ${t.numero} enregistré !',
       );
-      await _proposerImpression(t);
+      await _imprimerApresCreation(t);
       // On reste sur la vente : même trajet, nouveau client, pour enchaîner les billets.
       if (mounted) {
         nom.clear();
@@ -98,6 +99,24 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
       if (mounted) toast(context, errMsg(e), error: true);
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  /// Le ticket sort tout de suite sur l'imprimante « clients » si elle est réglée ; sinon on propose la fenêtre.
+  Future<void> _imprimerApresCreation(Ticket t) async {
+    final client = await Imprimante.lire(RoleImprimante.client);
+    if (!client.configuree) {
+      await _proposerImpression(t);
+      return;
+    }
+    if (!client.auto) return;
+    try {
+      final co = await ref.read(settingsProvider.future);
+      await imprimerBillet(t, co, ticket: true);
+    } catch (e) {
+      if (mounted) {
+        toast(context, 'Impression : ${errMsg(e)}\nVous pourrez réimprimer depuis la fiche du billet.', error: true);
+      }
     }
   }
 

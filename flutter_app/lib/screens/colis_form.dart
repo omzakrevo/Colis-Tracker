@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../core/format.dart';
+import '../core/imprimante.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../data/providers.dart';
@@ -121,7 +122,7 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
             ? 'Colis ${c.numero} enregistré hors ligne — il sera envoyé dès le retour d\'internet'
             : 'Colis ${c.numero} enregistré !',
       );
-      await _proposerImpression(c);
+      await _imprimerApresCreation(c);
       if (mounted) context.go('/colis/${c.id}');
     } catch (e) {
       if (mounted) toast(context, errMsg(e), error: true);
@@ -130,7 +131,42 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
     }
   }
 
-  /// Juste après l'enregistrement : imprimer tout de suite le ticket (ou le reçu A4).
+  /// Juste après l'enregistrement : le ticket client sort tout de suite sur l'imprimante « clients » et l'étiquette
+  /// sur l'imprimante « colis » (chacune selon son réglage). Une imprimante absente n'empêche pas l'autre : on
+  /// pourra la relancer depuis la fiche du colis. Sans aucune imprimante réglée, on propose la fenêtre d'impression.
+  Future<void> _imprimerApresCreation(Colis c) async {
+    final client = await Imprimante.lire(RoleImprimante.client);
+    final etiquette = await Imprimante.lire(RoleImprimante.colis);
+    if (!client.configuree && !etiquette.configuree) {
+      await _proposerImpression(c);
+      return;
+    }
+    final co = await ref.read(settingsProvider.future);
+    final erreurs = <String>[];
+    if (client.configuree && client.auto) {
+      try {
+        await imprimerRecu(c, co, ticket: true);
+      } catch (e) {
+        erreurs.add('Ticket client : ${errMsg(e)}');
+      }
+    }
+    if (etiquette.configuree && etiquette.auto) {
+      try {
+        await imprimerEtiquette(c, co);
+      } catch (e) {
+        erreurs.add('Étiquette colis : ${errMsg(e)}');
+      }
+    }
+    if (erreurs.isNotEmpty && mounted) {
+      toast(
+        context,
+        '${erreurs.join('\n')}\nVous pourrez réimprimer depuis la fiche du colis.',
+        error: true,
+      );
+    }
+  }
+
+  /// Fenêtre « Imprimer ? » (aucune imprimante réglée).
   Future<void> _proposerImpression(Colis c) async {
     final choix = await showDialog<String>(
       context: context,

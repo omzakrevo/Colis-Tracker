@@ -253,7 +253,12 @@ class ColisDetailScreen extends ConsumerWidget {
                 OutlinedButton.icon(
                   onPressed: () => avecMessage(context, () => imprimerRecu(c, company, ticket: true)),
                   icon: const Icon(Icons.receipt_long_rounded),
-                  label: const Text('Ticket'),
+                  label: const Text('Ticket client'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => avecMessage(context, () => imprimerEtiquette(c, company)),
+                  icon: const Icon(Icons.label_rounded),
+                  label: const Text('Étiquette colis'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => avecMessage(context, () => imprimerRecu(c, company)),

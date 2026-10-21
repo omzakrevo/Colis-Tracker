@@ -8,7 +8,17 @@ import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Comment l'appareil imprime les tickets : 'aucune' (fenêtre d'impression), 'bluetooth' (imprimante à tickets
+/// Les deux imprimantes de l'appareil : « client » (papier simple : tickets de voyage et tickets remis au client)
+/// et « colis » (papier autocollant : étiquettes à coller sur les colis).
+enum RoleImprimante {
+  client('client', 'Tickets clients', 'papier simple'),
+  colis('colis', 'Étiquettes colis', 'papier autocollant');
+
+  const RoleImprimante(this.code, this.libelle, this.papier);
+  final String code, libelle, papier;
+}
+
+/// Comment l'appareil imprime pour un rôle : 'aucune' (fenêtre d'impression), 'bluetooth' (imprimante à tickets
 /// appairée, Android) ou 'systeme' (imprimante installée sur l'ordinateur).
 class ImprimanteConfig {
   const ImprimanteConfig({
@@ -16,6 +26,7 @@ class ImprimanteConfig {
     this.nom = '',
     this.adresse = '',
     this.largeurMm = 58,
+    this.auto = true,
   });
 
   final String type, nom, adresse;
@@ -23,13 +34,25 @@ class ImprimanteConfig {
   /// Largeur du papier : 58 ou 80 mm.
   final int largeurMm;
 
+  /// Imprime tout seul dès l'enregistrement d'un colis ou d'un billet.
+  final bool auto;
+
   bool get configuree => type != 'aucune' && adresse.isNotEmpty;
+
+  ImprimanteConfig avec({int? largeurMm, bool? auto}) => ImprimanteConfig(
+    type: type,
+    nom: nom,
+    adresse: adresse,
+    largeurMm: largeurMm ?? this.largeurMm,
+    auto: auto ?? this.auto,
+  );
 
   Map<String, dynamic> toJson() => {
     'type': type,
     'nom': nom,
     'adresse': adresse,
     'largeur': largeurMm,
+    'auto': auto,
   };
 
   factory ImprimanteConfig.fromJson(Map<String, dynamic> j) => ImprimanteConfig(
@@ -37,32 +60,49 @@ class ImprimanteConfig {
     nom: j['nom'] as String? ?? '',
     adresse: j['adresse'] as String? ?? '',
     largeurMm: (j['largeur'] as num?)?.toInt() ?? 58,
+    auto: j['auto'] as bool? ?? true,
   );
 }
 
-class Imprimante {
-  static const _cle = 'tchi_imprimante';
+/// Convertit une page rendue (RGBA, souvent à fond TRANSPARENT) en image noir et blanc pure pour l'imprimante.
+/// Les pixels transparents sont posés sur du blanc : sans cela, ils étaient lus comme du noir et toute la
+/// feuille sortait noire.
+img.Image versNoirEtBlanc(img.Image source, {int seuil = 165}) {
+  final sortie = img.Image(width: source.width, height: source.height, numChannels: 3);
+  img.fill(sortie, color: img.ColorRgb8(255, 255, 255));
+  final noir = img.ColorRgb8(0, 0, 0);
+  for (final p in source) {
+    final max = p.maxChannelValue;
+    final a = source.hasAlpha ? p.a / max : 1.0;
+    final lum = (0.299 * p.r + 0.587 * p.g + 0.114 * p.b) / max; // 0 noir … 1 blanc
+    final v = lum * a + (1 - a); // pose sur fond blanc
+    if (v * 255 < seuil) sortie.setPixel(p.x, p.y, noir);
+  }
+  return sortie;
+}
 
-  /// Réglage propre à l'appareil (pas à l'utilisateur) : l'imprimante reste branchée au même téléphone.
-  static Future<ImprimanteConfig> lire() async {
+class Imprimante {
+  static String _cle(RoleImprimante r) => 'tchi_imprimante_${r.code}';
+
+  /// Réglage propre à l'appareil (pas à l'utilisateur) : les imprimantes restent branchées au même téléphone.
+  static Future<ImprimanteConfig> lire(RoleImprimante role) async {
     try {
-      final raw = (await SharedPreferences.getInstance()).getString(_cle);
+      final p = await SharedPreferences.getInstance();
+      // Ancienne version : une seule imprimante, reprise comme imprimante « clients ».
+      final raw = p.getString(_cle(role)) ?? (role == RoleImprimante.client ? p.getString('tchi_imprimante') : null);
       if (raw == null) return const ImprimanteConfig();
-      return ImprimanteConfig.fromJson(
-        Map<String, dynamic>.from(jsonDecode(raw) as Map),
-      );
+      return ImprimanteConfig.fromJson(Map<String, dynamic>.from(jsonDecode(raw) as Map));
     } catch (_) {
       return const ImprimanteConfig();
     }
   }
 
-  static Future<void> enregistrer(ImprimanteConfig c) async {
+  static Future<void> enregistrer(RoleImprimante role, ImprimanteConfig c) async {
     final p = await SharedPreferences.getInstance();
-    await p.setString(_cle, jsonEncode(c.toJson()));
+    await p.setString(_cle(role), jsonEncode(c.toJson()));
   }
 
-  static bool get bluetoothPossible =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  static bool get bluetoothPossible => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   static bool get systemePossible =>
       !kIsWeb &&
@@ -86,17 +126,13 @@ class Imprimante {
     return PrintBluetoothThermal.pairedBluetooths;
   }
 
-  /// Vérifie que l'imprimante Bluetooth réglée répond (allumée, appairée, à portée).
-  static Future<void> verifierConnexion() async {
-    final c = await lire();
+  /// Vérifie que l'imprimante Bluetooth réglée pour ce rôle répond (allumée, appairée, à portée).
+  static Future<void> verifierConnexion(RoleImprimante role) async {
+    final c = await lire(role);
     if (c.type != 'bluetooth' || !c.configuree) {
       throw 'Aucune imprimante Bluetooth n\'est réglée.';
     }
-    if (await PrintBluetoothThermal.connectionStatus) return;
-    final ok = await PrintBluetoothThermal.connect(macPrinterAddress: c.adresse);
-    if (!ok) {
-      throw 'Impossible de se connecter à « ${c.nom} ». Vérifiez qu\'elle est allumée, appairée et à portée.';
-    }
+    await _connecter(c);
   }
 
   /// Imprimantes installées sur l'ordinateur.
@@ -106,13 +142,14 @@ class Imprimante {
   static PdfPageFormat _format(ImprimanteConfig c) =>
       PdfPageFormat(c.largeurMm * PdfPageFormat.mm, double.infinity);
 
-  /// Imprime directement sur l'imprimante réglée, sans fenêtre d'impression.
+  /// Imprime directement sur l'imprimante réglée pour ce rôle, sans fenêtre d'impression.
   /// Renvoie `false` si aucune imprimante n'est réglée (l'appelant ouvre alors la fenêtre classique).
   static Future<bool> imprimerDirect(
+    RoleImprimante role,
     String nom,
     Future<Uint8List> Function(PdfPageFormat format) pdf,
   ) async {
-    final c = await lire();
+    final c = await lire(role);
     if (!c.configuree) return false;
     if (c.type == 'systeme' && systemePossible) {
       final ok = await Printing.directPrintPdf(
@@ -131,6 +168,23 @@ class Imprimante {
     return false;
   }
 
+  /// Adresse de l'imprimante Bluetooth actuellement connectée (le téléphone n'en tient qu'une à la fois).
+  static String? _macConnectee;
+
+  static Future<void> _connecter(ImprimanteConfig c) async {
+    if (_macConnectee == c.adresse && await PrintBluetoothThermal.connectionStatus) return;
+    // Autre imprimante (ou liaison perdue) : on ferme la liaison actuelle avant d'ouvrir la bonne.
+    try {
+      await PrintBluetoothThermal.disconnect;
+    } catch (_) {}
+    _macConnectee = null;
+    final ok = await PrintBluetoothThermal.connect(macPrinterAddress: c.adresse);
+    if (!ok) {
+      throw 'Impossible de se connecter à « ${c.nom} ». Vérifiez qu\'elle est allumée, appairée et à portée.';
+    }
+    _macConnectee = c.adresse;
+  }
+
   /// Transforme la page PDF en image puis l'envoie en ESC/POS (le texte accentué s'imprime ainsi sans souci de police).
   static Future<void> _imprimerBluetooth(ImprimanteConfig c, Uint8List pdf) async {
     final points = c.largeurMm >= 80 ? 576 : 384;
@@ -140,7 +194,7 @@ class Imprimante {
       break;
     }
     if (page == null) throw 'Le document n\'a pas pu être préparé pour l\'impression.';
-    final image = img.grayscale(
+    final image = versNoirEtBlanc(
       img.copyResize(page, width: points, interpolation: img.Interpolation.average),
     );
 
@@ -162,18 +216,16 @@ class Imprimante {
     }
     octets.addAll(gen.feed(4));
 
-    if (!await PrintBluetoothThermal.connectionStatus) {
-      final ok = await PrintBluetoothThermal.connect(macPrinterAddress: c.adresse);
-      if (!ok) {
-        throw 'Impossible de se connecter à « ${c.nom} ». Vérifiez qu\'elle est allumée, appairée et à portée.';
-      }
-    }
+    await _connecter(c);
     // Envoi par morceaux pour ne pas saturer la liaison Bluetooth.
     const bloc = 4096;
     for (var i = 0; i < octets.length; i += bloc) {
       final fin = (i + bloc > octets.length) ? octets.length : i + bloc;
       final ok = await PrintBluetoothThermal.writeBytes(octets.sublist(i, fin));
-      if (!ok) throw 'L\'envoi à l\'imprimante a échoué. Réessayez.';
+      if (!ok) {
+        _macConnectee = null;
+        throw 'L\'envoi à l\'imprimante a échoué. Réessayez.';
+      }
       await Future<void>.delayed(const Duration(milliseconds: 40));
     }
   }
