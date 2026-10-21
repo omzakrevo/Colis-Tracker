@@ -27,7 +27,7 @@ class ImprimanteConfig {
     this.adresse = '',
     this.largeurMm = 58,
     this.auto = true,
-    this.vitesse = 0,
+    this.vitesse = 1,
   });
 
   final String type, nom, adresse;
@@ -38,12 +38,13 @@ class ImprimanteConfig {
   /// Imprime tout seul dès l'enregistrement d'un colis ou d'un billet.
   final bool auto;
 
-  /// Vitesse d'envoi Bluetooth : 0 normale, 1 lente, 2 très lente (à choisir si l'impression est décalée).
+  /// Cadence d'envoi Bluetooth : 0 rapide, 1 normale, 2 lente. Chaque bloc d'image est envoyé d'un seul coup
+  /// (les petites imprimantes abandonnent un bloc s'il arrive au compte-gouttes), puis on attend le temps
+  /// qu'elle l'imprime avant d'envoyer le suivant (sinon sa mémoire déborde et les lignes se décalent).
   final int vitesse;
 
-  /// Octets envoyés d'un coup à l'imprimante selon la vitesse (les petites imprimantes perdent des octets
-  /// quand on leur en envoie plus vite qu'elles n'impriment : l'image se décale).
-  int get octetsParEnvoi => const [256, 128, 64][vitesse.clamp(0, 2)];
+  /// Attente (en ms) par ligne d'image imprimée entre deux blocs.
+  double get msParLigne => const [1.0, 2.0, 3.5][vitesse.clamp(0, 2)];
 
   bool get configuree => type != 'aucune' && adresse.isNotEmpty;
 
@@ -62,7 +63,7 @@ class ImprimanteConfig {
     'adresse': adresse,
     'largeur': largeurMm,
     'auto': auto,
-    'vitesse': vitesse,
+    'debit': vitesse,
   };
 
   factory ImprimanteConfig.fromJson(Map<String, dynamic> j) => ImprimanteConfig(
@@ -71,7 +72,7 @@ class ImprimanteConfig {
     adresse: j['adresse'] as String? ?? '',
     largeurMm: (j['largeur'] as num?)?.toInt() ?? 58,
     auto: j['auto'] as bool? ?? true,
-    vitesse: (j['vitesse'] as num?)?.toInt() ?? 0,
+    vitesse: (j['debit'] as num?)?.toInt() ?? 1,
   );
 }
 
@@ -213,32 +214,31 @@ class Imprimante {
       c.largeurMm >= 80 ? PaperSize.mm80 : PaperSize.mm58,
       await CapabilityProfile.load(),
     );
-    final octets = <int>[...gen.reset()];
-    // Par tranches : les petites imprimantes ont une mémoire tampon limitée.
-    const tranche = 24; // lignes par commande raster : petites, donc faciles à avaler pour l'imprimante
-    for (var y = 0; y < image.height; y += tranche) {
-      final h = (y + tranche > image.height) ? image.height - y : tranche;
-      octets.addAll(
-        gen.imageRaster(
-          img.copyCrop(image, x: 0, y: y, width: image.width, height: h),
-          align: PosAlign.left,
-        ),
-      );
-    }
-    octets.addAll(gen.feed(4));
 
     await _connecter(c);
-    // Envoi par petits morceaux, plus lentement que l'imprimante n'imprime : sinon sa mémoire déborde,
-    // des octets se perdent et les lignes (texte, QR code) se décalent.
-    final bloc = c.octetsParEnvoi;
-    for (var i = 0; i < octets.length; i += bloc) {
-      final fin = (i + bloc > octets.length) ? octets.length : i + bloc;
-      final ok = await PrintBluetoothThermal.writeBytes(octets.sublist(i, fin));
+    Future<void> envoyer(List<int> octets) async {
+      final ok = await PrintBluetoothThermal.writeBytes(octets);
       if (!ok) {
         _macConnectee = null;
         throw 'L\'envoi à l\'imprimante a échoué. Réessayez.';
       }
-      await Future<void>.delayed(const Duration(milliseconds: 30));
     }
+
+    await envoyer(gen.reset());
+    // Blocs de 48 lignes, chacun envoyé en UNE seule fois (une commande d'image coupée en morceaux espacés est
+    // abandonnée par ces imprimantes : texte illisible, rien qui sort), puis attente pendant l'impression du bloc.
+    const tranche = 48;
+    for (var y = 0; y < image.height; y += tranche) {
+      final h = (y + tranche > image.height) ? image.height - y : tranche;
+      final bloc = gen.imageRaster(
+        img.copyCrop(image, x: 0, y: y, width: image.width, height: h),
+        align: PosAlign.left,
+      );
+      final debut = DateTime.now();
+      await envoyer(bloc);
+      final attente = (h * c.msParLigne).round() - DateTime.now().difference(debut).inMilliseconds;
+      if (attente > 0) await Future<void>.delayed(Duration(milliseconds: attente));
+    }
+    await envoyer(gen.feed(4));
   }
 }

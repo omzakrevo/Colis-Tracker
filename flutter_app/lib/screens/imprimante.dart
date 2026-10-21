@@ -181,15 +181,15 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with Widget
           if (bt) ...[
             const SizedBox(height: 10),
             const Text(
-              'Vitesse d\'envoi — si le texte ou le QR code sortent décalés, choisissez plus lent :',
+              'Cadence d\'envoi — texte ou QR code décalés : essayez « Lente » ; si des bandes blanches apparaissent : « Rapide ».',
               style: TextStyle(fontSize: 13, color: Brand.muted),
             ),
             const SizedBox(height: 6),
             SegmentedButton<int>(
               segments: const [
-                ButtonSegment(value: 0, label: Text('Normale')),
-                ButtonSegment(value: 1, label: Text('Lente')),
-                ButtonSegment(value: 2, label: Text('Très lente')),
+                ButtonSegment(value: 0, label: Text('Rapide')),
+                ButtonSegment(value: 1, label: Text('Normale')),
+                ButtonSegment(value: 2, label: Text('Lente')),
               ],
               selected: {c.vitesse},
               onSelectionChanged: (s) => _choisir(r, c.avec(vitesse: s.first)),
