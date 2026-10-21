@@ -6,6 +6,7 @@ import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:printing/printing.dart';
 
 import '../core/imprimante.dart';
+import '../core/ticket_texte.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../data/providers.dart';
@@ -126,7 +127,7 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with Widget
         ),
       );
       return doc.save();
-    });
+    }, texte: (g, cols) => testTexte(g, cols, co, r.libelle, c.nom));
     if (!ok && mounted) {
       toast(context, 'Choisissez d\'abord une imprimante.', error: true);
     } else if (mounted) {
@@ -198,13 +199,14 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with Widget
           if (bt) ...[
             const SizedBox(height: 10),
             const Text(
-              'Mode d\'impression — si des bandes blanches coupent les lignes, essayez l\'autre mode :',
+              'Mode d\'impression — « Texte » est le plus fiable (pas de bandes blanches) ; les modes image donnent le ticket complet avec logo mais exigent une imprimante rapide :',
               style: TextStyle(fontSize: 13, color: Brand.muted),
             ),
             const SizedBox(height: 6),
             SegmentedButton<int>(
               segments: const [
-                ButtonSegment(value: 0, label: Text('Colonnes (conseillé)')),
+                ButtonSegment(value: 2, label: Text('Texte')),
+                ButtonSegment(value: 0, label: Text('Colonnes')),
                 ButtonSegment(value: 1, label: Text('Raster')),
               ],
               selected: {c.mode},

@@ -28,7 +28,7 @@ class ImprimanteConfig {
     this.largeurMm = 58,
     this.auto = true,
     this.vitesse = 1,
-    this.mode = 0,
+    this.mode = 2,
   });
 
   final String type, nom, adresse;
@@ -44,8 +44,9 @@ class ImprimanteConfig {
   /// qu'elle l'imprime avant d'envoyer le suivant (sinon sa mémoire déborde et les lignes se décalent).
   final int vitesse;
 
-  /// Façon d'envoyer l'image : 0 « colonnes » (ESC *, lignes de 24 points : la plus répandue, sans arrêt entre
-  /// les lignes), 1 « raster » (GS v 0, blocs d'image : laisse parfois des bandes blanches entre les blocs).
+  /// Façon d'imprimer en Bluetooth : 2 « texte » (polices et QR code de l'imprimante : quelques centaines d'octets,
+  /// le plus fiable), 0 « colonnes » (image en lignes de 24 points ESC *), 1 « raster » (image en blocs GS v 0).
+  /// Les modes image envoient ~50 Ko : les petites imprimantes n'arrivent pas à suivre (bandes blanches).
   final int mode;
 
   /// Attente (en ms) par ligne d'image imprimée entre deux blocs.
@@ -70,7 +71,7 @@ class ImprimanteConfig {
     'largeur': largeurMm,
     'auto': auto,
     'debit': vitesse,
-    'mode': mode,
+    'format': mode,
   };
 
   factory ImprimanteConfig.fromJson(Map<String, dynamic> j) => ImprimanteConfig(
@@ -80,7 +81,7 @@ class ImprimanteConfig {
     largeurMm: (j['largeur'] as num?)?.toInt() ?? 58,
     auto: j['auto'] as bool? ?? true,
     vitesse: (j['debit'] as num?)?.toInt() ?? 1,
-    mode: (j['mode'] as num?)?.toInt() ?? 0,
+    mode: (j['format'] as num?)?.toInt() ?? 2,
   );
 }
 
@@ -167,8 +168,9 @@ class Imprimante {
   static Future<bool> imprimerDirect(
     RoleImprimante role,
     String nom,
-    Future<Uint8List> Function(PdfPageFormat format) pdf,
-  ) async {
+    Future<Uint8List> Function(PdfPageFormat format) pdf, {
+    List<int> Function(Generator g, int colonnes)? texte,
+  }) async {
     final c = await lire(role);
     if (!c.configuree) return false;
     if (c.type == 'systeme' && systemePossible) {
@@ -182,7 +184,11 @@ class Imprimante {
       return true;
     }
     if (c.type == 'bluetooth' && bluetoothPossible) {
-      await _imprimerBluetooth(c, await pdf(_format(c)));
+      if (c.mode == 2 && texte != null) {
+        await _imprimerTexte(c, texte);
+      } else {
+        await _imprimerBluetooth(c, await pdf(_format(c)));
+      }
       return true;
     }
     return false;
@@ -203,6 +209,30 @@ class Imprimante {
       throw 'Impossible de se connecter à « ${c.nom} ». Vérifiez qu\'elle est allumée, appairée et à portée.';
     }
     _macConnectee = c.adresse;
+  }
+
+  /// Mode texte : l'imprimante imprime elle-même texte et QR code (très peu de données à envoyer).
+  static Future<void> _imprimerTexte(
+    ImprimanteConfig c,
+    List<int> Function(Generator g, int colonnes) texte,
+  ) async {
+    final gen = Generator(
+      c.largeurMm >= 80 ? PaperSize.mm80 : PaperSize.mm58,
+      await CapabilityProfile.load(),
+    );
+    final octets = <int>[...gen.reset(), ...texte(gen, c.largeurMm >= 80 ? 48 : 32)];
+    await _connecter(c);
+    // Petits envois ; ces imprimantes avalent sans souci quelques centaines d'octets.
+    const bloc = 512;
+    for (var i = 0; i < octets.length; i += bloc) {
+      final fin = (i + bloc > octets.length) ? octets.length : i + bloc;
+      final ok = await PrintBluetoothThermal.writeBytes(octets.sublist(i, fin));
+      if (!ok) {
+        _macConnectee = null;
+        throw 'L\'envoi à l\'imprimante a échoué. Réessayez.';
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
   }
 
   /// Transforme la page PDF en image puis l'envoie en ESC/POS (le texte accentué s'imprime ainsi sans souci de police).

@@ -1,9 +1,13 @@
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:vip_colis/core/imprimante.dart';
+import 'package:vip_colis/core/ticket_texte.dart';
+import 'package:vip_colis/data/models.dart';
 
 void main() {
+  setUpAll(() => initializeDateFormatting('fr_FR'));
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('la configuration de l\'imprimante fait l\'aller-retour', () {
@@ -52,7 +56,30 @@ void main() {
     expect(octets[i - 1], 0x1B);
     expect(octets[i + 1], 33);
     expect(octets.length, greaterThan(1152));
-    expect(const ImprimanteConfig().mode, 0);
+    expect(const ImprimanteConfig().mode, 2); // texte par défaut
     expect(ImprimanteConfig.fromJson(const ImprimanteConfig().avec(vitesse: 2).toJson()).vitesse, 2);
+  });
+
+  test('mode texte : peu d\'octets, QR natif, sans accents', () async {
+    final g = Generator(PaperSize.mm58, await CapabilityProfile.load());
+    final co = CompanySettings(
+      nom: 'Tchi Ténéré', slogan: '', telephone: '0102', email: '', adresse: '', ville: '', pays: '',
+    );
+    final t = Ticket(
+      id: 1, numero: 'TK-1', clientNom: 'Aïssata Koné', clientTelephone: '0707',
+      gareDepartId: 1, gareArriveeId: 2, dateVoyage: DateTime(2026, 10, 21), prix: 5000,
+      statut: 'actif', createdAt: DateTime(2026, 10, 21), gareDepartNom: 'Abidjan', gareArriveeNom: 'Bouaké',
+    );
+    final b = ticketVoyageTexte(g, 32, t, co);
+    expect(b.length, lessThan(2000));
+    expect(b.every((x) => x >= 0 && x <= 255), isTrue);
+    // GS ( k : commande QR code
+    var qr = false;
+    for (var i = 0; i < b.length - 2; i++) {
+      if (b[i] == 0x1D && b[i + 1] == 0x28 && b[i + 2] == 0x6B) qr = true;
+    }
+    expect(qr, isTrue);
+    expect(sansAccents('Aïssata Koné'), 'Aissata Kone');
+    expect(ImprimanteConfig.fromJson(const ImprimanteConfig().toJson()).mode, 2);
   });
 }

@@ -2,6 +2,7 @@ import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 
 import '../core/imprimante.dart';
+import '../core/ticket_texte.dart';
 import '../data/models.dart';
 import 'receipt.dart';
 
@@ -19,6 +20,7 @@ Future<void> imprimerBillet(
         RoleImprimante.client,
         'Billet-${t.numero}',
         (format) => billetPdf(t, co, format),
+        texte: (g, cols) => ticketVoyageTexte(g, cols, t, co),
       )) {
     return;
   }

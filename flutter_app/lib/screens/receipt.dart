@@ -6,6 +6,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../core/imprimante.dart';
+import '../core/ticket_texte.dart';
 import '../data/models.dart';
 import 'ticket_modele.dart';
 
@@ -117,6 +118,7 @@ Future<void> imprimerRecu(
         RoleImprimante.client,
         'Ticket-${c.numero}',
         (format) => recuPdf(c, co, format),
+        texte: (g, cols) => ticketColisTexte(g, cols, c, co),
       )) {
     return;
   }
@@ -133,6 +135,7 @@ Future<void> imprimerEtiquette(Colis c, CompanySettings co) async {
     RoleImprimante.colis,
     'Etiquette-${c.numero}',
     (format) => etiquettePdf(c, co, format),
+    texte: (g, cols) => etiquetteTexte(g, cols, c, co),
   )) {
     return;
   }
