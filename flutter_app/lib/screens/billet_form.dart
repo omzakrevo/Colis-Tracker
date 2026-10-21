@@ -45,7 +45,8 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
     final t = _trajet;
     if (t == null) return;
     if (!_prixManuel) prix.text = '${t.prix.round()}';
-    if (t.horaires.length == 1 && heure.text.isEmpty) heure.text = t.horaires.first;
+    if (t.horaires.length == 1 && heure.text.isEmpty)
+      heure.text = t.horaires.first;
   }
 
   @override
@@ -69,7 +70,8 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
         'client_telephone': tel.text.trim(),
         'gare_depart_id': depart,
         'gare_arrivee_id': arrivee,
-        'date_voyage': '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
+        'date_voyage':
+            '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
         'heure_depart': heure.text.trim().isEmpty ? null : heure.text.trim(),
         'siege': siege.text.trim().isEmpty ? null : siege.text.trim(),
         'prix': double.parse(prix.text.replaceAll(',', '.')),
@@ -115,7 +117,11 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
       await imprimerBillet(t, co, ticket: true);
     } catch (e) {
       if (mounted) {
-        toast(context, 'Impression : ${errMsg(e)}\nVous pourrez réimprimer depuis la fiche du billet.', error: true);
+        toast(
+          context,
+          'Impression : ${errMsg(e)}\nVous pourrez réimprimer depuis la fiche du billet.',
+          error: true,
+        );
       }
     }
   }
@@ -128,7 +134,9 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
           'Imprimer le billet ?',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
-        content: Text('Billet ${t.numero} enregistré. Imprimez-le maintenant pour le client.'),
+        content: Text(
+          'Billet ${t.numero} enregistré. Imprimez-le maintenant pour le client.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, 'non'),
@@ -180,6 +188,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
     final lockDepart = me != null && me.isGuichet && me.gareId != null;
 
     return SingleChildScrollView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.only(bottom: 40),
       child: Center(
         child: ConstrainedBox(
@@ -198,7 +207,8 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                     telephone: tel,
                     validator: _req,
                     onPick: (c) => setState(() {
-                      if (!lockDepart && depart == null) depart = c.dernierDepartId;
+                      if (!lockDepart && depart == null)
+                        depart = c.dernierDepartId;
                       arrivee ??= c.dernierArriveeId;
                       _appliquerTrajet();
                     }),
@@ -213,7 +223,9 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                       DropdownButtonFormField<int>(
                         key: ValueKey('d$depart'),
                         initialValue: depart,
-                        decoration: const InputDecoration(labelText: 'Gare de départ *'),
+                        decoration: const InputDecoration(
+                          labelText: 'Gare de départ *',
+                        ),
                         items: [
                           for (final g in gares)
                             if (!lockDepart || g.id == me.gareId)
@@ -225,13 +237,16 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                                 depart = v;
                                 _appliquerTrajet();
                               }),
-                        validator: (v) => v == null ? 'Choisissez une gare' : null,
+                        validator: (v) =>
+                            v == null ? 'Choisissez une gare' : null,
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<int>(
                         key: ValueKey('a$arrivee'),
                         initialValue: arrivee,
-                        decoration: const InputDecoration(labelText: 'Gare d\'arrivée *'),
+                        decoration: const InputDecoration(
+                          labelText: 'Gare d\'arrivée *',
+                        ),
                         items: [
                           for (final g in gares)
                             DropdownMenuItem(value: g.id, child: Text(g.nom)),
@@ -251,8 +266,12 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                           final d = await showDatePicker(
                             context: context,
                             initialDate: date,
-                            firstDate: DateTime.now().subtract(const Duration(days: 1)),
-                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                            firstDate: DateTime.now().subtract(
+                              const Duration(days: 1),
+                            ),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 365),
+                            ),
                           );
                           if (d != null) setState(() => date = d);
                         },
@@ -264,7 +283,8 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                           child: Text(dateFr(date)),
                         ),
                       ),
-                      if ((_trajet?.horaires ?? const <String>[]).isNotEmpty) ...[
+                      if ((_trajet?.horaires ?? const <String>[])
+                          .isNotEmpty) ...[
                         const SizedBox(height: 12),
                         Align(
                           alignment: Alignment.centerLeft,
@@ -276,7 +296,8 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                                 ChoiceChip(
                                   label: Text(h),
                                   selected: heure.text == h,
-                                  onSelected: (_) => setState(() => heure.text = h),
+                                  onSelected: (_) =>
+                                      setState(() => heure.text = h),
                                 ),
                             ],
                           ),
@@ -298,7 +319,9 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                           Expanded(
                             child: TextFormField(
                               controller: siege,
-                              decoration: const InputDecoration(labelText: 'Place'),
+                              decoration: const InputDecoration(
+                                labelText: 'Place',
+                              ),
                             ),
                           ),
                         ],
@@ -307,14 +330,22 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                       TextFormField(
                         controller: prix,
                         onChanged: (_) => _prixManuel = true,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                        ],
                         decoration: InputDecoration(
                           labelText: 'Prix (FCFA) *',
-                          helperText: _trajet == null ? null : 'Prix du trajet : ${fcfa(_trajet!.prix)}',
+                          helperText: _trajet == null
+                              ? null
+                              : 'Prix du trajet : ${fcfa(_trajet!.prix)}',
                         ),
                         validator: (v) {
-                          final n = double.tryParse((v ?? '').replaceAll(',', '.'));
+                          final n = double.tryParse(
+                            (v ?? '').replaceAll(',', '.'),
+                          );
                           return n == null || n < 0 ? 'Prix invalide' : null;
                         },
                       ),
@@ -328,7 +359,10 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Icon(Icons.check_rounded),
                   label: const Text('Enregistrer le billet'),

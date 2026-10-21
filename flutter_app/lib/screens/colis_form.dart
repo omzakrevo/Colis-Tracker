@@ -1,6 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+
+import '../widgets/scan_numero.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -39,6 +42,7 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
       nb = TextEditingController(text: '1');
   final poids = TextEditingController(), prix = TextEditingController();
   final valeur = TextEditingController();
+  final billet = TextEditingController();
   final notes = TextEditingController();
   int? depart, arrivee;
   DateTime date = DateTime.now();
@@ -57,6 +61,7 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
       poids,
       prix,
       valeur,
+      billet,
       notes,
     ]) {
       c.dispose();
@@ -108,6 +113,8 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
         'valeur': valeur.text.trim().isEmpty
             ? null
             : double.parse(valeur.text.replaceAll(',', '.')),
+        // N'est envoyé que s'il est renseigné : le serveur sans la migration 24 ne connaît pas cette colonne.
+        if (billet.text.trim().isNotEmpty) 'billet_numero': billet.text.trim().toUpperCase(),
         'prix': double.parse(prix.text.replaceAll(',', '.')),
         'date_envoi': dateIso(date),
         'photo': photo,
@@ -175,7 +182,9 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
           'Imprimer le ticket ?',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
-        content: Text('Colis ${c.numero} enregistré. Imprimez maintenant le reçu à remettre au client.'),
+        content: Text(
+          'Colis ${c.numero} enregistré. Imprimez maintenant le reçu à remettre au client.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, 'non'),
@@ -224,6 +233,8 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
       _init = true;
     }
     final lockDepart = me != null && !me.isAdmin && me.gareId != null;
+    // Clavier ouvert sur un petit écran : on masque l'en-tête et les étapes pour laisser la place aux champs.
+    final clavier = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return Center(
       child: ConstrainedBox(
@@ -231,27 +242,31 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                IconButton(
-                  onPressed: () => context.pop(),
-                  icon: const Icon(Icons.arrow_back_rounded),
-                ),
-                const Expanded(
-                  child: PageHeader(
-                    'Nouveau colis',
-                    subtitle: 'Enregistrement d\'une expédition',
+            if (!clavier) ...[
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () => context.pop(),
+                    icon: const Icon(Icons.arrow_back_rounded),
                   ),
-                ),
-              ],
-            ),
-            _Steps(_step),
-            const SizedBox(height: 18),
+                  const Expanded(
+                    child: PageHeader(
+                      'Nouveau colis',
+                      subtitle: 'Enregistrement d\'une expédition',
+                    ),
+                  ),
+                ],
+              ),
+              _Steps(_step),
+              const SizedBox(height: 18),
+            ],
             Expanded(
               child: gares.when(
                 loading: () => const SkeletonList(count: 3, height: 120),
                 error: (e, _) => Center(child: Text(errMsg(e))),
                 data: (gl) => SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: const EdgeInsets.only(bottom: 24),
                   child: AnimatedSwitcher(
                     duration: 350.ms,
@@ -519,7 +534,8 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
                   ),
                   decoration: const InputDecoration(
                     labelText: 'Valeur déclarée (FCFA)',
-                    helperText: 'Facultatif — valeur des marchandises transportées',
+                    helperText:
+                        'Facultatif — valeur des marchandises transportées',
                     suffixText: 'FCFA',
                   ),
                   validator: (v) {
@@ -527,6 +543,32 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
                     final n = double.tryParse(v.replaceAll(',', '.'));
                     return n == null || n < 0 ? 'Valeur invalide' : null;
                   },
+                ),
+              ),
+              const SizedBox(height: 14),
+              SectionCard(
+                title: 'Billet de voyage (facultatif)',
+                icon: Icons.confirmation_number_rounded,
+                accent: const Color(0xFF0EA5E9),
+                child: TextFormField(
+                  controller: billet,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: InputDecoration(
+                    labelText: 'Numéro du billet lié au colis',
+                    helperText: 'Scannez le QR code du billet du voyageur, ou saisissez son numéro',
+                    suffixIcon: IconButton(
+                      tooltip: 'Scanner le billet',
+                      icon: const Icon(Icons.qr_code_scanner_rounded),
+                      onPressed: () async {
+                        final n = await scannerNumero(
+                          context,
+                          titre: 'Scanner le billet',
+                        );
+                        if (n != null && mounted)
+                          setState(() => billet.text = n);
+                      },
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 14),

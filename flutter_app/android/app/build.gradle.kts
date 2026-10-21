@@ -1,7 +1,16 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Clé de signature stable : sans elle, chaque compilation est signée avec une clé différente et Android refuse
+// de mettre à jour l'application déjà installée (« incompatible »). Fournie par le workflow GitHub (secrets).
+val cleProps = Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
 }
 
 android {
@@ -29,11 +38,22 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("tchi") {
+            if (cleProps.getProperty("storeFile") != null) {
+                storeFile = rootProject.file(cleProps.getProperty("storeFile"))
+                storePassword = cleProps.getProperty("storePassword")
+                keyAlias = cleProps.getProperty("keyAlias")
+                keyPassword = cleProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Clé stable si fournie, sinon clé de debug (compilation locale).
+            signingConfig = if (cleProps.getProperty("storeFile") != null)
+                signingConfigs.getByName("tchi") else signingConfigs.getByName("debug")
         }
     }
 }

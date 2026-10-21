@@ -57,6 +57,26 @@ jobs:
           if [ -z "$NAME" ]; then NAME=$(grep '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//'); fi
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "build=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+      - name: Clé de signature (mises à jour sans « incompatible »)
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KS_KEYPASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > android/app/tchi.jks
+            {
+              echo "storeFile=app/tchi.jks"
+              echo "storePassword=$KS_PASS"
+              echo "keyAlias=$KS_ALIAS"
+              echo "keyPassword=${KS_KEYPASS:-$KS_PASS}"
+            } > android/key.properties
+            echo "- Signature : **clé stable** (les téléphones peuvent se mettre à jour)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::Secrets ANDROID_KEYSTORE_* absents : APK signé avec une clé temporaire, les mises à jour par-dessus une autre version seront refusées par Android."
+            echo "- Signature : **clé temporaire** (secrets ANDROID_KEYSTORE_* manquants)" >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Construire l'APK
         run: |
           flutter build apk --release --build-name="${{ steps.ver.outputs.name }}" --build-number="${{ steps.ver.outputs.build }}"

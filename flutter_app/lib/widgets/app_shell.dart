@@ -26,8 +26,16 @@ const _principaux = [
   _Item('/recherche', 'Recherche', Icons.search_rounded),
 ];
 
-const _billets = _Item('/billets', 'Billets', Icons.confirmation_number_rounded);
-const _verifier = _Item('/billets/verifier', 'Vérifier', Icons.fact_check_rounded);
+const _billets = _Item(
+  '/billets',
+  'Billets',
+  Icons.confirmation_number_rounded,
+);
+const _verifier = _Item(
+  '/billets/verifier',
+  'Vérifier',
+  Icons.fact_check_rounded,
+);
 const _imprimante = _Item('/imprimante', 'Imprimante', Icons.print_rounded);
 const _scanner = _Item('/scanner', 'Scanner', Icons.qr_code_scanner_rounded);
 
@@ -101,12 +109,14 @@ class AppShell extends ConsumerWidget {
   bool _active(String path) => path == '/'
       ? location == '/'
       : path == '/billets'
-      ? location.startsWith('/billets') && !location.startsWith('/billets/verifier')
+      ? location.startsWith('/billets') &&
+            !location.startsWith('/billets/verifier')
       : location.startsWith(path);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(realtimeProvider);
+    ref.watch(verifMiseAJourProvider);
     final me = ref.watch(profilProvider).value;
     if (me == null) return const SizedBox.shrink();
     final settings = me.isSuper ? null : ref.watch(settingsProvider).value;
@@ -160,6 +170,8 @@ class AppShell extends ConsumerWidget {
     }
 
     final onglets = _onglets(me);
+    // Clavier ouvert : barre du bas et bouton flottant masqués, sinon l'écran des petits téléphones est mangé.
+    final clavier = MediaQuery.viewInsetsOf(context).bottom > 0;
     final bottomIdx = onglets.indexWhere((i) => _active(i.path));
     return Scaffold(
       appBar: AppBar(
@@ -196,7 +208,8 @@ class AppShell extends ConsumerWidget {
         child: body,
       ),
       floatingActionButton:
-          (location.startsWith('/scanner') ||
+          (clavier ||
+              location.startsWith('/scanner') ||
               location.endsWith('/nouveau') ||
               location.startsWith('/billets/verifier') ||
               me.isSuper ||
@@ -221,7 +234,7 @@ class AppShell extends ConsumerWidget {
               duration: 500.ms,
               curve: Curves.easeOutBack,
             ),
-      bottomNavigationBar: (me.isSuper || me.isBarragiste)
+      bottomNavigationBar: (me.isSuper || me.isBarragiste || clavier)
           ? null
           : NavigationBar(
               selectedIndex: bottomIdx < 0 ? 0 : bottomIdx,

@@ -77,7 +77,10 @@ class ColisDetailScreen extends ConsumerWidget {
                 InfoRow('Description', c.description),
                 InfoRow('Nombre', '${c.nombre}'),
                 if (c.poids != null) InfoRow('Poids', '${c.poids} kg'),
-                if (c.valeur != null) InfoRow('Valeur déclarée', fcfa(c.valeur!)),
+                if (c.valeur != null)
+                  InfoRow('Valeur déclarée', fcfa(c.valeur!)),
+                if ((c.billetNumero ?? '').isNotEmpty)
+                  InfoRow('Billet de voyage lié', c.billetNumero!),
                 InfoRow('Prix', fcfa(c.prix), bold: true),
                 if (c.notes != null) InfoRow('Notes', c.notes!),
               ],
@@ -251,17 +254,22 @@ class ColisDetailScreen extends ConsumerWidget {
                     label: const Text('Changer le statut'),
                   ),
                 OutlinedButton.icon(
-                  onPressed: () => avecMessage(context, () => imprimerRecu(c, company, ticket: true)),
+                  onPressed: () => avecMessage(
+                    context,
+                    () => imprimerRecu(c, company, ticket: true),
+                  ),
                   icon: const Icon(Icons.receipt_long_rounded),
                   label: const Text('Ticket client'),
                 ),
                 OutlinedButton.icon(
-                  onPressed: () => avecMessage(context, () => imprimerEtiquette(c, company)),
+                  onPressed: () =>
+                      avecMessage(context, () => imprimerEtiquette(c, company)),
                   icon: const Icon(Icons.label_rounded),
                   label: const Text('Étiquette colis'),
                 ),
                 OutlinedButton.icon(
-                  onPressed: () => avecMessage(context, () => imprimerRecu(c, company)),
+                  onPressed: () =>
+                      avecMessage(context, () => imprimerRecu(c, company)),
                   icon: const Icon(Icons.print_rounded),
                   label: const Text('Reçu A4'),
                 ),

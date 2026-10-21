@@ -277,6 +277,7 @@ class Outbox {
       nombre: data['nombre'] as int,
       poids: (data['poids'] as num?)?.toDouble(),
       valeur: (data['valeur'] as num?)?.toDouble(),
+      billetNumero: data['billet_numero'] as String?,
       prix: (data['prix'] as num).toDouble(),
       statut: 'enregistre',
       dateEnvoi: DateTime.parse(data['date_envoi'] as String),

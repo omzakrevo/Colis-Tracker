@@ -489,6 +489,12 @@ final statutsProvider = FutureProvider<Map<String, int>>((ref) {
 
 // ── Mise à jour de l'application (Android) ────────────────
 
+/// Revérifie toutes les 20 minutes si une nouvelle version est en ligne (sans attendre un redémarrage).
+final verifMiseAJourProvider = Provider<void>((ref) {
+  final t = Timer.periodic(const Duration(minutes: 20), (_) => ref.invalidate(miseAJourProvider));
+  ref.onDispose(t.cancel);
+});
+
 /// Version plus récente que celle installée, sinon null. Ne s'applique qu'à l'application Android.
 final miseAJourProvider = FutureProvider<AppVersion?>((ref) async {
   if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return null;

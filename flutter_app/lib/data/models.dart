@@ -76,7 +76,12 @@ class Profil {
 
   /// Accède aux écrans de colis (liste, saisie, recherche, rapports).
   /// Vérifie les billets à l'embarquement (facultatif).
-  bool get peutVerifierBillets => isAdmin || isGuichet || isConvoyeur || role == 'chef_gare' || role == 'agent';
+  bool get peutVerifierBillets =>
+      isAdmin ||
+      isGuichet ||
+      isConvoyeur ||
+      role == 'chef_gare' ||
+      role == 'agent';
 
   bool get voitColis => !isSuper && !scanRestreint;
 
@@ -212,6 +217,7 @@ class Colis {
     this.gareArriveeNom,
     this.poids,
     this.valeur,
+    this.billetNumero,
     this.agentNom,
     this.retraitNom,
     this.retraitTelephone,
@@ -240,6 +246,9 @@ class Colis {
 
   /// Valeur déclarée du colis (FCFA).
   final double? valeur;
+
+  /// Numéro du billet de voyage auquel le colis est rattaché.
+  final String? billetNumero;
   final double prix;
   final DateTime dateEnvoi, createdAt;
   final DateTime? retraitDate;
@@ -259,6 +268,7 @@ class Colis {
     nombre: j['nombre'] as int,
     poids: j['poids'] == null ? null : _d(j['poids']),
     valeur: j['valeur'] == null ? null : _d(j['valeur']),
+    billetNumero: j['billet_numero'] as String?,
     prix: _d(j['prix']),
     statut: j['statut'] as String,
     dateEnvoi: DateTime.parse(j['date_envoi'] as String),
@@ -294,6 +304,7 @@ class Colis {
     'nombre': nombre,
     'poids': poids,
     'valeur': valeur,
+    'billet_numero': billetNumero,
     'prix': prix,
     'statut': statut,
     'date_envoi': dateEnvoi.toIso8601String(),
@@ -333,6 +344,7 @@ class Colis {
     nombre: nombre,
     poids: poids,
     valeur: valeur,
+    billetNumero: billetNumero,
     prix: prix,
     statut: statut ?? this.statut,
     dateEnvoi: dateEnvoi,
@@ -375,7 +387,12 @@ class Ticket {
 
   final int id, gareDepartId, gareArriveeId;
   final String numero, clientNom, clientTelephone, statut;
-  final String? gareDepartNom, gareArriveeNom, heureDepart, siege, vendeurNom, notes;
+  final String? gareDepartNom,
+      gareArriveeNom,
+      heureDepart,
+      siege,
+      vendeurNom,
+      notes;
   final DateTime dateVoyage, createdAt;
   final double prix;
 
@@ -488,7 +505,10 @@ class ClientSuggestion {
   String get telephoneAffiche {
     final d = telephone;
     final reste = d.length.isOdd ? d.substring(0, 1) : '';
-    final pairs = RegExp(r'..').allMatches(d.substring(reste.length)).map((m) => m.group(0)!).toList();
+    final pairs = RegExp(r'..')
+        .allMatches(d.substring(reste.length))
+        .map((m) => m.group(0)!)
+        .toList();
     return [if (reste.isNotEmpty) reste, ...pairs].join(' ');
   }
 }
@@ -676,7 +696,9 @@ class SmsConfig {
     source: j['source'] as String? ?? 'global',
     bloque: j['bloque'] as bool? ?? false,
     soldeTexte: j['solde_texte'] as String?,
-    soldeLe: j['solde_le'] == null ? null : DateTime.parse(j['solde_le'] as String).toLocal(),
+    soldeLe: j['solde_le'] == null
+        ? null
+        : DateTime.parse(j['solde_le'] as String).toLocal(),
   );
 }
 
@@ -709,7 +731,9 @@ class SmsGlobal {
     terminalId: j['terminal_id'] as String? ?? '',
     motDePasseDefini: j['mot_de_passe_defini'] as bool? ?? false,
     soldeTexte: j['solde_texte'] as String?,
-    soldeLe: j['solde_le'] == null ? null : DateTime.parse(j['solde_le'] as String).toLocal(),
+    soldeLe: j['solde_le'] == null
+        ? null
+        : DateTime.parse(j['solde_le'] as String).toLocal(),
   );
 }
 
