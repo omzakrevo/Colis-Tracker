@@ -433,6 +433,20 @@ class _CompanyCard extends ConsumerWidget {
                     icon: const Icon(Icons.update_rounded, size: 18),
                     label: const Text('Prolonger / modifier'),
                   ),
+                FilterChip(
+                  avatar: Icon(Icons.account_balance_rounded, size: 18, color: c.moduleFinance ? const Color(0xFF16A34A) : Brand.muted),
+                  label: Text(c.moduleFinance ? 'Comptabilité activée' : 'Comptabilité désactivée'),
+                  selected: c.moduleFinance,
+                  onSelected: (v) async {
+                    try {
+                      await Repo.definirModuleFinance(c.id, v);
+                      onChanged();
+                      if (context.mounted) toast(context, v ? 'Module Comptabilité activé pour ${c.nom}' : 'Module Comptabilité désactivé pour ${c.nom}');
+                    } catch (e) {
+                      if (context.mounted) toast(context, errMsg(e), error: true);
+                    }
+                  },
+                ),
                 if (c.statut != 'suspendu')
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(

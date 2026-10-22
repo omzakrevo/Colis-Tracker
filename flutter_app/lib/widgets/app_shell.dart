@@ -36,27 +36,30 @@ const _verifier = _Item(
   'Vérifier',
   Icons.fact_check_rounded,
 );
+const _compta = _Item('/finance', 'Comptabilité', Icons.account_balance_rounded);
 const _imprimante = _Item('/imprimante', 'Imprimante', Icons.print_rounded);
 const _scanner = _Item('/scanner', 'Scanner', Icons.qr_code_scanner_rounded);
 
 /// Onglets du bas (téléphone) selon le rôle.
-List<_Item> _onglets(Profil me) => me.isConvoyeur
+List<_Item> _onglets(Profil me, [bool finance = false]) => me.isConvoyeur
     ? const [_billets, _verifier, _scanner]
     : me.isComptable
-    ? const [
-        _Item('/rapports', 'Rapports', Icons.insights_rounded),
-        _Item('/rapports/detail', 'Détaillés', Icons.table_chart_rounded),
+    ? [
+        if (finance) _compta,
+        const _Item('/rapports', 'Rapports', Icons.insights_rounded),
+        const _Item('/rapports/detail', 'Détaillés', Icons.table_chart_rounded),
       ]
     : me.isGuichet
     ? [..._principaux.take(2), _billets, ..._principaux.skip(2)]
     : _principaux;
 
-List<_Item> _menu(Profil me) => me.isBarragiste
+List<_Item> _menu(Profil me, [bool finance = false]) => me.isBarragiste
     ? const [_scanner]
     : me.isComptable
-    ? const [
-        _Item('/rapports', 'Rapports', Icons.insights_rounded),
-        _Item('/rapports/detail', 'Rapports détaillés', Icons.table_chart_rounded),
+    ? [
+        if (finance) _compta,
+        const _Item('/rapports', 'Rapports', Icons.insights_rounded),
+        const _Item('/rapports/detail', 'Rapports détaillés', Icons.table_chart_rounded),
       ]
     : me.isConvoyeur
     ? const [_billets, _verifier, _scanner, _imprimante]
@@ -67,11 +70,12 @@ List<_Item> _menu(Profil me) => me.isBarragiste
         _Item('/mises-a-jour', 'Mises à jour', Icons.system_update_rounded),
       ]
     : [
-        ..._onglets(me),
+        ..._onglets(me, finance),
         if (me.voitBillets && !me.isGuichet) _billets,
         if (me.peutVerifierBillets) _verifier,
         _imprimante,
         const _Item('/rapports', 'Rapports', Icons.insights_rounded),
+        if (me.isAdmin && finance) _compta,
         if (me.isAdmin) ...const [
           _Item('/gares', 'Gares', Icons.location_city_rounded),
           _Item('/trajets', 'Trajets et prix', Icons.route_rounded),
@@ -133,7 +137,8 @@ class AppShell extends ConsumerWidget {
     if (me == null) return const SizedBox.shrink();
     final settings = me.isSuper ? null : ref.watch(settingsProvider).value;
     final wide = MediaQuery.sizeOf(context).width >= 900;
-    final menu = _menu(me);
+    final finance = ref.watch(authProvider).value?.company?.moduleFinance ?? false;
+    final menu = _menu(me, finance);
     final offline = ref.watch(sessionProvider).offline;
     ref.listen(miseAJourProvider, (_, next) {
       final v = next.value;
@@ -181,7 +186,7 @@ class AppShell extends ConsumerWidget {
       );
     }
 
-    final onglets = _onglets(me);
+    final onglets = _onglets(me, finance);
     // Clavier ouvert : barre du bas et bouton flottant masqués, sinon l'écran des petits téléphones est mangé.
     final clavier = MediaQuery.viewInsetsOf(context).bottom > 0;
     final bottomIdx = onglets.indexWhere((i) => _active(i.path));

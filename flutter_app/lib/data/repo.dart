@@ -180,6 +180,10 @@ class Repo {
   static Future<Map<String, dynamic>> saStats() async =>
       Map<String, dynamic>.from(await _db.rpc('sa_stats') as Map);
 
+  /// Le super administrateur ouvre ou ferme le module Comptabilité d'une entreprise.
+  static Future<void> definirModuleFinance(int id, bool actif) =>
+      _db.rpc('entreprise_module_finance', params: {'p_company': id, 'p_actif': actif});
+
   static Future<void> definirAbonnement(
     int id,
     String statut,

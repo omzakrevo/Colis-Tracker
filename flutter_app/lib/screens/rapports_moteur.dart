@@ -5,6 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../core/format.dart';
 import '../core/xlsx.dart';
+import '../data/finance_models.dart';
 import '../data/models.dart';
 import 'receipt.dart' show pdfImage, pdfTexte;
 
@@ -19,10 +20,16 @@ enum TypeRapport {
   billetsHeure('Billets par heure de départ', 'Billets vendus par heure de départ et par trajet'),
   caGare('Chiffre d\'affaires par gare (jour / mois)', 'Chiffre d\'affaires (colis + billets) de chaque gare, jour par jour, mois par mois ou année par année'),
   nonRetires('Colis en attente de retrait', 'Colis arrivés et pas encore retirés, du plus ancien au plus récent'),
-  synthese('Synthèse générale', 'Vue d\'ensemble : chiffres clés, jour par jour, statuts, agents et gares (tout en un)');
+  synthese('Synthèse générale', 'Vue d\'ensemble : chiffres clés, jour par jour, statuts, agents et gares (tout en un)'),
+  depenses('Dépenses', 'Dépenses par catégorie, par jour / mois / année, et détail de chaque dépense', compta: true),
+  bilan('Bilan (entrées, sorties, résultat)', 'Entrées (colis, billets), sorties (dépenses, salaires) et résultat, par jour, mois ou année', compta: true),
+  financier('Rapport financier complet', 'Tout ce qui s\'est passé : entrées, dépenses, salaires, résultat, gare par gare', compta: true);
 
-  const TypeRapport(this.titre, this.description);
+  const TypeRapport(this.titre, this.description, {this.compta = false});
   final String titre, description;
+
+  /// Rapport de comptabilité (réservé à l'administrateur et au comptable, module Comptabilité ouvert).
+  final bool compta;
 }
 
 /// Un tableau du rapport. Les cellules sont des `String`, nombres, `DateTime` ou `null`.
@@ -118,6 +125,9 @@ Rapport construireRapport(
   List<Colis> colisBruts,
   List<Ticket> billetsBruts, {
   Granularite granularite = Granularite.jour,
+  List<Depense> depenses = const [],
+  List<Bulletin> bulletins = const [],
+  Map<int, String> employes = const {},
 }) {
   final actifs = colisBruts.where((c) => c.statut != 'annule').toList();
   final billetsActifs = billetsBruts.where((t) => !t.annule).toList();
@@ -356,6 +366,119 @@ Rapport construireRapport(
     );
   }
 
+  final totalDepenses = depenses.fold<double>(0, (a, d) => a + d.montant);
+  final totalSalaires = bulletins.fold<double>(0, (a, b) => a + b.net);
+  final entrees = recetteColis + recetteBillets;
+  final sorties = totalDepenses + totalSalaires;
+  final resultat = entrees - sorties;
+
+  SectionRapport depensesParCategorie() {
+    final m = <String, ({int n, double s})>{};
+    for (final d in depenses) {
+      final v = m[d.categorie] ?? (n: 0, s: 0);
+      m[d.categorie] = (n: v.n + 1, s: v.s + d.montant);
+    }
+    final ks = m.keys.toList()..sort((a, b) => m[b]!.s.compareTo(m[a]!.s));
+    return SectionRapport(
+      'Dépenses par catégorie',
+      ['Catégorie', 'Nombre', 'Montant', 'Part du total (%)'],
+      [for (final k in ks) [k, m[k]!.n, m[k]!.s, totalDepenses == 0 ? 0.0 : (m[k]!.s * 1000 / totalDepenses).round() / 10]],
+      montants: {2},
+      totaux: ['TOTAL', depenses.length, totalDepenses, 100],
+    );
+  }
+
+  SectionRapport depensesParPeriode() {
+    final m = <DateTime, ({int n, double s})>{};
+    for (final d in depenses) {
+      final k = cle(d.date);
+      final v = m[k] ?? (n: 0, s: 0);
+      m[k] = (n: v.n + 1, s: v.s + d.montant);
+    }
+    final ks = m.keys.toList()..sort();
+    return SectionRapport(
+      'Dépenses (${granularite.label.toLowerCase()})',
+      [periodeNom(), 'Nombre', 'Montant'],
+      [for (final k in ks) [libelle(k), m[k]!.n, m[k]!.s]],
+      montants: {2},
+      totaux: ['TOTAL', depenses.length, totalDepenses],
+    );
+  }
+
+  SectionRapport depensesDetail() => SectionRapport(
+    'Détail des dépenses',
+    ['Date', 'Libellé', 'Catégorie', 'Bénéficiaire', 'Mode', 'Référence', 'Montant'],
+    [for (final d in depenses) [_jour(d.date), d.libelle, d.categorie, d.beneficiaire, d.modePaiement, d.reference, d.montant]],
+    montants: {6},
+    totaux: ['TOTAL', '${depenses.length} dépenses', '', '', '', '', totalDepenses],
+  );
+
+  SectionRapport salairesPayes() => SectionRapport(
+    'Salaires payés',
+    ['Employé', 'Mois', 'Date de paiement', 'Brut', 'Retenues', 'Net payé'],
+    [
+      for (final b in bulletins)
+        [employes[b.employeId] ?? 'Employé n° ${b.employeId}', '${b.mois.month.toString().padLeft(2, '0')}/${b.mois.year}', b.datePaiement == null ? null : _jour(b.datePaiement!), b.brut, b.totalRetenues, b.net],
+    ],
+    montants: {3, 4, 5},
+    totaux: ['TOTAL', '', null, bulletins.fold<double>(0, (a, b) => a + b.brut), bulletins.fold<double>(0, (a, b) => a + b.totalRetenues), totalSalaires],
+  );
+
+  SectionRapport bilanParPeriode() {
+    final m = <DateTime, ({double c, double b, double d, double s})>{};
+    void ajoute(DateTime d, {double c = 0, double b = 0, double dep = 0, double sal = 0}) {
+      final k = cle(d);
+      final v = m[k] ?? (c: 0, b: 0, d: 0, s: 0);
+      m[k] = (c: v.c + c, b: v.b + b, d: v.d + dep, s: v.s + sal);
+    }
+
+    for (final c in actifs) {
+      ajoute(c.dateEnvoi, c: c.prix);
+    }
+    for (final t in billetsActifs) {
+      ajoute(t.createdAt.toLocal(), b: t.prix);
+    }
+    for (final d in depenses) {
+      ajoute(d.date, dep: d.montant);
+    }
+    for (final b in bulletins) {
+      ajoute(b.datePaiement ?? b.mois, sal: b.net);
+    }
+    final ks = m.keys.toList()..sort();
+    return SectionRapport(
+      'Bilan (${granularite.label.toLowerCase()})',
+      [periodeNom(), 'Entrées colis', 'Entrées billets', 'Total entrées', 'Dépenses', 'Salaires', 'Total sorties', 'Résultat'],
+      [
+        for (final k in ks)
+          [libelle(k), m[k]!.c, m[k]!.b, m[k]!.c + m[k]!.b, m[k]!.d, m[k]!.s, m[k]!.d + m[k]!.s, m[k]!.c + m[k]!.b - m[k]!.d - m[k]!.s],
+      ],
+      montants: {1, 2, 3, 4, 5, 6, 7},
+      totaux: ['TOTAL', recetteColis, recetteBillets, entrees, totalDepenses, totalSalaires, sorties, resultat],
+    );
+  }
+
+  SectionRapport chiffresFinanciers() => SectionRapport(
+    'Résumé financier',
+    ['Poste', 'Montant'],
+    [
+      ['Entrées : colis', recetteColis],
+      ['Entrées : billets de voyage', recetteBillets],
+      ['TOTAL DES ENTRÉES', entrees],
+      ['Sorties : dépenses', totalDepenses],
+      ['Sorties : salaires payés', totalSalaires],
+      ['TOTAL DES SORTIES', sorties],
+      ['RÉSULTAT (entrées - sorties)', resultat],
+    ],
+    montants: {1},
+  );
+
+  final resumeFinancier = <String, String>{
+    'Entrées': fcfa(entrees),
+    'Dépenses': fcfa(totalDepenses),
+    'Salaires': fcfa(totalSalaires),
+    'Résultat': fcfa(resultat),
+  };
+
   final resume = <String, String>{
     'Colis': '${actifs.length}',
     'Recette colis': fcfa(recetteColis),
@@ -377,6 +500,15 @@ Rapport construireRapport(
         'Recette': fcfa(recetteBillets),
         'Annulés': '${billetsBruts.length - billetsActifs.length}',
       });
+    case TypeRapport.depenses:
+      return Rapport(type, [depensesParCategorie(), depensesParPeriode(), depensesDetail()], {
+        'Dépenses': '${depenses.length}',
+        'Montant total': fcfa(totalDepenses),
+      });
+    case TypeRapport.bilan:
+      return Rapport(type, [chiffresFinanciers(), bilanParPeriode()], resumeFinancier);
+    case TypeRapport.financier:
+      return Rapport(type, [chiffresFinanciers(), bilanParPeriode(), parGare(), depensesParCategorie(), salairesPayes(), depensesDetail()], resumeFinancier);
     case TypeRapport.ventesBillets:
       return Rapport(type, [ventesBilletsPeriode()], {
         'Billets': '${billetsActifs.length}',

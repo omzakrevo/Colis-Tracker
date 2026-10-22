@@ -9,6 +9,7 @@ import '../data/providers.dart';
 import '../data/repo.dart';
 import '../widgets/app_shell.dart';
 import '../widgets/common.dart';
+import 'identite_legale.dart';
 import 'reinitialisation.dart';
 import 'sms_section.dart';
 
@@ -199,6 +200,10 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
               label: const Text('Enregistrer'),
             ).reveal(2),
             const SizedBox(height: 28),
+            if (ref.watch(authProvider).value?.company?.moduleFinance ?? false) ...[
+              const IdentiteLegaleCard(),
+              const SizedBox(height: 28),
+            ],
             const SmsSection(),
             const SizedBox(height: 28),
             const ReinitialisationCard(),

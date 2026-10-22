@@ -23,6 +23,11 @@ import 'screens/sms.dart';
 import 'screens/sms_plateforme.dart';
 import 'screens/rapports.dart';
 import 'screens/rapports_detail.dart';
+import 'screens/finance_hub.dart';
+import 'screens/finance_depenses.dart';
+import 'screens/finance_documents.dart';
+import 'screens/finance_employes.dart';
+import 'screens/finance_paie.dart';
 import 'screens/recherche.dart';
 import 'screens/scanner.dart';
 import 'screens/trajets.dart';
@@ -75,7 +80,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Le barragiste n'a accès qu'au scanner.
       if (p.isBarragiste) return loc == '/scanner' ? null : '/scanner';
       // Le comptable ne voit que les rapports et le financier.
-      if (p.isComptable) return loc.startsWith('/rapports') ? null : '/rapports';
+      if (p.isComptable) {
+        final fin = d.company?.moduleFinance ?? false;
+        return (loc.startsWith('/rapports') || (fin && loc.startsWith('/finance'))) ? null : (fin ? '/finance' : '/rapports');
+      }
+      if (loc.startsWith('/finance') && !(p.isAdmin && (d.company?.moduleFinance ?? false))) return '/';
       // Le convoyeur vend des billets et scanne, rien d'autre.
       if (p.isConvoyeur) {
         return (loc.startsWith('/billets') ||
@@ -172,6 +181,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/recherche',
             pageBuilder: (c, s) => _page(s, const RechercheScreen()),
           ),
+          GoRoute(path: '/finance', pageBuilder: (c, s) => _page(s, const FinanceHubScreen())),
+          GoRoute(path: '/finance/depenses', pageBuilder: (c, s) => _page(s, const FinanceDepensesScreen())),
+          GoRoute(path: '/finance/documents', pageBuilder: (c, s) => _page(s, const FinanceDocumentsScreen())),
+          GoRoute(path: '/finance/employes', pageBuilder: (c, s) => _page(s, const FinanceEmployesScreen())),
+          GoRoute(path: '/finance/paie', pageBuilder: (c, s) => _page(s, const FinancePaieScreen())),
           GoRoute(
             path: '/rapports/detail',
             pageBuilder: (c, s) => _page(s, const RapportsDetailScreen()),

@@ -131,7 +131,11 @@ class Company {
     this.adminNom,
     this.adminIdentifiant,
     this.statutEffectif,
+    this.moduleFinance = false,
   });
+
+  /// Module Comptabilité ouvert pour cette entreprise (réglé par le super administrateur).
+  final bool moduleFinance;
 
   final int id, maxUtilisateurs;
   final String nom, statut, plan;
@@ -154,6 +158,7 @@ class Company {
     'statut': statut,
     'plan': plan,
     'max_utilisateurs': maxUtilisateurs,
+    'module_finance': moduleFinance,
     'created_at': createdAt.toIso8601String(),
     'telephone': telephone,
     'ville': ville,
@@ -180,6 +185,7 @@ class Company {
     adminNom: j['admin_nom'] as String?,
     adminIdentifiant: j['admin_identifiant'] as String?,
     statutEffectif: j['statut_effectif'] as String?,
+    moduleFinance: j['module_finance'] as bool? ?? false,
   );
 }
 

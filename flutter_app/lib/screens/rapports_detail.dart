@@ -6,10 +6,13 @@ import 'package:printing/printing.dart';
 
 import '../core/format.dart';
 import '../core/theme.dart';
+import '../data/finance_models.dart';
+import '../data/finance_repo.dart';
 import '../data/models.dart';
 import '../data/providers.dart';
 import '../data/repo.dart';
 import '../widgets/common.dart';
+import 'finance_ui.dart' show moduleFinanceOuvert;
 import 'rapports_moteur.dart';
 
 /// Rapports détaillés : choix du type, filtres (période, agent, gare, statut), aperçu, export PDF / Excel / impression.
@@ -38,14 +41,17 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
   final Map<int, (int, bool)> _tri = {};
 
   static const _surBillets = {TypeRapport.billets, TypeRapport.ventesBillets, TypeRapport.billetsTrajet, TypeRapport.billetsHeure};
-  bool get _besoinColis => !_surBillets.contains(_type);
+  bool get _besoinColis => !_surBillets.contains(_type) && _type != TypeRapport.depenses;
   bool get _besoinBillets =>
       _surBillets.contains(_type) ||
+      _type == TypeRapport.bilan ||
+      _type == TypeRapport.financier ||
       _type == TypeRapport.agents ||
       _type == TypeRapport.gares ||
       _type == TypeRapport.caGare ||
       _type == TypeRapport.synthese;
-  bool get _regroupe => _type == TypeRapport.ventesBillets || _type == TypeRapport.caGare;
+  bool get _regroupe => _type == TypeRapport.ventesBillets || _type == TypeRapport.caGare || _type == TypeRapport.depenses || _type == TypeRapport.bilan;
+  bool get _besoinFinance => _type.compta;
 
   /// Le rapport avec le tri demandé appliqué (aperçu, PDF et Excel sortent dans le même ordre).
   Rapport? get _rapportTrie {
@@ -105,9 +111,17 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
       final billets = _besoinBillets
           ? await Repo.rapportBillets(debut: f.debut, fin: f.fin, vendeurId: f.agentId, gareDepartId: f.gareId)
           : <Ticket>[];
+      var depenses = <Depense>[];
+      var bulletins = <Bulletin>[];
+      var employes = <int, String>{};
+      if (_besoinFinance) {
+        depenses = await FinanceRepo.depenses(debut: f.debut, fin: f.fin, gareId: f.gareId);
+        bulletins = await FinanceRepo.bulletinsPayes(debut: f.debut, fin: f.fin);
+        employes = {for (final e in await FinanceRepo.employes()) e.id!: e.nom};
+      }
       if (!mounted) return;
       setState(() {
-        _rapport = construireRapport(_type, colis, billets, granularite: _granularite);
+        _rapport = construireRapport(_type, colis, billets, granularite: _granularite, depenses: depenses, bulletins: bulletins, employes: employes);
         _filtres = f;
         _tri.clear();
       });
@@ -157,6 +171,18 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
     }
   }
 
+  bool _extraLu = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_extraLu) return;
+    _extraLu = true;
+    final extra = GoRouterState.of(context).extra;
+    final t = TypeRapport.values.where((t) => t.name == extra).firstOrNull;
+    if (t != null) _type = t;
+  }
+
   @override
   Widget build(BuildContext context) {
     final me = ref.watch(profilProvider).value;
@@ -165,6 +191,7 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
     final agents = profils.where((p) => p.role != 'superadmin').toList();
     final peutFiltrerAgent = me != null && (me.voitToutLeReseau || me.role == 'chef_gare') && agents.length > 1;
 
+    final financeOuvert = moduleFinanceOuvert(ref);
     final wide = MediaQuery.sizeOf(context).width >= 900;
     Widget champ(Widget w, [double largeur = 300]) => SizedBox(width: wide ? largeur : double.infinity, child: w);
     final al = wide ? CrossAxisAlignment.center : CrossAxisAlignment.start;
@@ -179,7 +206,7 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
               initialValue: _type,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Type de rapport'),
-              items: [for (final t in TypeRapport.values) DropdownMenuItem(value: t, child: Text(t.titre))],
+              items: [for (final t in TypeRapport.values) if (!t.compta || financeOuvert) DropdownMenuItem(value: t, child: Text(t.titre))],
               onChanged: (v) => setState(() {
                 _type = v ?? _type;
                 _rapport = null;
