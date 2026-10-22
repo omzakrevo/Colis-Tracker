@@ -7,7 +7,7 @@
 
 alter table public.vip_profiles drop constraint if exists vip_profiles_role_check;
 alter table public.vip_profiles add constraint vip_profiles_role_check
-  check (role in ('superadmin', 'admin', 'chef_gare', 'agent', 'barragiste', 'guichet', 'convoyeur'));
+  check (role in ('superadmin', 'admin', 'chef_gare', 'agent', 'barragiste', 'guichet', 'convoyeur', 'comptable'));
 
 create or replace function public.admin_creer_utilisateur(
   p_username text, p_password text, p_nom text,

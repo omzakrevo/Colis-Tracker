@@ -42,12 +42,22 @@ const _scanner = _Item('/scanner', 'Scanner', Icons.qr_code_scanner_rounded);
 /// Onglets du bas (téléphone) selon le rôle.
 List<_Item> _onglets(Profil me) => me.isConvoyeur
     ? const [_billets, _verifier, _scanner]
+    : me.isComptable
+    ? const [
+        _Item('/rapports', 'Rapports', Icons.insights_rounded),
+        _Item('/rapports/detail', 'Détaillés', Icons.table_chart_rounded),
+      ]
     : me.isGuichet
     ? [..._principaux.take(2), _billets, ..._principaux.skip(2)]
     : _principaux;
 
 List<_Item> _menu(Profil me) => me.isBarragiste
     ? const [_scanner]
+    : me.isComptable
+    ? const [
+        _Item('/rapports', 'Rapports', Icons.insights_rounded),
+        _Item('/rapports/detail', 'Rapports détaillés', Icons.table_chart_rounded),
+      ]
     : me.isConvoyeur
     ? const [_billets, _verifier, _scanner, _imprimante]
     : me.isSuper
@@ -111,6 +121,8 @@ class AppShell extends ConsumerWidget {
       : path == '/billets'
       ? location.startsWith('/billets') &&
             !location.startsWith('/billets/verifier')
+      : path == '/rapports'
+      ? location == '/rapports' || (location.startsWith('/rapports/') && !location.startsWith('/rapports/detail'))
       : location.startsWith(path);
 
   @override
@@ -216,6 +228,7 @@ class AppShell extends ConsumerWidget {
               location.endsWith('/nouveau') ||
               location.startsWith('/billets/verifier') ||
               me.isSuper ||
+              me.isComptable ||
               me.isBarragiste ||
               (location.startsWith('/billets') && !me.peutVendreBillets))
           ? null

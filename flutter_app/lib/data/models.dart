@@ -56,6 +56,12 @@ class Profil {
   /// Super administrateur de la plateforme.
   bool get isSuper => role == 'superadmin';
 
+  /// Comptable : voit les rapports et tout le financier, sans créer ni scanner.
+  bool get isComptable => role == 'comptable';
+
+  /// Voit toutes les données de l'entreprise (administrateur ou comptable).
+  bool get voitToutLeReseau => isAdmin || isComptable;
+
   /// Barragiste : ne peut que scanner (embarquement / déchargement).
   bool get isBarragiste => role == 'barragiste';
 
@@ -83,7 +89,7 @@ class Profil {
       role == 'chef_gare' ||
       role == 'agent';
 
-  bool get voitColis => !isSuper && !scanRestreint;
+  bool get voitColis => !isSuper && !scanRestreint && !isComptable;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -672,12 +678,15 @@ class SmsConfig {
     this.terminalId = '',
     this.source = 'global',
     this.bloque = false,
+    this.rapportActif = false,
+    this.rapportHeure = '22:00',
+    this.rapportNumeros = '',
     this.soldeTexte,
     this.soldeLe,
   });
 
-  final bool actif, colisEnvoi, colisArrive, colisRetire, billet, bloque;
-  final String username, sender, indicatif, terminalId, source;
+  final bool actif, colisEnvoi, colisArrive, colisRetire, billet, bloque, rapportActif;
+  final String username, sender, indicatif, terminalId, source, rapportHeure, rapportNumeros;
 
   /// Compte SMSBUS propre à l'entreprise (sinon : celui de la plateforme).
   bool get comptePropre => source == 'propre';
@@ -704,6 +713,9 @@ class SmsConfig {
     terminalId: j['terminal_id'] as String? ?? '',
     source: j['source'] as String? ?? 'global',
     bloque: j['bloque'] as bool? ?? false,
+    rapportActif: j['rapport_actif'] as bool? ?? false,
+    rapportHeure: j['rapport_heure'] as String? ?? '22:00',
+    rapportNumeros: j['rapport_numeros'] as String? ?? '',
     soldeTexte: j['solde_texte'] as String?,
     soldeLe: j['solde_le'] == null
         ? null
@@ -818,11 +830,15 @@ class Trajet {
     required this.gareArriveeId,
     required this.prix,
     this.horaires = const [],
+    this.capacite = 50,
   });
 
   final int id, gareDepartId, gareArriveeId;
   final double prix;
   final List<String> horaires;
+
+  /// Nombre de places du bus (50 par défaut).
+  final int capacite;
 
   factory Trajet.fromJson(Map<String, dynamic> j) => Trajet(
     id: j['id'] as int,
@@ -830,6 +846,7 @@ class Trajet {
     gareArriveeId: j['gare_arrivee_id'] as int,
     prix: _d(j['prix']),
     horaires: [for (final h in (j['horaires'] as List? ?? const [])) '$h'],
+    capacite: (j['capacite'] as num?)?.toInt() ?? 50,
   );
 
   Map<String, dynamic> toJson() => {
@@ -838,7 +855,26 @@ class Trajet {
     'gare_arrivee_id': gareArriveeId,
     'prix': prix,
     'horaires': horaires,
+    'capacite': capacite,
   };
+}
+
+/// Places d'un voyage : capacité du bus et numéros déjà attribués.
+class PlacesVoyage {
+  PlacesVoyage(this.capacite, this.prises);
+  final int capacite;
+  final Set<int> prises;
+
+  int get libres => capacite - prises.length;
+  bool get plein => libres <= 0;
+
+  /// Plus petit numéro libre (celui que le serveur attribue automatiquement), sinon null si le bus est plein.
+  int? get suivante {
+    for (var i = 1; i <= capacite; i++) {
+      if (!prises.contains(i)) return i;
+    }
+    return null;
+  }
 }
 
 /// Billet vu par la vérification (copie gardée sur le téléphone pour fonctionner sans internet).

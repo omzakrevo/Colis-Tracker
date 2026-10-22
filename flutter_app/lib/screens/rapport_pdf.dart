@@ -24,7 +24,7 @@ Future<Uint8List> rapportPdf({
   String t(String s) => pdfTexte(s);
 
   // Les recettes sont encaissées au départ : un agent ne compte que les colis partis de sa gare.
-  final comptes = me.isAdmin
+  final comptes = me.voitToutLeReseau
       ? colis.where((c) => c.statut != 'annule')
       : colis.where((c) => c.statut != 'annule' && c.gareDepartId == me.gareId);
   final recette = comptes.fold<double>(0, (a, c) => a + c.prix);

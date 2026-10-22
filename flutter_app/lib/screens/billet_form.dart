@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/format.dart';
+import '../core/theme.dart';
 import '../core/imprimante.dart';
 import '../data/models.dart';
 import '../data/providers.dart';
@@ -31,6 +32,8 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
   DateTime date = DateTime.now();
   bool _init = false, _saving = false;
   bool _prixManuel = false;
+  PlacesVoyage? _places;
+  int _jetonPlaces = 0;
 
   /// Trajet fixé par l'administrateur pour le départ/arrivée choisis (prix et heures proposés).
   Trajet? get _trajet {
@@ -50,7 +53,76 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    heure.addListener(_actualiserPlaces);
+  }
+
+  /// Recharge les places libres du voyage (trajet, date et heure choisis).
+  Future<void> _actualiserPlaces() async {
+    final d = depart, a = arrivee;
+    if (d == null || a == null || d == a) {
+      if (_places != null && mounted) setState(() => _places = null);
+      return;
+    }
+    final jeton = ++_jetonPlaces;
+    final p = await Repo.placesVoyage(depart: d, arrivee: a, date: date, heure: heure.text);
+    if (!mounted || jeton != _jetonPlaces) return;
+    setState(() {
+      _places = p;
+      // La place choisie à la main a pu être prise entre-temps.
+      final n = int.tryParse(siege.text.trim());
+      if (n != null && p.prises.contains(n)) siege.clear();
+    });
+  }
+
+  Future<void> _choisirPlace() async {
+    final p = _places;
+    if (p == null) return;
+    final n = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Choisir la place (${p.libres} libres sur ${p.capacite})', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+        content: SizedBox(
+          width: 340,
+          child: SingleChildScrollView(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (var i = 1; i <= p.capacite; i++)
+                  SizedBox(
+                    width: 52,
+                    height: 44,
+                    child: p.prises.contains(i)
+                        ? Container(
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
+                            child: Text('$i', style: TextStyle(color: Colors.grey.shade600, decoration: TextDecoration.lineThrough)),
+                          )
+                        : OutlinedButton(
+                            style: OutlinedButton.styleFrom(padding: EdgeInsets.zero, backgroundColor: siege.text.trim() == '$i' ? Brand.orangeSoft : null),
+                            onPressed: () => Navigator.pop(ctx, i),
+                            child: Text('$i', style: const TextStyle(fontWeight: FontWeight.w800)),
+                          ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, -1), child: const Text('Automatique')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer')),
+        ],
+      ),
+    );
+    if (n == null || !mounted) return;
+    setState(() => siege.text = n < 0 ? '' : '$n');
+  }
+
+  @override
   void dispose() {
+    heure.removeListener(_actualiserPlaces);
     for (final c in [nom, tel, prix, heure, siege]) {
       c.dispose();
     }
@@ -75,7 +147,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
         'heure_depart': heure.text.trim().isEmpty ? null : heure.text.trim(),
         'siege': siege.text.trim().isEmpty ? null : siege.text.trim(),
         'prix': double.parse(prix.text.replaceAll(',', '.')),
-      }, vendeurNom: me?.nom);
+      }, vendeurNom: me?.nom, siegeSecours: _places?.suivante);
       ref.read(tickProvider.notifier).bump();
       if (!mounted) return;
       toast(
@@ -96,6 +168,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
         heure.text = h;
         _prixManuel = false;
         setState(() {});
+        _actualiserPlaces();
       }
     } catch (e) {
       if (mounted) toast(context, errMsg(e), error: true);
@@ -211,6 +284,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                         depart = c.dernierDepartId;
                       arrivee ??= c.dernierArriveeId;
                       _appliquerTrajet();
+                      _actualiserPlaces();
                     }),
                   ),
                 ),
@@ -236,6 +310,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                             : (v) => setState(() {
                                 depart = v;
                                 _appliquerTrajet();
+                                _actualiserPlaces();
                               }),
                         validator: (v) =>
                             v == null ? 'Choisissez une gare' : null,
@@ -254,6 +329,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                         onChanged: (v) => setState(() {
                           arrivee = v;
                           _appliquerTrajet();
+                          _actualiserPlaces();
                         }),
                         validator: (v) => v == null
                             ? 'Choisissez une gare'
@@ -273,7 +349,10 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                               const Duration(days: 365),
                             ),
                           );
-                          if (d != null) setState(() => date = d);
+                          if (d != null) {
+                            setState(() => date = d);
+                            _actualiserPlaces();
+                          }
                         },
                         child: InputDecorator(
                           decoration: const InputDecoration(
@@ -318,16 +397,60 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: TextFormField(
- textInputAction: TextInputAction.next,
-                              controller: siege,
-                              decoration: const InputDecoration(
-                                labelText: 'Place',
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(14),
+                              onTap: _places == null ? null : _choisirPlace,
+                              child: InputDecorator(
+                                decoration: InputDecoration(
+                                  labelText: 'Place',
+                                  suffixIcon: siege.text.isEmpty
+                                      ? const Icon(Icons.event_seat_rounded)
+                                      : IconButton(
+                                          tooltip: 'Place automatique',
+                                          icon: const Icon(Icons.close_rounded),
+                                          onPressed: () => setState(() => siege.clear()),
+                                        ),
+                                ),
+                                child: Text(
+                                  siege.text.isNotEmpty
+                                      ? 'N° ${siege.text}'
+                                      : (_places?.suivante != null ? 'Auto : n° ${_places!.suivante}' : 'Automatique'),
+                                  style: const TextStyle(fontWeight: FontWeight.w800),
+                                ),
                               ),
                             ),
                           ),
                         ],
                       ),
+                      if (_places != null) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                          decoration: BoxDecoration(
+                            color: (_places!.plein ? const Color(0xFFDC2626) : const Color(0xFF16A34A)).withValues(alpha: .1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(_places!.plein ? Icons.block_rounded : Icons.event_seat_rounded,
+                                  color: _places!.plein ? const Color(0xFFDC2626) : const Color(0xFF16A34A), size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _places!.plein
+                                      ? 'TRAJET PLEIN : les ${_places!.capacite} places sont attribuées. Plus de billet possible pour ce voyage.'
+                                      : '${_places!.libres} place${_places!.libres > 1 ? 's' : ''} libre${_places!.libres > 1 ? 's' : ''} sur ${_places!.capacite}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                    color: _places!.plein ? const Color(0xFFDC2626) : const Color(0xFF15803D),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       TextFormField(
  textInputAction: TextInputAction.next,
@@ -357,7 +480,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                 ),
                 const SizedBox(height: 20),
                 FilledButton.icon(
-                  onPressed: _saving ? null : _enregistrer,
+                  onPressed: (_saving || (_places?.plein ?? false)) ? null : _enregistrer,
                   icon: _saving
                       ? const SizedBox(
                           width: 18,
@@ -368,7 +491,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                           ),
                         )
                       : const Icon(Icons.check_rounded),
-                  label: const Text('Enregistrer le billet'),
+                  label: Text((_places?.plein ?? false) ? 'Trajet plein' : 'Enregistrer le billet'),
                 ),
               ],
             ),

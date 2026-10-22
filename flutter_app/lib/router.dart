@@ -74,6 +74,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (d.bloque) return loc == '/attente' ? null : '/attente';
       // Le barragiste n'a accès qu'au scanner.
       if (p.isBarragiste) return loc == '/scanner' ? null : '/scanner';
+      // Le comptable ne voit que les rapports et le financier.
+      if (p.isComptable) return loc.startsWith('/rapports') ? null : '/rapports';
       // Le convoyeur vend des billets et scanne, rien d'autre.
       if (p.isConvoyeur) {
         return (loc.startsWith('/billets') ||

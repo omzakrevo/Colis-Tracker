@@ -32,12 +32,15 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
       k: TextEditingController(),
   };
   String _source = 'global';
+  bool _rapportActif = false;
+  String _rapportHeure = '22:00';
+  final _rapportNums = TextEditingController();
   bool _actif = false, _envoi = true, _arrive = true, _retire = true, _billet = true;
   bool _loaded = false, _saving = false;
 
   @override
   void dispose() {
-    for (final c in [_user, _pass, _sender, _port, _terminal, _indicatif, _tests, ..._tpl.values]) {
+    for (final c in [_user, _pass, _sender, _port, _terminal, _indicatif, _tests, _rapportNums, ..._tpl.values]) {
       c.dispose();
     }
     super.dispose();
@@ -49,6 +52,9 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
     if (c == null) return;
     _actif = c.actif;
     _source = c.source;
+    _rapportActif = c.rapportActif;
+    _rapportHeure = c.rapportHeure;
+    _rapportNums.text = c.rapportNumeros;
     _envoi = c.colisEnvoi;
     _arrive = c.colisArrive;
     _retire = c.colisRetire;
@@ -67,12 +73,15 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
     _tpl['billet']!.text = c.tplBillet;
   }
 
-  Future<void> _save() async {
+  Future<void> _save({bool silencieux = false}) async {
     setState(() => _saving = true);
     try {
       await Repo.enregistrerSms({
         'actif': _actif,
         'source': _source,
+        'rapport_actif': _rapportActif,
+        'rapport_heure': _rapportHeure,
+        'rapport_numeros': _rapportNums.text.trim(),
         'username': _user.text.trim(),
         'terminal_id': _terminal.text.trim(),
         if (_pass.text.isNotEmpty) 'password': _pass.text,
@@ -91,7 +100,7 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
       });
       _pass.clear();
       ref.invalidate(smsConfigProvider);
-      if (mounted) toast(context, 'Réglages SMS enregistrés');
+      if (mounted && !silencieux) toast(context, 'Réglages SMS enregistrés');
     } catch (e) {
       if (mounted) toast(context, errMsg(e), error: true);
     } finally {
@@ -113,6 +122,28 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
       if (mounted) toast(context, errMsg(e), error: true);
     } finally {
       if (mounted) setState(() => _soldeEnCours = false);
+    }
+  }
+
+  Future<void> _choisirHeureRapport() async {
+    final p = _rapportHeure.split(':');
+    final t = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: int.tryParse(p.first) ?? 22, minute: int.tryParse(p.last) ?? 0),
+      helpText: 'Heure d\'envoi du rapport',
+    );
+    if (t != null) {
+      setState(() => _rapportHeure = '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}');
+    }
+  }
+
+  Future<void> _testerRapport() async {
+    try {
+      await _save(silencieux: true);
+      final n = await Repo.testerRapportSms();
+      if (mounted) toast(context, 'Rapport envoyé à $n numéro${n > 1 ? 's' : ''} — voyez le journal');
+    } catch (e) {
+      if (mounted) toast(context, errMsg(e), error: true);
     }
   }
 
@@ -330,6 +361,51 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
                     value: _billet,
                     onChanged: (v) => setState(() => _billet = v),
                     title: const Text('Vente d\'un billet'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            SectionCard(
+              title: 'Rapport quotidien des recettes',
+              icon: Icons.insights_rounded,
+              accent: const Color(0xFF16A34A),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: _rapportActif,
+                    onChanged: (v) => setState(() => _rapportActif = v),
+                    title: const Text('Envoyer un SMS de recettes chaque jour'),
+                    subtitle: const Text('Recette de chaque gare, total, et comparaison avec la veille'),
+                  ),
+                  const SizedBox(height: 4),
+                  OutlinedButton.icon(
+                    onPressed: _choisirHeureRapport,
+                    icon: const Icon(Icons.schedule_rounded),
+                    label: Text('Heure d\'envoi : $_rapportHeure'),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.only(top: 6, bottom: 10),
+                    child: Text(
+                      'Le soir (à partir de 12 h) : le rapport porte sur la journée en cours. Le matin (avant 12 h) : sur la veille.',
+                      style: TextStyle(color: Brand.muted, fontSize: 12.5),
+                    ),
+                  ),
+                  TextField(
+                    controller: _rapportNums,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Numéro(s) qui reçoivent le rapport',
+                      helperText: 'Plusieurs numéros possibles, séparés par une virgule',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _testerRapport,
+                    icon: const Icon(Icons.send_rounded),
+                    label: const Text('Envoyer le rapport maintenant (essai)'),
                   ),
                 ],
               ),

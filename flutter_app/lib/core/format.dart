@@ -56,5 +56,6 @@ String roleLabel(String role) => switch (role) {
   'barragiste' => 'Barragiste',
   'guichet' => 'Guichet',
   'convoyeur' => 'Convoyeur',
+  'comptable' => 'Comptable (finances)',
   _ => 'Agent',
 };

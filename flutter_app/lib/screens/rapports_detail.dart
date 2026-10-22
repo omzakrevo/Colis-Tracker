@@ -163,29 +163,41 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
     final profils = ref.watch(profilsProvider).value ?? const <Profil>[];
     final gares = ref.watch(garesProvider).value ?? const <Gare>[];
     final agents = profils.where((p) => p.role != 'superadmin').toList();
-    final peutFiltrerAgent = me != null && (me.isAdmin || me.role == 'chef_gare') && agents.length > 1;
+    final peutFiltrerAgent = me != null && (me.voitToutLeReseau || me.role == 'chef_gare') && agents.length > 1;
 
+    final wide = MediaQuery.sizeOf(context).width >= 900;
+    Widget champ(Widget w, [double largeur = 300]) => SizedBox(width: wide ? largeur : double.infinity, child: w);
+    final al = wide ? CrossAxisAlignment.center : CrossAxisAlignment.start;
     final filtres = SectionCard(
       title: 'Choisir le rapport',
       icon: Icons.tune_rounded,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: al,
         children: [
-          DropdownButtonFormField<TypeRapport>(
-            initialValue: _type,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Type de rapport'),
-            items: [for (final t in TypeRapport.values) DropdownMenuItem(value: t, child: Text(t.titre))],
-            onChanged: (v) => setState(() {
-              _type = v ?? _type;
-              _rapport = null;
-            }),
+          champ(
+            DropdownButtonFormField<TypeRapport>(
+              initialValue: _type,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Type de rapport'),
+              items: [for (final t in TypeRapport.values) DropdownMenuItem(value: t, child: Text(t.titre))],
+              onChanged: (v) => setState(() {
+                _type = v ?? _type;
+                _rapport = null;
+              }),
+            ),
+            460,
           ),
           Padding(
-            padding: const EdgeInsets.only(top: 6, bottom: 12),
-            child: Text(_type.description, style: const TextStyle(color: Brand.muted, fontSize: 12.5)),
+            padding: const EdgeInsets.only(top: 6, bottom: 14),
+            child: Text(
+              _type.description,
+              textAlign: wide ? TextAlign.center : TextAlign.start,
+              style: const TextStyle(color: Brand.muted, fontSize: 12.5),
+            ),
           ),
           Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
             spacing: 10,
             runSpacing: 10,
             children: [
@@ -199,20 +211,6 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
                 icon: const Icon(Icons.event_rounded, size: 18),
                 label: Text('Au ${dateFr(_fin)}'),
               ),
-            ],
-          ),
-          if (_regroupe) ...[
-            const SizedBox(height: 12),
-            SegmentedButton<Granularite>(
-              segments: [for (final g in Granularite.values) ButtonSegment(value: g, label: Text(g.label))],
-              selected: {_granularite},
-              onSelectionChanged: (v) => setState(() => _granularite = v.first),
-            ),
-          ],
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: [
               ActionChip(label: const Text('Aujourd\'hui'), onPressed: () => _raccourci(0)),
               ActionChip(label: const Text('7 jours'), onPressed: () => _raccourci(6)),
               ActionChip(label: const Text('30 jours'), onPressed: () => _raccourci(29)),
@@ -226,54 +224,73 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
               ),
             ],
           ),
-          if (_type != TypeRapport.nonRetires) ...[
-            if (peutFiltrerAgent) ...[
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String?>(
-                initialValue: _agentId,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Agent (qui a enregistré)'),
-                items: [
-                  const DropdownMenuItem<String?>(value: null, child: Text('Tous les agents')),
-                  for (final a in agents) DropdownMenuItem<String?>(value: a.id, child: Text('${a.nom} · ${roleLabel(a.role)}')),
-                ],
-                onChanged: (v) => setState(() => _agentId = v),
-              ),
-            ],
-            if (gares.length > 1) ...[
-              const SizedBox(height: 12),
-              DropdownButtonFormField<int?>(
-                initialValue: _gareId,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Gare de départ'),
-                items: [
-                  const DropdownMenuItem<int?>(value: null, child: Text('Toutes les gares')),
-                  for (final g in gares) DropdownMenuItem<int?>(value: g.id, child: Text(g.nom)),
-                ],
-                onChanged: (v) => setState(() => _gareId = v),
-              ),
-            ],
-            if (_type == TypeRapport.colis) ...[
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String?>(
-                initialValue: _statut,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Statut du colis'),
-                items: [
-                  const DropdownMenuItem<String?>(value: null, child: Text('Tous les statuts')),
-                  for (final s in Statut.values) DropdownMenuItem<String?>(value: s.code, child: Text(s.label)),
-                ],
-                onChanged: (v) => setState(() => _statut = v),
-              ),
-            ],
+          if (_regroupe) ...[
+            const SizedBox(height: 14),
+            SegmentedButton<Granularite>(
+              segments: [for (final g in Granularite.values) ButtonSegment(value: g, label: Text(g.label))],
+              selected: {_granularite},
+              onSelectionChanged: (v) => setState(() => _granularite = v.first),
+            ),
           ],
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: _charge ? null : _generer,
-            icon: _charge
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                : const Icon(Icons.analytics_rounded),
-            label: Text(_charge ? 'Calcul en cours…' : 'Générer le rapport'),
+          if (_type != TypeRapport.nonRetires) ...[
+            const SizedBox(height: 14),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                if (peutFiltrerAgent)
+                  champ(
+                    DropdownButtonFormField<String?>(
+                      initialValue: _agentId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'Agent (qui a enregistré)'),
+                      items: [
+                        const DropdownMenuItem<String?>(value: null, child: Text('Tous les agents')),
+                        for (final a in agents) DropdownMenuItem<String?>(value: a.id, child: Text('${a.nom} · ${roleLabel(a.role)}')),
+                      ],
+                      onChanged: (v) => setState(() => _agentId = v),
+                    ),
+                  ),
+                if (gares.length > 1)
+                  champ(
+                    DropdownButtonFormField<int?>(
+                      initialValue: _gareId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'Gare de départ'),
+                      items: [
+                        const DropdownMenuItem<int?>(value: null, child: Text('Toutes les gares')),
+                        for (final g in gares) DropdownMenuItem<int?>(value: g.id, child: Text(g.nom)),
+                      ],
+                      onChanged: (v) => setState(() => _gareId = v),
+                    ),
+                  ),
+                if (_type == TypeRapport.colis)
+                  champ(
+                    DropdownButtonFormField<String?>(
+                      initialValue: _statut,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'Statut du colis'),
+                      items: [
+                        const DropdownMenuItem<String?>(value: null, child: Text('Tous les statuts')),
+                        for (final st in Statut.values) DropdownMenuItem<String?>(value: st.code, child: Text(st.label)),
+                      ],
+                      onChanged: (v) => setState(() => _statut = v),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 18),
+          SizedBox(
+            width: wide ? 280 : double.infinity,
+            child: FilledButton.icon(
+              onPressed: _charge ? null : _generer,
+              icon: _charge
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                  : const Icon(Icons.analytics_rounded),
+              label: Text(_charge ? 'Calcul en cours…' : 'Générer le rapport'),
+            ),
           ),
         ],
       ),
@@ -309,7 +326,8 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
                 Text(_filtres!.description, style: const TextStyle(color: Brand.muted, fontSize: 12.5)),
                 const SizedBox(height: 10),
                 Wrap(
-                  spacing: 24,
+                  alignment: WrapAlignment.center,
+                  spacing: 32,
                   runSpacing: 8,
                   children: [
                     for (final e in r.resume.entries)
@@ -324,6 +342,7 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
                 ),
                 const SizedBox(height: 14),
                 Wrap(
+                  alignment: WrapAlignment.center,
                   spacing: 10,
                   runSpacing: 10,
                   children: [

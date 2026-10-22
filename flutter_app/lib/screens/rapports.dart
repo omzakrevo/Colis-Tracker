@@ -39,7 +39,7 @@ class RapportsScreen extends ConsumerWidget {
       final pdf = await rapportPdf(
         co: co,
         me: me,
-        perimetre: me.isAdmin ? 'Toutes les gares' : (gare?.nom ?? 'Ma gare'),
+        perimetre: me.voitToutLeReseau ? 'Toutes les gares' : (gare?.nom ?? 'Ma gare'),
         debut: p.debut,
         fin: p.fin,
         colis: colis,
@@ -157,6 +157,8 @@ class RapportsScreen extends ConsumerWidget {
       children: [
         PageHeader('Rapports', subtitle: 'Activité et recettes du réseau.'),
         Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
           spacing: 10,
           runSpacing: 10,
           children: [

@@ -567,6 +567,7 @@ class Repo {
   static Future<Ticket> creerTicket(
     Map<String, dynamic> data, {
     String? vendeurNom,
+    int? siegeSecours,
   }) async {
     final ref = Outbox.nouvelleRef();
     final payload = {
@@ -579,8 +580,10 @@ class Repo {
     } catch (e) {
       if (!estErreurReseau(e)) rethrow;
     }
+    // Hors ligne : le serveur ne peut pas attribuer la place, on garde celle proposée sur le téléphone.
     final op = await Outbox.ajouter('ticket', {
       ...payload,
+      if (payload['siege'] == null && siegeSecours != null) 'siege': '$siegeSecours',
       '_vendeur_nom': vendeurNom,
     });
     return Outbox.ticketLocal(
@@ -611,6 +614,52 @@ class Repo {
     return Ticket.fromJson(
       await _db.from('tickets_detail').select().eq('id', id).single(),
     );
+  }
+
+  /// Places d'un voyage. Sans internet (ou serveur pas à jour), calcul à partir des billets gardés sur l'appareil.
+  static Future<PlacesVoyage> placesVoyage({
+    required int depart,
+    required int arrivee,
+    required DateTime date,
+    String? heure,
+  }) async {
+    final h = (heure ?? '').trim();
+    try {
+      final rows = await _db
+          .rpc('places_prises', params: {
+            'p_depart': depart,
+            'p_arrivee': arrivee,
+            'p_date': _iso(date),
+            'p_heure': h.isEmpty ? null : h,
+          })
+          .timeout(const Duration(seconds: 6));
+      final l = _maps(rows);
+      if (l.isNotEmpty) {
+        return PlacesVoyage(
+          (l.first['capacite'] as num?)?.toInt() ?? 50,
+          {for (final p in (l.first['prises'] as List? ?? const [])) (p as num).toInt()},
+        );
+      }
+    } catch (_) {
+      // repli ci-dessous
+    }
+    var capacite = 50;
+    try {
+      capacite = (await trajets())
+          .where((t) => t.gareDepartId == depart && t.gareArriveeId == arrivee)
+          .map((t) => t.capacite)
+          .firstOrNull ?? 50;
+    } catch (_) {}
+    final prises = <int>{};
+    try {
+      for (final t in await listTickets()) {
+        if (t.annule || t.gareDepartId != depart || t.gareArriveeId != arrivee) continue;
+        if (_iso(t.dateVoyage) != _iso(date) || (t.heureDepart ?? '').trim() != h) continue;
+        final n = int.tryParse((t.siege ?? '').trim());
+        if (n != null) prises.add(n);
+      }
+    } catch (_) {}
+    return PlacesVoyage(capacite, prises);
   }
 
   static Future<void> annulerTicket(int id) =>
@@ -819,12 +868,25 @@ class Repo {
   // ── SMS (SMSBUS) ──────────────────────────────────────
   static Future<SmsConfig?> smsConfig() async {
     // Colonnes listées une à une : le mot de passe n'est pas lisible, « select * » serait refusé.
-    final rows = await _db.from('sms_settings').select(
-      'company_id, actif, username, sender, port, indicatif, sms_colis_envoi, sms_colis_arrive, sms_colis_retire, '
-      'sms_billet, tpl_envoi_exp, tpl_envoi_dest, tpl_arrive, tpl_retire, tpl_billet, terminal_id, solde_texte, '
-      'solde_le, source, bloque',
-    );
+    const base =
+        'company_id, actif, username, sender, port, indicatif, sms_colis_envoi, sms_colis_arrive, sms_colis_retire, '
+        'sms_billet, tpl_envoi_exp, tpl_envoi_dest, tpl_arrive, tpl_retire, tpl_billet, terminal_id, solde_texte, '
+        'solde_le, source, bloque';
+    List<Map<String, dynamic>> rows;
+    try {
+      rows = await _db.from('sms_settings').select('$base, rapport_actif, rapport_heure, rapport_numeros');
+    } on PostgrestException catch (e) {
+      // Colonnes du rapport quotidien absentes : serveur pas encore à jour (migration 26).
+      if (!(e.code == '42703' || e.message.contains('rapport_'))) rethrow;
+      rows = await _db.from('sms_settings').select(base);
+    }
     return rows.isEmpty ? null : SmsConfig.fromJson(rows.first);
+  }
+
+  /// Envoie tout de suite le rapport du jour aux numéros choisis (essai).
+  static Future<int> testerRapportSms() async {
+    final r = await _db.rpc('sms_rapport_tester');
+    return (r as num?)?.toInt() ?? 0;
   }
 
   static Future<void> enregistrerSms(Map<String, dynamic> data) =>

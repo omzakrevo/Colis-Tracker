@@ -64,9 +64,7 @@ class TrajetsScreen extends ConsumerWidget {
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       subtitle: Text(
-                        t.horaires.isEmpty
-                            ? 'Aucune heure de départ'
-                            : 'Départs : ${t.horaires.join(' · ')}',
+                        '${t.capacite} places · ${t.horaires.isEmpty ? 'aucune heure de départ' : 'départs : ${t.horaires.join(' · ')}'}',
                       ),
                       trailing: Text(
                         fcfa(t.prix),
@@ -91,6 +89,7 @@ class TrajetsScreen extends ConsumerWidget {
   ) async {
     int? depart = t?.gareDepartId, arrivee = t?.gareArriveeId;
     final prix = TextEditingController(text: t == null ? '' : '${t.prix.round()}');
+    final capacite = TextEditingController(text: '${t?.capacite ?? 50}');
     final heures = [...?t?.horaires];
     final heure = TextEditingController();
     var retour = false;
@@ -151,6 +150,20 @@ class TrajetsScreen extends ConsumerWidget {
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: const InputDecoration(labelText: 'Prix du billet (FCFA) *'),
                       validator: (v) => (v == null || v.isEmpty) ? 'Prix requis' : null,
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: capacite,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: const InputDecoration(
+                        labelText: 'Nombre de places du bus',
+                        helperText: 'Les places sont numérotées automatiquement ; trajet « plein » à ce nombre',
+                      ),
+                      validator: (v) {
+                        final n = int.tryParse(v ?? '');
+                        return n == null || n < 1 || n > 200 ? 'Entre 1 et 200' : null;
+                      },
                     ),
                     const SizedBox(height: 14),
                     Align(
@@ -230,11 +243,14 @@ class TrajetsScreen extends ConsumerWidget {
               onPressed: () async {
                 if (!form.currentState!.validate()) return;
                 ajouterHeure(setS);
+                final places = int.parse(capacite.text);
                 final data = {
                   'gare_depart_id': depart,
                   'gare_arrivee_id': arrivee,
                   'prix': double.parse(prix.text),
                   'horaires': heures,
+                  // Envoyé seulement s'il sort de la valeur par défaut (serveur pas encore à jour : pas d'erreur).
+                  if (places != 50 || (t?.capacite ?? 50) != 50) 'capacite': places,
                 };
                 try {
                   await Repo.enregistrerTrajet(t?.id, data);
