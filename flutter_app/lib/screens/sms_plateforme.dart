@@ -40,7 +40,8 @@ class _SmsPlateformeState extends ConsumerState<SmsPlateformeScreen> {
   void _load(SmsGlobal g) {
     if (_loaded) return;
     _loaded = true;
-    _actif = g.actif;
+    // Tant que rien n'est configuré, l'interrupteur est proposé activé (sinon les SMS restent bloqués par oubli).
+    _actif = g.username.isEmpty ? true : g.actif;
     _user.text = g.username;
     _sender.text = g.sender;
     _port.text = '${g.port}';
