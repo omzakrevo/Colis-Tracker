@@ -1278,6 +1278,77 @@ class Repo {
     };
   }
 
+  // ── Rapports détaillés ────────────────────────────────
+  static const _colisRapportCols =
+      'id, numero, expediteur_nom, expediteur_telephone, destinataire_nom, destinataire_telephone, '
+      'gare_depart_id, gare_arrivee_id, gare_depart_nom, gare_arrivee_nom, description, nombre, poids, valeur, '
+      'prix, statut, date_envoi, created_at, agent_id, agent_nom';
+
+  /// Tous les colis de la période (jusqu'à 20 000), filtrables par agent, gare de départ et statut.
+  /// Sans photo ni signature : seulement ce qu'il faut pour les tableaux.
+  static Future<List<Colis>> rapportColis({
+    DateTime? debut,
+    DateTime? fin,
+    String? agentId,
+    int? gareDepartId,
+    String? statut,
+  }) async {
+    Future<List<Colis>> lire(String cols) async {
+      final out = <Colis>[];
+      for (var from = 0; from < 20000; from += 1000) {
+        var q = _db.from('colis_detail').select(cols);
+        if (debut != null) q = q.gte('date_envoi', _iso(debut));
+        if (fin != null) q = q.lte('date_envoi', _iso(fin));
+        if (agentId != null) q = q.eq('agent_id', agentId);
+        if (gareDepartId != null) q = q.eq('gare_depart_id', gareDepartId);
+        if (statut != null) q = q.eq('statut', statut);
+        final rows = await q.order('created_at', ascending: false).range(from, from + 999);
+        out.addAll(rows.map(Colis.fromJson));
+        if (rows.length < 1000) break;
+      }
+      return out;
+    }
+
+    try {
+      // billet_numero n'existe qu'après la migration 24.
+      return await lire('$_colisRapportCols, billet_numero');
+    } on PostgrestException catch (e) {
+      if (!(e.message.contains('billet_numero') || e.code == '42703')) rethrow;
+      return lire(_colisRapportCols);
+    }
+  }
+
+  /// Billets vendus pendant la période (date de vente), filtrables par vendeur et gare de départ.
+  static Future<List<Ticket>> rapportBillets({
+    DateTime? debut,
+    DateTime? fin,
+    String? vendeurId,
+    int? gareDepartId,
+  }) async {
+    final out = <Ticket>[];
+    for (var from = 0; from < 20000; from += 1000) {
+      var q = _db.from('tickets_detail').select();
+      if (debut != null) q = q.gte('created_at', DateTime(debut.year, debut.month, debut.day).toUtc().toIso8601String());
+      if (fin != null) {
+        q = q.lt('created_at', DateTime(fin.year, fin.month, fin.day).add(const Duration(days: 1)).toUtc().toIso8601String());
+      }
+      if (vendeurId != null) q = q.eq('vendeur_id', vendeurId);
+      if (gareDepartId != null) q = q.eq('gare_depart_id', gareDepartId);
+      final rows = await q.order('created_at', ascending: false).range(from, from + 999);
+      out.addAll(rows.map(Ticket.fromJson));
+      if (rows.length < 1000) break;
+    }
+    return out;
+  }
+
+  /// Efface toutes les saisies de l'entreprise (colis, billets, clients, SMS…) ; réservé à l'administrateur.
+  static Future<Map<String, dynamic>> reinitialiserDonnees(String confirmation) async {
+    final r = await _db.rpc('reinitialiser_donnees', params: {'p_confirmation': confirmation});
+    // Cette copie locale ne doit plus montrer les données effacées.
+    await LocalStore.viderDonneesMetier();
+    return r is Map ? Map<String, dynamic>.from(r) : <String, dynamic>{};
+  }
+
   static String _iso(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }

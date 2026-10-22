@@ -9,6 +9,7 @@ import '../data/providers.dart';
 import '../data/repo.dart';
 import '../widgets/app_shell.dart';
 import '../widgets/common.dart';
+import 'reinitialisation.dart';
 import 'sms_section.dart';
 
 class ParametresScreen extends ConsumerStatefulWidget {
@@ -199,6 +200,8 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
             ).reveal(2),
             const SizedBox(height: 28),
             const SmsSection(),
+            const SizedBox(height: 28),
+            const ReinitialisationCard(),
           ],
         );
       },

@@ -143,6 +143,7 @@ List<int> ticketVoyageTexte(Generator g, int cols, Ticket t, CompanySettings co)
   if ((t.heureDepart ?? '').isNotEmpty) d.champ('HEURE', t.heureDepart!.replaceFirst(':', 'H'));
   if ((t.siege ?? '').isNotEmpty) d.champ('SIEGE', t.siege!);
   d.champ('PASSAGER', t.clientNom);
+  if ((t.vendeurNom ?? '').isNotEmpty) d.champ('AGENT', t.vendeurNom!);
   d.trait();
   d.prix(t.prix);
   d.qr(t.numero);
@@ -164,6 +165,7 @@ List<int> ticketColisTexte(Generator g, int cols, Colis c, CompanySettings co) =
   d.champ('DESTINATAIRE', '${c.destinataireNom}\n${c.destinataireTelephone}');
   d.champ('COLIS', '${c.nombre} x ${c.description}${c.poids != null ? ' (${c.poids} kg)' : ''}');
   if (c.valeur != null) d.champ('VALEUR', _fcfa(c.valeur!));
+  if ((c.agentNom ?? '').isNotEmpty) d.champ('AGENT', c.agentNom!);
   d.trait();
   d.prix(c.prix);
   d.qr(c.numero);

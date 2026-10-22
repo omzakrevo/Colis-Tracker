@@ -39,6 +39,22 @@ class LocalStore {
     }
   }
 
+  /// Oublie les copies locales des colis, billets et opérations en attente de l'utilisateur connecté
+  /// (après une réinitialisation : elles ne doivent pas réapparaître). Gares, trajets et profils restent.
+  static Future<void> viderDonneesMetier() async {
+    try {
+      final p = await _prefs;
+      final pre = _k('');
+      for (final k in p.getKeys().where((k) => k.startsWith(pre)).toList()) {
+        final nom = k.substring(pre.length);
+        const garde = ['gares', 'trajets', 'profils', 'settings', 'session', 'profil'];
+        if (garde.any((g) => nom == g || nom.startsWith('${g}_'))) continue;
+        await p.remove(k);
+      }
+      Outbox.changes.value++;
+    } catch (_) {}
+  }
+
   static Future<void> remove(String key) async {
     try {
       await (await _prefs).remove(_k(key));

@@ -22,6 +22,7 @@ import 'screens/parametres.dart';
 import 'screens/sms.dart';
 import 'screens/sms_plateforme.dart';
 import 'screens/rapports.dart';
+import 'screens/rapports_detail.dart';
 import 'screens/recherche.dart';
 import 'screens/scanner.dart';
 import 'screens/trajets.dart';
@@ -168,6 +169,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/recherche',
             pageBuilder: (c, s) => _page(s, const RechercheScreen()),
+          ),
+          GoRoute(
+            path: '/rapports/detail',
+            pageBuilder: (c, s) => _page(s, const RapportsDetailScreen()),
           ),
           GoRoute(
             path: '/rapports',

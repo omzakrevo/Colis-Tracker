@@ -219,6 +219,7 @@ class Colis {
     this.valeur,
     this.billetNumero,
     this.agentNom,
+    this.agentId,
     this.retraitNom,
     this.retraitTelephone,
     this.retraitPieceIdentite,
@@ -239,7 +240,7 @@ class Colis {
   final int id, gareDepartId, gareArriveeId, nombre;
   final String numero, expediteurNom, expediteurTelephone;
   final String destinataireNom, destinataireTelephone, description, statut;
-  final String? gareDepartNom, gareArriveeNom, agentNom;
+  final String? gareDepartNom, gareArriveeNom, agentNom, agentId;
   final String? retraitNom, retraitTelephone, retraitPieceIdentite;
   final String? retraitSignature, photo, notes;
   final double? poids;
@@ -273,6 +274,7 @@ class Colis {
     statut: j['statut'] as String,
     dateEnvoi: DateTime.parse(j['date_envoi'] as String),
     agentNom: j['agent_nom'] as String?,
+    agentId: j['agent_id'] as String?,
     retraitNom: j['retrait_nom'] as String?,
     retraitTelephone: j['retrait_telephone'] as String?,
     retraitPieceIdentite: j['retrait_piece_identite'] as String?,
@@ -309,6 +311,7 @@ class Colis {
     'statut': statut,
     'date_envoi': dateEnvoi.toIso8601String(),
     'agent_nom': agentNom,
+    'agent_id': agentId,
     'retrait_nom': retraitNom,
     'retrait_telephone': retraitTelephone,
     'retrait_piece_identite': retraitPieceIdentite,
@@ -349,6 +352,7 @@ class Colis {
     statut: statut ?? this.statut,
     dateEnvoi: dateEnvoi,
     agentNom: agentNom,
+    agentId: agentId,
     retraitNom: retraitNom ?? this.retraitNom,
     retraitTelephone: retraitTelephone ?? this.retraitTelephone,
     retraitPieceIdentite: retraitPieceIdentite ?? this.retraitPieceIdentite,
@@ -380,6 +384,7 @@ class Ticket {
     this.heureDepart,
     this.siege,
     this.vendeurNom,
+    this.vendeurId,
     this.notes,
     this.clientRef,
     this.enAttente = false,
@@ -392,6 +397,7 @@ class Ticket {
       heureDepart,
       siege,
       vendeurNom,
+      vendeurId,
       notes;
   final DateTime dateVoyage, createdAt;
   final double prix;
@@ -419,6 +425,7 @@ class Ticket {
     prix: _d(j['prix']),
     statut: (j['statut'] as String?) ?? 'emis',
     vendeurNom: j['vendeur_nom'] as String?,
+    vendeurId: j['vendeur_id'] as String?,
     notes: j['notes'] as String?,
     createdAt: DateTime.parse(j['created_at'] as String),
     clientRef: j['client_ref'] as String?,
@@ -440,6 +447,7 @@ class Ticket {
     'prix': prix,
     'statut': statut,
     'vendeur_nom': vendeurNom,
+    'vendeur_id': vendeurId,
     'notes': notes,
     'created_at': createdAt.toIso8601String(),
     'client_ref': clientRef,
@@ -461,6 +469,7 @@ class Ticket {
     prix: prix,
     statut: statut ?? this.statut,
     vendeurNom: vendeurNom,
+    vendeurId: vendeurId,
     notes: notes,
     createdAt: createdAt,
     clientRef: clientRef,
