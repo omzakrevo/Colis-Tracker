@@ -471,16 +471,20 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       );
     }
 
+    // Écran court (terminal POS) : caméra réduite pour laisser voir la liste des colis scannés.
+    final hauteur = MediaQuery.sizeOf(context).height;
     final camera = ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: wide ? 420 : 230),
+      constraints: BoxConstraints(maxHeight: wide ? 420 : (hauteur < 700 ? 130 : 200)),
       child: AspectRatio(aspectRatio: wide ? 1 : 16 / 9, child: _camera()),
     );
 
-    final clavier = MediaQuery.viewInsetsOf(context).bottom > 0;
-    return Column(
+    return LayoutBuilder(
+      builder: (context, box) {
+        final court = box.maxHeight < 430;
+        return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (wide || !clavier) header,
+        if (wide || !court) header,
         _modeSelector(),
         const SizedBox(height: 12),
         Expanded(
@@ -539,6 +543,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                 ),
         ),
       ],
+    );
+      },
     );
   }
 }

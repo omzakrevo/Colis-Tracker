@@ -233,10 +233,12 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
       _init = true;
     }
     final lockDepart = me != null && !me.isAdmin && me.gareId != null;
-    // Clavier ouvert sur un petit écran : on masque l'en-tête et les étapes pour laisser la place aux champs.
-    final clavier = MediaQuery.viewInsetsOf(context).bottom > 0;
-
-    return Center(
+    // Place réellement disponible (le Scaffold retire la hauteur du clavier) : si elle est faible, on masque
+    // l'en-tête et les étapes pour laisser les champs visibles sans défilement.
+    return LayoutBuilder(
+      builder: (context, box) {
+        final clavier = box.maxHeight < 430;
+        return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 680),
         child: Column(
@@ -326,6 +328,8 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
           ],
         ),
       ),
+        );
+      },
     );
   }
 
@@ -448,6 +452,7 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
                 child: Column(
                   children: [
                     TextFormField(
+ textInputAction: TextInputAction.next,
                       controller: description,
                       textCapitalization: TextCapitalization.sentences,
                       decoration: const InputDecoration(
@@ -461,6 +466,7 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
                       children: [
                         Expanded(
                           child: TextFormField(
+ textInputAction: TextInputAction.next,
                             controller: nb,
                             keyboardType: TextInputType.number,
                             inputFormatters: [
@@ -476,6 +482,7 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: TextFormField(
+ textInputAction: TextInputAction.next,
                             controller: poids,
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
@@ -503,6 +510,7 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
                 icon: Icons.payments_rounded,
                 accent: const Color(0xFF16A34A),
                 child: TextFormField(
+ textInputAction: TextInputAction.next,
                   controller: prix,
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
@@ -528,6 +536,7 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
                 icon: Icons.diamond_rounded,
                 accent: const Color(0xFF7C3AED),
                 child: TextFormField(
+ textInputAction: TextInputAction.next,
                   controller: valeur,
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
@@ -551,6 +560,7 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
                 icon: Icons.confirmation_number_rounded,
                 accent: const Color(0xFF0EA5E9),
                 child: TextFormField(
+ textInputAction: TextInputAction.next,
                   controller: billet,
                   textCapitalization: TextCapitalization.characters,
                   decoration: InputDecoration(

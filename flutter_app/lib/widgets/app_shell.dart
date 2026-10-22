@@ -174,7 +174,10 @@ class AppShell extends ConsumerWidget {
     final clavier = MediaQuery.viewInsetsOf(context).bottom > 0;
     final bottomIdx = onglets.indexWhere((i) => _active(i.path));
     return Scaffold(
-      appBar: AppBar(
+      appBar: clavier
+          // Clavier ouvert : toute la hauteur sert à la saisie.
+          ? const PreferredSize(preferredSize: Size.zero, child: SizedBox.shrink())
+          : AppBar(
         titleSpacing: 0,
         title: Row(
           children: [

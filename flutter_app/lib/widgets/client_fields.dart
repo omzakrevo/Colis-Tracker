@@ -96,6 +96,7 @@ class _ClientFieldsState extends State<ClientFields> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TextFormField(
+ textInputAction: TextInputAction.next,
           controller: widget.telephone,
           keyboardType: TextInputType.phone,
           decoration: InputDecoration(
@@ -108,6 +109,7 @@ class _ClientFieldsState extends State<ClientFields> {
         ),
         const SizedBox(height: 12),
         TextFormField(
+ textInputAction: TextInputAction.next,
           controller: widget.nom,
           textCapitalization: TextCapitalization.words,
           decoration: InputDecoration(

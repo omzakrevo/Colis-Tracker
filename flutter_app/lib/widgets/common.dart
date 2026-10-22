@@ -280,14 +280,18 @@ class SkeletonList extends StatelessWidget {
   final double height;
 
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      for (var i = 0; i < count; i++)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Skeleton(height: height),
-        ),
-    ],
+  // Défilement désactivé mais présent : sur un petit écran le squelette est rogné au lieu de déborder.
+  Widget build(BuildContext context) => SingleChildScrollView(
+    physics: const NeverScrollableScrollPhysics(),
+    child: Column(
+      children: [
+        for (var i = 0; i < count; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Skeleton(height: height),
+          ),
+      ],
+    ),
   );
 }
 

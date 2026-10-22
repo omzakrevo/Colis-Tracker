@@ -32,9 +32,29 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
   FiltresRapport? _filtres;
   String? _erreur;
 
-  bool get _besoinColis => _type != TypeRapport.billets;
+  Granularite _granularite = Granularite.jour;
+
+  /// Tri choisi par l'utilisateur en touchant un en-tête : tableau → (colonne, croissant).
+  final Map<int, (int, bool)> _tri = {};
+
+  static const _surBillets = {TypeRapport.billets, TypeRapport.ventesBillets, TypeRapport.billetsTrajet, TypeRapport.billetsHeure};
+  bool get _besoinColis => !_surBillets.contains(_type);
   bool get _besoinBillets =>
-      _type == TypeRapport.billets || _type == TypeRapport.agents || _type == TypeRapport.gares || _type == TypeRapport.synthese;
+      _surBillets.contains(_type) ||
+      _type == TypeRapport.agents ||
+      _type == TypeRapport.gares ||
+      _type == TypeRapport.caGare ||
+      _type == TypeRapport.synthese;
+  bool get _regroupe => _type == TypeRapport.ventesBillets || _type == TypeRapport.caGare;
+
+  /// Le rapport avec le tri demandé appliqué (aperçu, PDF et Excel sortent dans le même ordre).
+  Rapport? get _rapportTrie {
+    final r = _rapport;
+    if (r == null) return null;
+    return Rapport(r.type, [
+      for (var i = 0; i < r.sections.length; i++) _tri[i] == null ? r.sections[i] : r.sections[i].trie(_tri[i]!.$1, _tri[i]!.$2),
+    ], r.resume);
+  }
 
   Future<void> _choisirDate(bool debut) async {
     final d = await showDatePicker(
@@ -65,6 +85,8 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
       gareId: _gareId,
       gareNom: gare?.nom,
       statut: _type == TypeRapport.colis ? _statut : null,
+      granularite: _granularite,
+      regroupe: _regroupe,
     );
     setState(() {
       _charge = true;
@@ -85,8 +107,9 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
           : <Ticket>[];
       if (!mounted) return;
       setState(() {
-        _rapport = construireRapport(_type, colis, billets);
+        _rapport = construireRapport(_type, colis, billets, granularite: _granularite);
         _filtres = f;
+        _tri.clear();
       });
     } catch (e) {
       if (mounted) setState(() => _erreur = errMsg(e));
@@ -101,7 +124,7 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
   }
 
   Future<void> _pdf({required bool imprimer}) async {
-    final r = _rapport, f = _filtres, me = ref.read(profilProvider).value;
+    final r = _rapportTrie, f = _filtres, me = ref.read(profilProvider).value;
     if (r == null || f == null || me == null) return;
     try {
       final co = await ref.read(settingsProvider.future);
@@ -117,7 +140,7 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
   }
 
   Future<void> _excel() async {
-    final r = _rapport, f = _filtres;
+    final r = _rapportTrie, f = _filtres;
     if (r == null || f == null) return;
     try {
       final saved = await FilePicker.saveFile(
@@ -178,6 +201,14 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
               ),
             ],
           ),
+          if (_regroupe) ...[
+            const SizedBox(height: 12),
+            SegmentedButton<Granularite>(
+              segments: [for (final g in Granularite.values) ButtonSegment(value: g, label: Text(g.label))],
+              selected: {_granularite},
+              onSelectionChanged: (v) => setState(() => _granularite = v.first),
+            ),
+          ],
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -317,7 +348,15 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
               ],
             ),
           ),
-          for (final s in r.sections) ...[const SizedBox(height: 14), _Apercu(s)],
+          for (var i = 0; i < _rapportTrie!.sections.length; i++) ...[
+            const SizedBox(height: 14),
+            _Apercu(
+              _rapportTrie!.sections[i],
+              colonne: _tri[i]?.$1,
+              croissant: _tri[i]?.$2 ?? true,
+              onTri: (c, asc) => setState(() => _tri[i] = (c, asc)),
+            ),
+          ],
         ],
       ],
     );
@@ -325,8 +364,11 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
 }
 
 class _Apercu extends StatelessWidget {
-  const _Apercu(this.s);
+  const _Apercu(this.s, {this.colonne, this.croissant = true, this.onTri});
   final SectionRapport s;
+  final int? colonne;
+  final bool croissant;
+  final void Function(int colonne, bool croissant)? onTri;
 
   String _c(Object? v, int i) {
     if (v == null) return '';
@@ -355,7 +397,15 @@ class _Apercu extends StatelessWidget {
                     dataRowMinHeight: 32,
                     dataRowMaxHeight: 40,
                     columnSpacing: 18,
-                    columns: [for (final e in s.entetes) DataColumn(label: Text(e, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12)))],
+                    sortColumnIndex: colonne,
+                    sortAscending: croissant,
+                    columns: [
+                      for (var i = 0; i < s.entetes.length; i++)
+                        DataColumn(
+                          label: Text(s.entetes[i], style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+                          onSort: onTri == null ? null : (c, asc) => onTri!(c, asc),
+                        ),
+                    ],
                     rows: [
                       for (final l in lignes)
                         DataRow(cells: [for (var i = 0; i < s.entetes.length; i++) DataCell(Text(_c(i < l.length ? l[i] : null, i), style: const TextStyle(fontSize: 12)))]),
@@ -369,6 +419,10 @@ class _Apercu extends StatelessWidget {
                         ),
                     ],
                   ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.only(top: 6),
+                  child: Text('Touchez un titre de colonne pour trier.', style: TextStyle(color: Brand.muted, fontSize: 12)),
                 ),
                 if (s.lignes.length > max)
                   Padding(

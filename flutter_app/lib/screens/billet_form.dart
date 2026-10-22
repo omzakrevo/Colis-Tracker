@@ -308,6 +308,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                         children: [
                           Expanded(
                             child: TextFormField(
+ textInputAction: TextInputAction.next,
                               controller: heure,
                               decoration: const InputDecoration(
                                 labelText: 'Heure',
@@ -318,6 +319,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: TextFormField(
+ textInputAction: TextInputAction.next,
                               controller: siege,
                               decoration: const InputDecoration(
                                 labelText: 'Place',
@@ -328,6 +330,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
+ textInputAction: TextInputAction.next,
                         controller: prix,
                         onChanged: (_) => _prixManuel = true,
                         keyboardType: const TextInputType.numberWithOptions(

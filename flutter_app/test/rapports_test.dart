@@ -29,7 +29,7 @@ Colis _c(int i, String statut, String agent, double prix, {DateTime? date}) => C
   billetNumero: i == 1 ? 'TK-9' : null,
 );
 
-Ticket _t(int i, String vendeur, double prix, {String statut = 'actif'}) => Ticket(
+Ticket _t(int i, String vendeur, double prix, {String statut = 'actif', String? heure, DateTime? vente, String? arrivee}) => Ticket(
   id: i,
   numero: 'TK-$i',
   clientNom: 'Moussa',
@@ -37,11 +37,12 @@ Ticket _t(int i, String vendeur, double prix, {String statut = 'actif'}) => Tick
   gareDepartId: 1,
   gareArriveeId: 2,
   gareDepartNom: 'Ouaga',
-  gareArriveeNom: 'Bobo',
+  gareArriveeNom: arrivee ?? 'Bobo',
+  heureDepart: heure,
   dateVoyage: DateTime(2026, 10, 11),
   prix: prix,
   statut: statut,
-  createdAt: DateTime(2026, 10, 10, 9, 30),
+  createdAt: vente ?? DateTime(2026, 10, 10, 9, 30),
   vendeurNom: vendeur,
 );
 
@@ -71,6 +72,43 @@ void main() {
       final r = construireRapport(t, colis, billets);
       expect(r.sections, isNotEmpty, reason: t.name);
     }
+  });
+
+  test('rapports de billets : par jour, par mois, par trajet, par heure, CA par gare, tri', () {
+    final bs = [
+      _t(1, 'Zoé', 5000, heure: '06:30', vente: DateTime(2026, 10, 10, 8)),
+      _t(2, 'Zoé', 5000, heure: '06:30', vente: DateTime(2026, 10, 10, 9)),
+      _t(3, 'Paul', 4000, heure: '14:00', vente: DateTime(2026, 10, 11, 9), arrivee: 'Koudougou'),
+      _t(4, 'Paul', 3000, vente: DateTime(2026, 11, 2, 9)),
+      _t(5, 'Paul', 9999, statut: 'annule', vente: DateTime(2026, 11, 2, 10)),
+    ];
+    final jour = construireRapport(TypeRapport.ventesBillets, const [], bs).sections.first;
+    expect(jour.lignes.length, 3); // 10/10, 11/10, 02/11
+    expect(jour.lignes.first.sublist(1, 3), [2, 10000.0]);
+    expect(jour.totaux![1], 4);
+    expect(jour.totaux![2], 17000.0);
+
+    final mois = construireRapport(TypeRapport.ventesBillets, const [], bs, granularite: Granularite.mois).sections.first;
+    expect(mois.lignes.map((l) => l.first), ['10/2026', '11/2026']);
+    expect(mois.lignes.first.sublist(1, 3), [3, 14000.0]);
+    expect(mois.lignes.last[4], 1); // un billet annulé en novembre
+
+    final trajets = construireRapport(TypeRapport.billetsTrajet, const [], bs).sections.first;
+    expect(trajets.lignes.first[0], 'Ouaga → Bobo'); // trié par prix total décroissant (13 000 contre 4 000)
+    expect(trajets.lignes.first[1], 3);
+
+    final heures = construireRapport(TypeRapport.billetsHeure, const [], bs).sections.first;
+    expect(heures.lignes.map((l) => l.first), ['06:30', '14:00', 'Sans horaire']);
+
+    final ca = construireRapport(TypeRapport.caGare, [_c(1, 'enregistre', 'Zoé', 1000)], bs, granularite: Granularite.mois).sections.first;
+    expect(ca.totaux!.last, 18000.0); // 1 000 de colis + 17 000 de billets
+    expect(ca.lignes.every((l) => l.first == 'Ouaga'), isTrue);
+
+    // tri : par prix total décroissant puis croissant ; la ligne de totaux ne bouge pas
+    final tri = jour.trie(2, false);
+    expect(tri.lignes.first[2], 10000.0);
+    expect(tri.trie(2, true).lignes.first[2], 3000.0);
+    expect(tri.totaux, jour.totaux);
   });
 
   test('exports : Excel et PDF du rapport synthèse', () async {

@@ -13,7 +13,11 @@ enum TypeRapport {
   colis('Colis envoyés', 'Liste détaillée des colis, avec l\'agent qui les a enregistrés'),
   agents('Activité par agent', 'Colis et billets enregistrés par chaque compte, avec les recettes'),
   gares('Recettes par gare', 'Colis, billets et recettes de chaque gare de départ'),
-  billets('Billets vendus', 'Liste détaillée des billets, avec le vendeur'),
+  billets('Billets vendus (liste)', 'Liste détaillée des billets, avec le vendeur'),
+  ventesBillets('Ventes de billets par jour / mois', 'Nombre de billets et prix total vendus par jour, par mois ou par année'),
+  billetsTrajet('Billets par trajet', 'Billets vendus et chiffre d\'affaires de chaque trajet (départ → arrivée)'),
+  billetsHeure('Billets par heure de départ', 'Billets vendus par heure de départ et par trajet'),
+  caGare('Chiffre d\'affaires par gare (jour / mois)', 'Chiffre d\'affaires (colis + billets) de chaque gare, jour par jour, mois par mois ou année par année'),
   nonRetires('Colis en attente de retrait', 'Colis arrivés et pas encore retirés, du plus ancien au plus récent'),
   synthese('Synthèse générale', 'Vue d\'ensemble : chiffres clés, jour par jour, statuts, agents et gares (tout en un)');
 
@@ -33,6 +37,27 @@ class SectionRapport {
 
   /// Indices des colonnes en montant (affichage « 1 500 » avec séparateur de milliers).
   final Set<int> montants;
+
+  /// Même tableau trié sur une colonne (la ligne de totaux reste en bas) : nombres, dates et textes.
+  SectionRapport trie(int colonne, bool croissant) {
+    int cmp(Object? a, Object? b) {
+      if (a == null && b == null) return 0;
+      if (a == null) return 1; // les vides toujours en bas
+      if (b == null) return -1;
+      if (a is num && b is num) return a.compareTo(b);
+      if (a is DateTime && b is DateTime) return a.compareTo(b);
+      return '$a'.toLowerCase().compareTo('$b'.toLowerCase());
+    }
+
+    final l = [...lignes]
+      ..sort((x, y) {
+        final a = colonne < x.length ? x[colonne] : null;
+        final b = colonne < y.length ? y[colonne] : null;
+        if (a == null || b == null) return cmp(a, b);
+        return croissant ? cmp(a, b) : -cmp(a, b);
+      });
+    return SectionRapport(titre, entetes, l, totaux: totaux, montants: montants);
+  }
 }
 
 class Rapport {
@@ -44,8 +69,32 @@ class Rapport {
   final Map<String, String> resume;
 }
 
+/// Regroupement des chiffres dans le temps.
+enum Granularite {
+  jour('Par jour'),
+  mois('Par mois'),
+  annee('Par année');
+
+  const Granularite(this.label);
+  final String label;
+}
+
 class FiltresRapport {
-  const FiltresRapport({this.debut, this.fin, this.agentId, this.agentNom, this.gareId, this.gareNom, this.statut});
+  const FiltresRapport({
+    this.debut,
+    this.fin,
+    this.agentId,
+    this.agentNom,
+    this.gareId,
+    this.gareNom,
+    this.statut,
+    this.granularite = Granularite.jour,
+    this.regroupe = false,
+  });
+  final Granularite granularite;
+
+  /// Vrai pour les rapports qui regroupent par période (le libellé du filtre n'a de sens que pour eux).
+  final bool regroupe;
   final DateTime? debut, fin;
   final String? agentId, agentNom, gareNom, statut;
   final int? gareId;
@@ -57,13 +106,19 @@ class FiltresRapport {
     if (agentNom != null) 'Agent : $agentNom',
     if (gareNom != null) 'Gare de départ : $gareNom',
     if (statut != null) 'Statut : ${Statut.of(statut!).label}',
+    if (regroupe) 'Regroupement : ${granularite.label.toLowerCase()}',
   ].join('  ·  ');
 }
 
 DateTime _jour(DateTime d) => DateTime(d.year, d.month, d.day);
 
 /// Construit les tableaux d'un rapport à partir des colis et billets déjà filtrés.
-Rapport construireRapport(TypeRapport type, List<Colis> colisBruts, List<Ticket> billetsBruts) {
+Rapport construireRapport(
+  TypeRapport type,
+  List<Colis> colisBruts,
+  List<Ticket> billetsBruts, {
+  Granularite granularite = Granularite.jour,
+}) {
   final actifs = colisBruts.where((c) => c.statut != 'annule').toList();
   final billetsActifs = billetsBruts.where((t) => !t.annule).toList();
   final recetteColis = actifs.fold<double>(0, (a, c) => a + c.prix);
@@ -182,6 +237,125 @@ Rapport construireRapport(TypeRapport type, List<Colis> colisBruts, List<Ticket>
     );
   }
 
+
+  /// Début de la période contenant `d` selon le regroupement choisi.
+  DateTime cle(DateTime d) => switch (granularite) {
+    Granularite.jour => DateTime(d.year, d.month, d.day),
+    Granularite.mois => DateTime(d.year, d.month),
+    Granularite.annee => DateTime(d.year),
+  };
+  String libelle(DateTime k) => switch (granularite) {
+    Granularite.jour => dateFr(k),
+    Granularite.mois => '${k.month.toString().padLeft(2, '0')}/${k.year}',
+    Granularite.annee => '${k.year}',
+  };
+  String periodeNom() => switch (granularite) {
+    Granularite.jour => 'Date',
+    Granularite.mois => 'Mois',
+    Granularite.annee => 'Année',
+  };
+
+  SectionRapport ventesBilletsPeriode() {
+    final m = <DateTime, ({int n, double ca, int ann})>{};
+    for (final t in billetsBruts) {
+      final k = cle(t.createdAt.toLocal());
+      final v = m[k] ?? (n: 0, ca: 0, ann: 0);
+      m[k] = t.annule ? (n: v.n, ca: v.ca, ann: v.ann + 1) : (n: v.n + 1, ca: v.ca + t.prix, ann: v.ann);
+    }
+    final ks = m.keys.toList()..sort();
+    return SectionRapport(
+      'Ventes de billets (${granularite.label.toLowerCase()})',
+      [periodeNom(), 'Billets vendus', 'Prix total', 'Prix moyen', 'Billets annulés'],
+      [for (final k in ks) [libelle(k), m[k]!.n, m[k]!.ca, m[k]!.n == 0 ? 0.0 : m[k]!.ca / m[k]!.n, m[k]!.ann]],
+      montants: {2, 3},
+      totaux: [
+        'TOTAL',
+        billetsActifs.length,
+        recetteBillets,
+        billetsActifs.isEmpty ? 0.0 : recetteBillets / billetsActifs.length,
+        billetsBruts.length - billetsActifs.length,
+      ],
+    );
+  }
+
+  String trajetNom(Ticket t) => '${t.gareDepartNom ?? '—'} → ${t.gareArriveeNom ?? '—'}';
+
+  SectionRapport billetsParTrajet() {
+    final m = <String, ({int n, double ca})>{};
+    for (final t in billetsActifs) {
+      final k = trajetNom(t);
+      final v = m[k] ?? (n: 0, ca: 0);
+      m[k] = (n: v.n + 1, ca: v.ca + t.prix);
+    }
+    final noms = m.keys.toList()..sort((a, b) => m[b]!.ca.compareTo(m[a]!.ca));
+    return SectionRapport(
+      'Billets par trajet',
+      ['Trajet', 'Billets vendus', 'Prix total', 'Prix moyen', 'Part du total (%)'],
+      [
+        for (final n in noms)
+          [n, m[n]!.n, m[n]!.ca, m[n]!.ca / m[n]!.n, recetteBillets == 0 ? 0.0 : (m[n]!.ca * 1000 / recetteBillets).round() / 10],
+      ],
+      montants: {2, 3},
+      totaux: ['TOTAL', billetsActifs.length, recetteBillets, billetsActifs.isEmpty ? 0.0 : recetteBillets / billetsActifs.length, 100],
+    );
+  }
+
+  SectionRapport billetsParHeure() {
+    final m = <String, ({int n, double ca})>{};
+    for (final t in billetsActifs) {
+      final h = (t.heureDepart ?? '').trim().isEmpty ? 'Sans horaire' : t.heureDepart!.trim();
+      final k = '$h|${trajetNom(t)}';
+      final v = m[k] ?? (n: 0, ca: 0);
+      m[k] = (n: v.n + 1, ca: v.ca + t.prix);
+    }
+    final ks = m.keys.toList()..sort();
+    return SectionRapport(
+      'Billets par heure de départ',
+      ['Heure de départ', 'Trajet', 'Billets vendus', 'Prix total'],
+      [
+        for (final k in ks) [k.split('|').first, k.split('|').last, m[k]!.n, m[k]!.ca],
+      ],
+      montants: {3},
+      totaux: ['TOTAL', '', billetsActifs.length, recetteBillets],
+    );
+  }
+
+  SectionRapport caParGare() {
+    final m = <String, ({int c, double rc, int b, double rb})>{};
+    final periodes = <String, DateTime>{};
+    String k(String gare, DateTime p) => '$gare|${p.toIso8601String()}';
+    void add(String gare, DateTime d, {double rc = 0, int c = 0, double rb = 0, int b = 0}) {
+      final p = cle(d);
+      final key = k(gare, p);
+      periodes[key] = p;
+      final v = m[key] ?? (c: 0, rc: 0, b: 0, rb: 0);
+      m[key] = (c: v.c + c, rc: v.rc + rc, b: v.b + b, rb: v.rb + rb);
+    }
+
+    for (final c in actifs) {
+      add(c.gareDepartNom ?? '—', c.dateEnvoi, c: 1, rc: c.prix);
+    }
+    for (final t in billetsActifs) {
+      add(t.gareDepartNom ?? '—', t.createdAt.toLocal(), b: 1, rb: t.prix);
+    }
+    final ks = m.keys.toList()
+      ..sort((a, b) {
+        final ga = a.split('|').first, gb = b.split('|').first;
+        final c = ga.compareTo(gb);
+        return c != 0 ? c : periodes[a]!.compareTo(periodes[b]!);
+      });
+    return SectionRapport(
+      'Chiffre d\'affaires par gare (${granularite.label.toLowerCase()})',
+      ['Gare', periodeNom(), 'Colis', 'CA colis', 'Billets', 'CA billets', 'CA total'],
+      [
+        for (final key in ks)
+          [key.split('|').first, libelle(periodes[key]!), m[key]!.c, m[key]!.rc, m[key]!.b, m[key]!.rb, m[key]!.rc + m[key]!.rb],
+      ],
+      montants: {3, 5, 6},
+      totaux: ['TOTAL', '', actifs.length, recetteColis, billetsActifs.length, recetteBillets, recetteColis + recetteBillets],
+    );
+  }
+
   final resume = <String, String>{
     'Colis': '${actifs.length}',
     'Recette colis': fcfa(recetteColis),
@@ -203,6 +377,18 @@ Rapport construireRapport(TypeRapport type, List<Colis> colisBruts, List<Ticket>
         'Recette': fcfa(recetteBillets),
         'Annulés': '${billetsBruts.length - billetsActifs.length}',
       });
+    case TypeRapport.ventesBillets:
+      return Rapport(type, [ventesBilletsPeriode()], {
+        'Billets': '${billetsActifs.length}',
+        'Prix total': fcfa(recetteBillets),
+        'Prix moyen': fcfa(billetsActifs.isEmpty ? 0 : recetteBillets / billetsActifs.length),
+      });
+    case TypeRapport.billetsTrajet:
+      return Rapport(type, [billetsParTrajet()], {'Billets': '${billetsActifs.length}', 'Prix total': fcfa(recetteBillets)});
+    case TypeRapport.billetsHeure:
+      return Rapport(type, [billetsParHeure()], {'Billets': '${billetsActifs.length}', 'Prix total': fcfa(recetteBillets)});
+    case TypeRapport.caGare:
+      return Rapport(type, [caParGare()], resume);
     case TypeRapport.agents:
       return Rapport(type, [parAgent()], resume);
     case TypeRapport.gares:
