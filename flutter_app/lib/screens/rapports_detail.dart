@@ -81,6 +81,8 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
   Future<void> _generer() async {
     final profils = ref.read(profilsProvider).value ?? const <Profil>[];
     final gares = ref.read(garesProvider).value ?? const <Gare>[];
+    final moi = ref.read(profilProvider).value;
+    if (moi != null && !moi.voitRapportsGlobaux) _agentId = moi.id;
     final agent = profils.where((p) => p.id == _agentId).firstOrNull;
     final gare = gares.where((g) => g.id == _gareId).firstOrNull;
     final f = FiltresRapport(
@@ -106,6 +108,7 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
               agentId: f.agentId,
               gareDepartId: f.gareId,
               statut: f.statut,
+              inclureTraites: moi != null && !moi.voitRapportsGlobaux,
             )
           : <Colis>[];
       final billets = _besoinBillets
@@ -189,7 +192,7 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
     final profils = ref.watch(profilsProvider).value ?? const <Profil>[];
     final gares = ref.watch(garesProvider).value ?? const <Gare>[];
     final agents = profils.where((p) => p.role != 'superadmin').toList();
-    final peutFiltrerAgent = me != null && (me.voitToutLeReseau || me.role == 'chef_gare') && agents.length > 1;
+    final peutFiltrerAgent = me != null && me.voitRapportsGlobaux && agents.length > 1;
 
     final financeOuvert = moduleFinanceOuvert(ref);
     final wide = MediaQuery.sizeOf(context).width >= 900;

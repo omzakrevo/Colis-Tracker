@@ -85,6 +85,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         return (loc.startsWith('/rapports') || (fin && loc.startsWith('/finance'))) ? null : (fin ? '/finance' : '/rapports');
       }
       if (loc.startsWith('/finance') && !(p.isAdmin && (d.company?.moduleFinance ?? false))) return '/';
+      // Rapports globaux : administrateur, chef de gare, comptable ; les autres n'ont que « Mes rapports ».
+      if (loc == '/rapports' && !p.voitRapportsGlobaux) return '/rapports/detail';
       // Le convoyeur vend des billets et scanne, rien d'autre.
       if (p.isConvoyeur) {
         return (loc.startsWith('/billets') ||

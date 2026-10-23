@@ -74,7 +74,8 @@ List<_Item> _menu(Profil me, [bool finance = false]) => me.isBarragiste
         if (me.voitBillets && !me.isGuichet) _billets,
         if (me.peutVerifierBillets) _verifier,
         _imprimante,
-        const _Item('/rapports', 'Rapports', Icons.insights_rounded),
+        if (me.voitRapportsGlobaux) const _Item('/rapports', 'Rapports', Icons.insights_rounded),
+        if (!me.voitRapportsGlobaux) const _Item('/rapports/detail', 'Mes rapports', Icons.table_chart_rounded),
         if (me.isAdmin && finance) _compta,
         if (me.isAdmin) ...const [
           _Item('/gares', 'Gares', Icons.location_city_rounded),

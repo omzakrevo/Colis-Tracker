@@ -62,6 +62,9 @@ class Profil {
   /// Voit toutes les données de l'entreprise (administrateur ou comptable).
   bool get voitToutLeReseau => isAdmin || isComptable;
 
+  /// Rapports de tout le périmètre (administrateur, comptable, chef de gare) ; les autres ne voient que les leurs.
+  bool get voitRapportsGlobaux => isAdmin || isComptable || role == 'chef_gare';
+
   /// Barragiste : ne peut que scanner (embarquement / déchargement).
   bool get isBarragiste => role == 'barragiste';
 

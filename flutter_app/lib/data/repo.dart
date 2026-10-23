@@ -1358,14 +1358,27 @@ class Repo {
     String? agentId,
     int? gareDepartId,
     String? statut,
+    bool inclureTraites = false,
   }) async {
+    // « Mes rapports » (agent, guichet) : ce que j'ai enregistré + ce que j'ai fait avancer (arrivée, retrait…).
+    var ids = <int>[];
+    if (inclureTraites && agentId != null) {
+      final h = await _db
+          .from('historique_colis')
+          .select('colis_id')
+          .eq('agent_id', agentId)
+          .gte('date_changement', debut == null ? '2000-01-01' : _iso(debut))
+          .lt('date_changement', fin == null ? '2100-01-01' : _iso(fin.add(const Duration(days: 1))))
+          .limit(2000);
+      ids = {for (final r in h) (r['colis_id'] as num).toInt()}.toList();
+    }
     Future<List<Colis>> lire(String cols) async {
       final out = <Colis>[];
       for (var from = 0; from < 20000; from += 1000) {
         var q = _db.from('colis_detail').select(cols);
         if (debut != null) q = q.gte('date_envoi', _iso(debut));
         if (fin != null) q = q.lte('date_envoi', _iso(fin));
-        if (agentId != null) q = q.eq('agent_id', agentId);
+        if (agentId != null) q = ids.isEmpty ? q.eq('agent_id', agentId) : q.or('agent_id.eq.$agentId,id.in.(${ids.join(',')})');
         if (gareDepartId != null) q = q.eq('gare_depart_id', gareDepartId);
         if (statut != null) q = q.eq('statut', statut);
         final rows = await q.order('created_at', ascending: false).range(from, from + 999);
