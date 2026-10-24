@@ -442,6 +442,11 @@ final dashboardProvider = FutureProvider<DashboardStats>((ref) {
   return Repo.dashboard();
 });
 
+final monActiviteProvider = FutureProvider<Map<String, int>>((ref) {
+  ref.watch(tickProvider);
+  return Repo.monActivite();
+});
+
 final recentColisProvider = FutureProvider<List<Colis>>((ref) {
   ref.watch(tickProvider);
   return Repo.listColis(const ColisFilter());

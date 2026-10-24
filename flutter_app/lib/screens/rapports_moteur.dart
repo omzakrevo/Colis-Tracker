@@ -12,6 +12,7 @@ import 'receipt.dart' show pdfImage, pdfTexte;
 /// Types de rapport proposés à l'administrateur.
 enum TypeRapport {
   colis('Colis envoyés', 'Liste détaillée des colis, avec l\'agent qui les a enregistrés'),
+  caisse('Caisse par personne (espèces / Orange Money)', 'Pour chaque personne : colis et billets vendus, encaissés en espèces ou par Orange Money, par jour, mois ou année'),
   agents('Activité par agent', 'Colis et billets enregistrés par chaque compte, avec les recettes'),
   gares('Recettes par gare', 'Colis, billets et recettes de chaque gare de départ'),
   billets('Billets vendus (liste)', 'Liste détaillée des billets, avec le vendeur'),
@@ -138,36 +139,69 @@ Rapport construireRapport(
     titre,
     [
       'Date', 'N°', 'Agent (envoyé par)', 'Expéditeur', 'Tél. exp.', 'Destinataire', 'Tél. dest.', 'Départ', 'Arrivée',
-      'Description', 'Nb', 'Poids (kg)', 'Valeur', 'Prix', 'Statut', 'Billet lié',
+      'Description', 'Nb', 'Poids (kg)', 'Valeur', 'Prix', 'Statut', 'Billet lié', 'Paiement',
     ],
     [
       for (final c in l)
         [
           _jour(c.dateEnvoi), c.numero, c.agentNom ?? '—', c.expediteurNom, c.expediteurTelephone, c.destinataireNom,
           c.destinataireTelephone, c.gareDepartNom ?? '', c.gareArriveeNom ?? '', c.description, c.nombre, c.poids, c.valeur,
-          c.prix, Statut.of(c.statut).label, c.billetNumero ?? '',
+          c.prix, Statut.of(c.statut).label, c.billetNumero ?? '', libelleModePaiement(c.modePaiement),
         ],
     ],
     montants: {12, 13},
     totaux: [
       'TOTAL', '${l.length} colis', '', '', '', '', '', '', '', '', l.fold<int>(0, (a, c) => a + c.nombre), null, null,
-      l.where((c) => c.statut != 'annule').fold<double>(0, (a, c) => a + c.prix), '', '',
+      l.where((c) => c.statut != 'annule').fold<double>(0, (a, c) => a + c.prix), '', '', '',
     ],
   );
 
   SectionRapport billetsListe(List<Ticket> l) => SectionRapport(
     'Billets vendus',
-    ['Date de vente', 'N°', 'Vendu par', 'Passager', 'Téléphone', 'Départ', 'Arrivée', 'Date voyage', 'Heure', 'Siège', 'Prix', 'Statut'],
+    ['Date de vente', 'N°', 'Vendu par', 'Passager', 'Téléphone', 'Départ', 'Arrivée', 'Date voyage', 'Heure', 'Siège', 'Prix', 'Statut', 'Paiement'],
     [
       for (final t in l)
         [
           t.createdAt.toLocal(), t.numero, t.vendeurNom ?? '—', t.clientNom, t.clientTelephone, t.gareDepartNom ?? '',
-          t.gareArriveeNom ?? '', _jour(t.dateVoyage), t.heureDepart ?? '', t.siege ?? '', t.prix, t.annule ? 'Annulé' : 'Valide',
+          t.gareArriveeNom ?? '', _jour(t.dateVoyage), t.heureDepart ?? '', t.siege ?? '', t.prix, t.annule ? 'Annulé' : 'Valide', libelleModePaiement(t.modePaiement),
         ],
     ],
     montants: {10},
-    totaux: ['TOTAL', '${l.length} billets', '', '', '', '', '', '', '', '', l.where((t) => !t.annule).fold<double>(0, (a, t) => a + t.prix), ''],
+    totaux: ['TOTAL', '${l.length} billets', '', '', '', '', '', '', '', '', l.where((t) => !t.annule).fold<double>(0, (a, t) => a + t.prix), '', ''],
   );
+
+
+  SectionRapport caisseParPersonne() {
+    // personne -> [nbColis, colisEsp, colisOM, nbBillets, billetsEsp, billetsOM]
+    final m = <String, List<double>>{};
+    List<double> v(String k) => m.putIfAbsent(k, () => List.filled(6, 0));
+    for (final c in actifs) {
+      final x = v(c.agentNom ?? '—');
+      x[0]++;
+      x[c.modePaiement == 'orange_money' ? 2 : 1] += c.prix;
+    }
+    for (final t in billetsActifs) {
+      final x = v(t.vendeurNom ?? '—');
+      x[3]++;
+      x[t.modePaiement == 'orange_money' ? 5 : 4] += t.prix;
+    }
+    final noms = m.keys.toList()..sort((a, b) => (m[b]!.sublist(1, 3).fold(0.0, (p, e) => p + e) + m[b]!.sublist(4).fold(0.0, (p, e) => p + e)).compareTo(m[a]!.sublist(1, 3).fold(0.0, (p, e) => p + e) + m[a]!.sublist(4).fold(0.0, (p, e) => p + e)));
+    final lignes = [
+      for (final n in noms)
+        [
+          n, m[n]![0].toInt(), m[n]![1], m[n]![2], m[n]![3].toInt(), m[n]![4], m[n]![5],
+          m[n]![1] + m[n]![4], m[n]![2] + m[n]![5], m[n]![1] + m[n]![2] + m[n]![4] + m[n]![5],
+        ],
+    ];
+    double somme(int i) => lignes.fold<double>(0, (a, l) => a + (l[i] as num));
+    return SectionRapport(
+      'Caisse par personne',
+      ['Personne', 'Colis', 'Colis espèces', 'Colis Orange Money', 'Billets', 'Billets espèces', 'Billets Orange Money', 'Total espèces', 'Total Orange Money', 'Total'],
+      lignes,
+      montants: {2, 3, 5, 6, 7, 8, 9},
+      totaux: ['TOTAL', somme(1).toInt(), somme(2), somme(3), somme(4).toInt(), somme(5), somme(6), somme(7), somme(8), somme(9)],
+    );
+  }
 
   SectionRapport parAgent() {
     final m = <String, ({int c, double rc, int b, double rb})>{};
@@ -372,6 +406,32 @@ Rapport construireRapport(
   final sorties = totalDepenses + totalSalaires;
   final resultat = entrees - sorties;
 
+  SectionRapport caisseParPeriode() {
+    final m = <DateTime, ({double e, double o})>{};
+    void ajoute(DateTime d, double prix, bool om) {
+      final k = cle(d);
+      final x = m[k] ?? (e: 0, o: 0);
+      m[k] = om ? (e: x.e, o: x.o + prix) : (e: x.e + prix, o: x.o);
+    }
+
+    for (final c in actifs) {
+      ajoute(c.dateEnvoi, c.prix, c.modePaiement == 'orange_money');
+    }
+    for (final t in billetsActifs) {
+      ajoute(t.createdAt.toLocal(), t.prix, t.modePaiement == 'orange_money');
+    }
+    final ks = m.keys.toList()..sort();
+    final e = m.values.fold<double>(0, (a, x) => a + x.e);
+    final o = m.values.fold<double>(0, (a, x) => a + x.o);
+    return SectionRapport(
+      'Encaissements (${granularite.label.toLowerCase()})',
+      [periodeNom(), 'Espèces', 'Orange Money', 'Total'],
+      [for (final k in ks) [libelle(k), m[k]!.e, m[k]!.o, m[k]!.e + m[k]!.o]],
+      montants: {1, 2, 3},
+      totaux: ['TOTAL', e, o, e + o],
+    );
+  }
+
   SectionRapport depensesParCategorie() {
     final m = <String, ({int n, double s})>{};
     for (final d in depenses) {
@@ -493,6 +553,14 @@ Rapport construireRapport(
         'Colis': '${actifs.length}',
         'Recette': fcfa(recetteColis),
         'Annulés': '${colisBruts.length - actifs.length}',
+      });
+    case TypeRapport.caisse:
+      return Rapport(type, [caisseParPersonne(), caisseParPeriode()], {
+        'Colis': '${actifs.length}',
+        'Billets': '${billetsActifs.length}',
+        'Espèces': fcfa(actifs.where((c) => c.modePaiement != 'orange_money').fold<double>(0, (a, c) => a + c.prix) + billetsActifs.where((t) => t.modePaiement != 'orange_money').fold<double>(0, (a, t) => a + t.prix)),
+        'Orange Money': fcfa(actifs.where((c) => c.modePaiement == 'orange_money').fold<double>(0, (a, c) => a + c.prix) + billetsActifs.where((t) => t.modePaiement == 'orange_money').fold<double>(0, (a, t) => a + t.prix)),
+        'Total': fcfa(recetteColis + recetteBillets),
       });
     case TypeRapport.billets:
       return Rapport(type, [billetsListe(billetsBruts)], {

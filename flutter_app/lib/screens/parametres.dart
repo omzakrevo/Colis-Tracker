@@ -200,6 +200,30 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
               label: const Text('Enregistrer'),
             ).reveal(2),
             const SizedBox(height: 28),
+            SectionCard(
+              title: 'Rapport de fin de journée',
+              icon: Icons.receipt_long_rounded,
+              child: SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Montrer les montants aux guichets et agents'),
+                subtitle: const Text(
+                  'Activé : le rapport imprimé en fin de journée affiche les prix, les totaux en espèces et en Orange Money (chiffre d\'affaires concret). '
+                  'Désactivé : seulement le nombre de billets et de colis.',
+                ),
+                value: settings.clotureMontants,
+                onChanged: (v) async {
+                  try {
+                    final cid = ref.read(profilProvider).value?.companyId;
+                    if (cid == null) throw 'Entreprise introuvable';
+                    await Repo.saveSettings(cid, {'cloture_montants': v});
+                    ref.invalidate(settingsProvider);
+                  } catch (e) {
+                    if (context.mounted) toast(context, errMsg(e), error: true);
+                  }
+                },
+              ),
+            ),
+            const SizedBox(height: 28),
             if (ref.watch(authProvider).value?.company?.moduleFinance ?? false) ...[
               const IdentiteLegaleCard(),
               const SizedBox(height: 28),

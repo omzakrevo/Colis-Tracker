@@ -21,6 +21,7 @@ import 'screens/mises_a_jour.dart';
 import 'screens/parametres.dart';
 import 'screens/sms.dart';
 import 'screens/sms_plateforme.dart';
+import 'screens/cloture.dart';
 import 'screens/rapports.dart';
 import 'screens/rapports_detail.dart';
 import 'screens/finance_hub.dart';
@@ -91,6 +92,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (p.isConvoyeur) {
         return (loc.startsWith('/billets') ||
                 loc == '/scanner' ||
+                loc == '/cloture' ||
                 loc == '/imprimante')
             ? null
             : '/billets';
@@ -191,6 +193,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/rapports/detail',
             pageBuilder: (c, s) => _page(s, const RapportsDetailScreen()),
+          ),
+          GoRoute(
+            path: '/cloture',
+            builder: (_, _) => const ClotureScreen(),
           ),
           GoRoute(
             path: '/rapports',

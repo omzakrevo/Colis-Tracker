@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/identifiant.dart';
+import 'journal.dart';
 import 'models.dart';
 import 'offline.dart';
 
@@ -1267,6 +1268,31 @@ class Repo {
 
   static Future<void> saveSettings(int companyId, Map<String, dynamic> data) =>
       _db.from('company_settings').update(data).eq('company_id', companyId);
+
+  // ── Activité personnelle / fin de journée ─────────────
+  static (DateTime, DateTime) _bornesJour(DateTime jour) {
+    final d = DateTime(jour.year, jour.month, jour.day);
+    return (d.toUtc().subtract(Duration.zero), d.add(const Duration(days: 1)).toUtc());
+  }
+
+  /// Compteurs du jour de l'utilisateur connecté : colis envoyés, colis réceptionnés, billets vendus.
+  static Future<Map<String, int>> monActivite([DateTime? jour]) async {
+    final (a, b) = _bornesJour(jour ?? DateTime.now());
+    final r = Map<String, dynamic>.from(
+      await _db.rpc('mon_activite', params: {'p_debut': a.toIso8601String(), 'p_fin': b.toIso8601String()}) as Map,
+    );
+    return {for (final e in r.entries) e.key: (e.value as num).toInt()};
+  }
+
+  /// Rapport chronologique d'une journée. `agentId` : réservé à l'administrateur (sinon, le sien).
+  static Future<List<JournalLigne>> journalActivite(DateTime jour, {String? agentId}) async {
+    final (a, b) = _bornesJour(jour);
+    final rows = await _db.rpc(
+      'journal_activite',
+      params: {'p_agent': agentId, 'p_debut': a.toIso8601String(), 'p_fin': b.toIso8601String()},
+    );
+    return _maps(rows).map(JournalLigne.fromJson).toList();
+  }
 
   // ── Rapports ──────────────────────────────────────────
   static Future<DashboardStats> dashboard() => _lire(

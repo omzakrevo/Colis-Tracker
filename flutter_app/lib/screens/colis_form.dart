@@ -18,6 +18,7 @@ import '../data/providers.dart';
 import '../data/repo.dart';
 import '../widgets/client_fields.dart';
 import '../widgets/common.dart';
+import '../widgets/paiement.dart';
 import 'receipt.dart';
 
 class ColisFormScreen extends ConsumerStatefulWidget {
@@ -41,6 +42,7 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
   final description = TextEditingController(),
       nb = TextEditingController(text: '1');
   final poids = TextEditingController(), prix = TextEditingController();
+  String modePaiement = 'especes';
   final valeur = TextEditingController();
   final billet = TextEditingController();
   final notes = TextEditingController();
@@ -116,6 +118,8 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
         // N'est envoyé que s'il est renseigné : le serveur sans la migration 24 ne connaît pas cette colonne.
         if (billet.text.trim().isNotEmpty) 'billet_numero': billet.text.trim().toUpperCase(),
         'prix': double.parse(prix.text.replaceAll(',', '.')),
+        // Envoyé seulement s'il n'est pas « espèces » (valeur par défaut du serveur).
+        if (modePaiement != 'especes') 'mode_paiement': modePaiement,
         'date_envoi': dateIso(date),
         'photo': photo,
         'notes': notes.text.trim().isEmpty ? null : notes.text.trim(),
@@ -509,7 +513,8 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
                 title: 'Tarif',
                 icon: Icons.payments_rounded,
                 accent: const Color(0xFF16A34A),
-                child: TextFormField(
+                child: Column(children: [
+                TextFormField(
  textInputAction: TextInputAction.next,
                   controller: prix,
                   keyboardType: const TextInputType.numberWithOptions(
@@ -529,6 +534,9 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
                       ? 'Le prix doit être supérieur à 0'
                       : null,
                 ),
+                const SizedBox(height: 14),
+                ModePaiementChoix(valeur: modePaiement, onChanged: (v) => setState(() => modePaiement = v)),
+                ]),
               ),
               const SizedBox(height: 14),
               SectionCard(

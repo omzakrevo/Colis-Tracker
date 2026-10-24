@@ -37,6 +37,7 @@ const _verifier = _Item(
   Icons.fact_check_rounded,
 );
 const _compta = _Item('/finance', 'Comptabilité', Icons.account_balance_rounded);
+const _cloture = _Item('/cloture', 'Fin de journée', Icons.receipt_long_rounded);
 const _imprimante = _Item('/imprimante', 'Imprimante', Icons.print_rounded);
 const _scanner = _Item('/scanner', 'Scanner', Icons.qr_code_scanner_rounded);
 
@@ -62,7 +63,7 @@ List<_Item> _menu(Profil me, [bool finance = false]) => me.isBarragiste
         const _Item('/rapports/detail', 'Rapports détaillés', Icons.table_chart_rounded),
       ]
     : me.isConvoyeur
-    ? const [_billets, _verifier, _scanner, _imprimante]
+    ? const [_billets, _verifier, _scanner, _cloture, _imprimante]
     : me.isSuper
     ? const [
         _Item('/entreprises', 'Entreprises', Icons.business_rounded),
@@ -73,6 +74,7 @@ List<_Item> _menu(Profil me, [bool finance = false]) => me.isBarragiste
         ..._onglets(me, finance),
         if (me.voitBillets && !me.isGuichet) _billets,
         if (me.peutVerifierBillets) _verifier,
+        _cloture,
         _imprimante,
         if (me.voitRapportsGlobaux) const _Item('/rapports', 'Rapports', Icons.insights_rounded),
         if (!me.voitRapportsGlobaux) const _Item('/rapports/detail', 'Mes rapports', Icons.table_chart_rounded),

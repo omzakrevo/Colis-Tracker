@@ -1,5 +1,6 @@
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 
+import '../data/journal.dart';
 import '../data/models.dart';
 import 'format.dart';
 
@@ -144,6 +145,7 @@ List<int> ticketVoyageTexte(Generator g, int cols, Ticket t, CompanySettings co)
   if ((t.siege ?? '').isNotEmpty) d.champ('SIEGE', t.siege!);
   d.champ('PASSAGER', t.clientNom);
   if ((t.vendeurNom ?? '').isNotEmpty) d.champ('AGENT', t.vendeurNom!);
+  d.champ('PAIEMENT', libelleModePaiement(t.modePaiement));
   d.trait();
   d.prix(t.prix);
   d.qr(t.numero);
@@ -166,6 +168,7 @@ List<int> ticketColisTexte(Generator g, int cols, Colis c, CompanySettings co) =
   d.champ('COLIS', '${c.nombre} x ${c.description}${c.poids != null ? ' (${c.poids} kg)' : ''}');
   if (c.valeur != null) d.champ('VALEUR', _fcfa(c.valeur!));
   if ((c.agentNom ?? '').isNotEmpty) d.champ('AGENT', c.agentNom!);
+  d.champ('PAIEMENT', libelleModePaiement(c.modePaiement));
   d.trait();
   d.prix(c.prix);
   d.qr(c.numero);
@@ -197,4 +200,48 @@ List<int> testTexte(Generator g, int cols, CompanySettings co, String role, Stri
   d.trait();
   d.qr('TCHI-TEST');
   d.centre('Imprimante : $imprimante');
+});
+
+
+/// Rapport de fin de journée d'une personne (billets vendus, colis enregistrés, colis réceptionnés).
+/// `montants` : affiche les prix et les totaux par mode de paiement (choix de l'administrateur).
+List<int> clotureTexte(
+  Generator g,
+  int cols,
+  CompanySettings co, {
+  required String nom,
+  required DateTime jour,
+  required List<JournalLigne> lignes,
+  required bool montants,
+}) => _doc(g, cols, (d) {
+  final t = JournalTotaux(lignes);
+  d.entete(co, 'RAPPORT DE FIN DE JOURNEE');
+  d.champ('AGENT', nom);
+  d.champ('DATE', dateFr(jour));
+  d.trait();
+  if (lignes.isEmpty) d.centre('Aucune operation ce jour');
+  for (final l in lignes) {
+    final h = '${l.quand.hour.toString().padLeft(2, '0')}:${l.quand.minute.toString().padLeft(2, '0')}';
+    final genre = switch (l.type) { 'billet' => 'BILLET', 'colis_envoye' => 'COLIS ENVOYE', _ => 'COLIS RECU' };
+    d.ligne('$h $genre ${l.numero}');
+    d.ligne('  ${l.libelle}', gras: false);
+    if (montants && l.encaisse) d.ligne('  ${_fcfa(l.montant!)} - ${libelleModePaiement(l.modePaiement)}', gras: false);
+  }
+  d.trait();
+  d.champ('BILLETS VENDUS', '${t.billets}');
+  d.champ('COLIS ENVOYES', '${t.colisEnvoyes}');
+  d.champ('COLIS RECUS', '${t.colisRecus}');
+  if (montants) {
+    d.trait();
+    d.champ('BILLETS', _fcfa(t.montantBillets));
+    d.champ('COLIS', _fcfa(t.montantColis));
+    d.champ('ESPECES', _fcfa(t.especes));
+    d.champ('ORANGE MONEY', _fcfa(t.orangeMoney));
+    d.centre('TOTAL');
+    d.centre(_fcfa(t.total), taille: PosTextSize.size2);
+  }
+  d.trait();
+  d.vide(2);
+  d.ligne('Signature :');
+  d.vide(2);
 });

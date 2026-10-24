@@ -20,6 +20,9 @@ class DashboardScreen extends ConsumerWidget {
     final recents = ref.watch(recentColisProvider);
     final statuts = ref.watch(statutsProvider);
     final wide = MediaQuery.sizeOf(context).width >= 900;
+    // Agent / guichet : uniquement leur propre activité du jour.
+    final perso = me != null && !me.voitRapportsGlobaux;
+    final activite = ref.watch(monActiviteProvider);
 
     final hour = DateTime.now().hour;
     final salut = hour < 18 ? 'Bonjour' : 'Bonsoir';
@@ -33,7 +36,9 @@ class DashboardScreen extends ConsumerWidget {
         children: [
           PageHeader(
             '$salut, ${(me?.nom ?? '').split(' ').first} 👋',
-            subtitle: 'Aperçu en temps réel de l\'activité du réseau.',
+            subtitle: perso
+                ? 'Votre activité d\'aujourd\'hui.'
+                : 'Aperçu en temps réel de l\'activité du réseau.',
             actions: wide
                 ? [
                     FilledButton.icon(
@@ -44,14 +49,24 @@ class DashboardScreen extends ConsumerWidget {
                   ]
                 : const [],
           ),
-          AsyncView<DashboardStats>(
-            value: stats,
-            onRetry: () => ref.invalidate(dashboardProvider),
-            loading: const _StatsSkeleton(),
-            builder: (s) => _StatsGrid(s),
-          ),
+          if (perso)
+            AsyncView<Map<String, int>>(
+              value: activite,
+              onRetry: () => ref.invalidate(monActiviteProvider),
+              loading: const _StatsSkeleton(),
+              builder: (a) => _MonActivite(a),
+            )
+          else
+            AsyncView<DashboardStats>(
+              value: stats,
+              onRetry: () => ref.invalidate(dashboardProvider),
+              loading: const _StatsSkeleton(),
+              builder: (s) => _StatsGrid(s),
+            ),
           const SizedBox(height: 24),
-          if (wide)
+          if (perso)
+            _Recents(recents)
+          else if (wide)
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -67,6 +82,44 @@ class DashboardScreen extends ConsumerWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Compteurs personnels du jour (colis envoyés, colis réceptionnés, billets vendus) + accès à la fin de journée.
+class _MonActivite extends StatelessWidget {
+  const _MonActivite(this.a);
+  final Map<String, int> a;
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = <_Stat>[
+      _Stat('Colis envoyés', (a['colis_envoyes'] ?? 0).toDouble(), Icons.outbox_rounded, Brand.orange),
+      _Stat('Colis réceptionnés', (a['colis_recus'] ?? 0).toDouble(), Icons.move_to_inbox_rounded, const Color(0xFF16A34A)),
+      _Stat('Billets vendus', (a['billets_vendus'] ?? 0).toDouble(), Icons.confirmation_number_rounded, const Color(0xFF2563EB)),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LayoutBuilder(
+          builder: (context, c) {
+            const gap = 12.0;
+            final cols = c.maxWidth >= 560 ? 3 : 2;
+            final w = (c.maxWidth - gap * (cols - 1)) / cols;
+            return Wrap(
+              spacing: gap,
+              runSpacing: gap,
+              children: [for (var i = 0; i < cards.length; i++) SizedBox(width: w, child: _StatCard(cards[i]).reveal(i))],
+            );
+          },
+        ),
+        const SizedBox(height: 14),
+        OutlinedButton.icon(
+          onPressed: () => context.push('/cloture'),
+          icon: const Icon(Icons.receipt_long_rounded),
+          label: const Text('Fin de journée : voir et imprimer mon rapport'),
+        ),
+      ],
     );
   }
 }

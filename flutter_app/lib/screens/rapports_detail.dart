@@ -47,10 +47,11 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
       _type == TypeRapport.bilan ||
       _type == TypeRapport.financier ||
       _type == TypeRapport.agents ||
+      _type == TypeRapport.caisse ||
       _type == TypeRapport.gares ||
       _type == TypeRapport.caGare ||
       _type == TypeRapport.synthese;
-  bool get _regroupe => _type == TypeRapport.ventesBillets || _type == TypeRapport.caGare || _type == TypeRapport.depenses || _type == TypeRapport.bilan;
+  bool get _regroupe => _type == TypeRapport.ventesBillets || _type == TypeRapport.caGare || _type == TypeRapport.depenses || _type == TypeRapport.bilan || _type == TypeRapport.caisse;
   bool get _besoinFinance => _type.compta;
 
   /// Le rapport avec le tri demandé appliqué (aperçu, PDF et Excel sortent dans le même ordre).
@@ -209,7 +210,7 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
               initialValue: _type,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Type de rapport'),
-              items: [for (final t in TypeRapport.values) if (!t.compta || financeOuvert) DropdownMenuItem(value: t, child: Text(t.titre))],
+              items: [for (final t in TypeRapport.values) if ((!t.compta || financeOuvert) && (t != TypeRapport.caisse || (me?.isAdmin ?? false))) DropdownMenuItem(value: t, child: Text(t.titre))],
               onChanged: (v) => setState(() {
                 _type = v ?? _type;
                 _rapport = null;

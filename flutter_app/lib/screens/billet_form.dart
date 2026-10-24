@@ -11,6 +11,7 @@ import '../data/providers.dart';
 import '../data/repo.dart';
 import '../widgets/client_fields.dart';
 import '../widgets/common.dart';
+import '../widgets/paiement.dart';
 import 'billet_pdf.dart';
 
 /// Vente d'un billet de transport (guichet, administrateur, convoyeur).
@@ -26,6 +27,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
   final nom = TextEditingController();
   final tel = TextEditingController();
   final prix = TextEditingController();
+  String _modePaiement = 'especes';
   final heure = TextEditingController();
   final siege = TextEditingController();
   int? depart, arrivee;
@@ -147,6 +149,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
         'heure_depart': heure.text.trim().isEmpty ? null : heure.text.trim(),
         'siege': siege.text.trim().isEmpty ? null : siege.text.trim(),
         'prix': double.parse(prix.text.replaceAll(',', '.')),
+        if (_modePaiement != 'especes') 'mode_paiement': _modePaiement,
       }, vendeurNom: me?.nom, siegeSecours: _places?.suivante);
       ref.read(tickProvider.notifier).bump();
       if (!mounted) return;
@@ -475,6 +478,8 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                           return n == null || n < 0 ? 'Prix invalide' : null;
                         },
                       ),
+                      const SizedBox(height: 12),
+                      ModePaiementChoix(valeur: _modePaiement, onChanged: (v) => setState(() => _modePaiement = v)),
                     ],
                   ),
                 ),

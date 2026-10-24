@@ -233,6 +233,7 @@ class Colis {
     this.poids,
     this.valeur,
     this.billetNumero,
+    this.modePaiement = 'especes',
     this.agentNom,
     this.agentId,
     this.retraitNom,
@@ -265,6 +266,9 @@ class Colis {
 
   /// Numéro du billet de voyage auquel le colis est rattaché.
   final String? billetNumero;
+
+  /// 'especes' ou 'orange_money'.
+  final String modePaiement;
   final double prix;
   final DateTime dateEnvoi, createdAt;
   final DateTime? retraitDate;
@@ -285,6 +289,7 @@ class Colis {
     poids: j['poids'] == null ? null : _d(j['poids']),
     valeur: j['valeur'] == null ? null : _d(j['valeur']),
     billetNumero: j['billet_numero'] as String?,
+    modePaiement: (j['mode_paiement'] as String?) ?? 'especes',
     prix: _d(j['prix']),
     statut: j['statut'] as String,
     dateEnvoi: DateTime.parse(j['date_envoi'] as String),
@@ -322,6 +327,7 @@ class Colis {
     'poids': poids,
     'valeur': valeur,
     'billet_numero': billetNumero,
+    'mode_paiement': modePaiement,
     'prix': prix,
     'statut': statut,
     'date_envoi': dateEnvoi.toIso8601String(),
@@ -363,6 +369,7 @@ class Colis {
     poids: poids,
     valeur: valeur,
     billetNumero: billetNumero,
+    modePaiement: modePaiement,
     prix: prix,
     statut: statut ?? this.statut,
     dateEnvoi: dateEnvoi,
@@ -401,6 +408,7 @@ class Ticket {
     this.vendeurNom,
     this.vendeurId,
     this.notes,
+    this.modePaiement = 'especes',
     this.clientRef,
     this.enAttente = false,
   });
@@ -416,6 +424,9 @@ class Ticket {
       notes;
   final DateTime dateVoyage, createdAt;
   final double prix;
+
+  /// 'especes' ou 'orange_money'.
+  final String modePaiement;
 
   /// Identifiant client d'un billet créé hors ligne (numéro provisoire LOC-…).
   final String? clientRef;
@@ -442,6 +453,7 @@ class Ticket {
     vendeurNom: j['vendeur_nom'] as String?,
     vendeurId: j['vendeur_id'] as String?,
     notes: j['notes'] as String?,
+    modePaiement: (j['mode_paiement'] as String?) ?? 'especes',
     createdAt: DateTime.parse(j['created_at'] as String),
     clientRef: j['client_ref'] as String?,
     enAttente: j['en_attente'] as bool? ?? false,
@@ -464,6 +476,7 @@ class Ticket {
     'vendeur_nom': vendeurNom,
     'vendeur_id': vendeurId,
     'notes': notes,
+    'mode_paiement': modePaiement,
     'created_at': createdAt.toIso8601String(),
     'client_ref': clientRef,
     'en_attente': enAttente,
@@ -486,6 +499,7 @@ class Ticket {
     vendeurNom: vendeurNom,
     vendeurId: vendeurId,
     notes: notes,
+    modePaiement: modePaiement,
     createdAt: createdAt,
     clientRef: clientRef,
     enAttente: enAttente ?? this.enAttente,
@@ -578,10 +592,14 @@ class CompanySettings {
     required this.ville,
     required this.pays,
     this.logo,
+    this.clotureMontants = false,
   });
 
   final String nom, slogan, telephone, email, adresse, ville, pays;
   final String? logo;
+
+  /// Le rapport de fin de journée des guichets affiche les montants (choix de l'administrateur).
+  final bool clotureMontants;
 
   factory CompanySettings.fromJson(Map<String, dynamic> j) => CompanySettings(
     nom: j['nom'] as String,
@@ -592,6 +610,7 @@ class CompanySettings {
     ville: j['ville'] as String,
     pays: j['pays'] as String,
     logo: j['logo'] as String?,
+    clotureMontants: j['cloture_montants'] as bool? ?? false,
   );
 
   Map<String, dynamic> toJson() => {
@@ -603,6 +622,7 @@ class CompanySettings {
     'ville': ville,
     'pays': pays,
     'logo': logo,
+    'cloture_montants': clotureMontants,
   };
 
   static CompanySettings get defaults => CompanySettings(
@@ -966,3 +986,8 @@ class VerifResultat {
   final bool horsLigne;
   final String? message;
 }
+
+
+/// Modes de paiement acceptés au guichet.
+const modesPaiementGuichet = {'especes': 'Espèces', 'orange_money': 'Orange Money'};
+String libelleModePaiement(String? m) => modesPaiementGuichet[m] ?? 'Espèces';
