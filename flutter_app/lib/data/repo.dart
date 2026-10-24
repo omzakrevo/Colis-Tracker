@@ -78,6 +78,11 @@ class Repo {
 
   static Future<void> logout() => _db.auth.signOut();
 
+  /// Change le mot de passe du compte connecté (nécessite internet).
+  static Future<void> changerMonMotDePasse(String nouveau) async {
+    await _db.auth.updateUser(UserAttributes(password: nouveau));
+  }
+
   static bool get aUneSession => _db.auth.currentSession != null;
 
   static String? get userId => _db.auth.currentUser?.id;

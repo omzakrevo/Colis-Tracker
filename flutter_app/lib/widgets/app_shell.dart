@@ -10,6 +10,8 @@ import '../core/format.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../data/providers.dart';
+import 'common.dart';
+import 'mot_de_passe.dart';
 import 'update_dialog.dart';
 import 'sync_banner.dart';
 
@@ -373,6 +375,29 @@ class _Sidebar extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 10),
+                  InkWell(
+                    onTap: () async {
+                      if (await changerMotDePasseDialog(context)) {
+                        if (context.mounted) toast(context, 'Mot de passe changé : reconnectez-vous avec le nouveau.');
+                        onLogout();
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Icon(Icons.lock_reset_rounded, size: 16, color: Colors.white.withValues(alpha: .85)),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Changer mon mot de passe',
+                            style: TextStyle(color: Colors.white.withValues(alpha: .85), fontSize: 13, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
                   InkWell(
                     onTap: onLogout,
                     borderRadius: BorderRadius.circular(10),
