@@ -8,6 +8,8 @@ import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'imprimante_ble.dart';
+
 /// Les deux imprimantes de l'appareil : « client » (papier simple : tickets de voyage et tickets remis au client)
 /// et « colis » (papier autocollant : étiquettes à coller sur les colis).
 enum RoleImprimante {
@@ -19,7 +21,7 @@ enum RoleImprimante {
 }
 
 /// Comment l'appareil imprime pour un rôle : 'aucune' (fenêtre d'impression), 'bluetooth' (imprimante à tickets
-/// appairée, Android) ou 'systeme' (imprimante installée sur l'ordinateur).
+/// appairée, Android), 'ble' (Bluetooth basse consommation, connexion directe depuis l'application) ou 'systeme' (imprimante installée sur l'ordinateur).
 class ImprimanteConfig {
   const ImprimanteConfig({
     this.type = 'aucune',
@@ -29,9 +31,17 @@ class ImprimanteConfig {
     this.auto = true,
     this.vitesse = 1,
     this.mode = 2,
+    this.protocole = '',
+    this.intensite = 80,
   });
 
   final String type, nom, adresse;
+
+  /// Imprimante Bluetooth basse consommation (BLE) : « chat » (mini-imprimante MXW01…) ou « escpos ».
+  final String protocole;
+
+  /// Noirceur de l'impression (0 à 100) pour les imprimantes « chat ».
+  final int intensite;
 
   /// Largeur du papier : 58 ou 80 mm.
   final int largeurMm;
@@ -54,7 +64,7 @@ class ImprimanteConfig {
 
   bool get configuree => type != 'aucune' && adresse.isNotEmpty;
 
-  ImprimanteConfig avec({int? largeurMm, bool? auto, int? vitesse, int? mode}) => ImprimanteConfig(
+  ImprimanteConfig avec({int? largeurMm, bool? auto, int? vitesse, int? mode, int? intensite}) => ImprimanteConfig(
     type: type,
     nom: nom,
     adresse: adresse,
@@ -62,7 +72,23 @@ class ImprimanteConfig {
     auto: auto ?? this.auto,
     vitesse: vitesse ?? this.vitesse,
     mode: mode ?? this.mode,
+    protocole: protocole,
+    intensite: intensite ?? this.intensite,
   );
+
+  /// Même réglages (papier, cadence, mode…) pour une autre imprimante.
+  ImprimanteConfig pour({required String type, required String nom, required String adresse, String protocole = ''}) =>
+      ImprimanteConfig(
+        type: type,
+        nom: nom,
+        adresse: adresse,
+        largeurMm: largeurMm,
+        auto: auto,
+        vitesse: vitesse,
+        mode: mode,
+        protocole: protocole,
+        intensite: intensite,
+      );
 
   Map<String, dynamic> toJson() => {
     'type': type,
@@ -72,6 +98,8 @@ class ImprimanteConfig {
     'auto': auto,
     'debit': vitesse,
     'format': mode,
+    'protocole': protocole,
+    'intensite': intensite,
   };
 
   factory ImprimanteConfig.fromJson(Map<String, dynamic> j) => ImprimanteConfig(
@@ -82,6 +110,8 @@ class ImprimanteConfig {
     auto: j['auto'] as bool? ?? true,
     vitesse: (j['debit'] as num?)?.toInt() ?? 1,
     mode: (j['format'] as num?)?.toInt() ?? 2,
+    protocole: j['protocole'] as String? ?? '',
+    intensite: (j['intensite'] as num?)?.toInt() ?? 80,
   );
 }
 
@@ -147,13 +177,19 @@ class Imprimante {
     return PrintBluetoothThermal.pairedBluetooths;
   }
 
-  /// Vérifie que l'imprimante Bluetooth réglée pour ce rôle répond (allumée, appairée, à portée).
-  static Future<void> verifierConnexion(RoleImprimante role) async {
+  /// Vérifie que l'imprimante Bluetooth réglée pour ce rôle répond (allumée, à portée). Renvoie un message d'état.
+  static Future<String> verifierConnexion(RoleImprimante role) async {
     final c = await lire(role);
-    if (c.type != 'bluetooth' || !c.configuree) {
+    if (!c.configuree || (c.type != 'bluetooth' && c.type != 'ble')) {
       throw 'Aucune imprimante Bluetooth n\'est réglée.';
     }
+    if (c.type == 'ble') {
+      final p = await ImprimanteBle.connecter(c.adresse);
+      if (p == 'chat') return 'Imprimante connectée · ${(await ImprimanteBle.statut()).resume}';
+      return 'Imprimante connectée';
+    }
     await _connecter(c);
+    return 'Imprimante connectée';
   }
 
   /// Imprimantes installées sur l'ordinateur.
@@ -181,6 +217,10 @@ class Imprimante {
         onLayout: pdf,
       );
       if (!ok) throw 'L\'impression sur « ${c.nom} » a échoué.';
+      return true;
+    }
+    if (c.type == 'ble' && bluetoothPossible) {
+      await _imprimerBle(c, pdf, texte);
       return true;
     }
     if (c.type == 'bluetooth' && bluetoothPossible) {
@@ -214,13 +254,18 @@ class Imprimante {
   /// Mode texte : l'imprimante imprime elle-même texte et QR code (très peu de données à envoyer).
   static Future<void> _imprimerTexte(
     ImprimanteConfig c,
-    List<int> Function(Generator g, int colonnes) texte,
-  ) async {
+    List<int> Function(Generator g, int colonnes) texte, {
+    Future<void> Function(List<int> octets)? ecrire,
+  }) async {
     final gen = Generator(
       c.largeurMm >= 80 ? PaperSize.mm80 : PaperSize.mm58,
       await CapabilityProfile.load(),
     );
     final octets = <int>[...gen.reset(), ...texte(gen, c.largeurMm >= 80 ? 48 : 32)];
+    if (ecrire != null) {
+      await ecrire(octets);
+      return;
+    }
     await _connecter(c);
     // Petits envois ; ces imprimantes avalent sans souci quelques centaines d'octets.
     const bloc = 512;
@@ -235,26 +280,56 @@ class Imprimante {
     }
   }
 
-  /// Transforme la page PDF en image puis l'envoie en ESC/POS (le texte accentué s'imprime ainsi sans souci de police).
-  static Future<void> _imprimerBluetooth(ImprimanteConfig c, Uint8List pdf) async {
-    final points = c.largeurMm >= 80 ? 576 : 384;
+  /// Rend la première page du PDF en image noir et blanc pure, redimensionnée à [points] de large.
+  static Future<img.Image> pageVersImage(Uint8List pdf, int points) async {
     img.Image? page;
     await for (final r in Printing.raster(pdf, pages: [0], dpi: 300)) {
       page = img.decodePng(await r.toPng());
       break;
     }
     if (page == null) throw 'Le document n\'a pas pu être préparé pour l\'impression.';
-    final image = versNoirEtBlanc(
-      img.copyResize(page, width: points, interpolation: img.Interpolation.average),
-    );
+    return versNoirEtBlanc(img.copyResize(page, width: points, interpolation: img.Interpolation.average));
+  }
+
+  /// Impression par Bluetooth basse consommation (connexion directe, sans passer par les réglages du téléphone).
+  static Future<void> _imprimerBle(
+    ImprimanteConfig c,
+    Future<Uint8List> Function(PdfPageFormat format) pdf,
+    List<int> Function(Generator g, int colonnes)? texte,
+  ) async {
+    final protocole = await ImprimanteBle.connecter(c.adresse);
+    // Pause entre deux envois selon la cadence choisie (rapide / normale / lente).
+    final pause = const [0, 6, 14][c.vitesse.clamp(0, 2)];
+    if (protocole == 'chat') {
+      final image = await pageVersImage(await pdf(_format(c)), ImprimanteBle.pointsParLigne);
+      await ImprimanteBle.imprimerChat(image, intensite: c.intensite, pauseMs: pause);
+      return;
+    }
+    Future<void> ecrire(List<int> o) => ImprimanteBle.ecrire(o, pauseMs: pause * 2);
+    if (c.mode == 2 && texte != null) {
+      await _imprimerTexte(c, texte, ecrire: ecrire);
+    } else {
+      await _imprimerBluetooth(c, await pdf(_format(c)), ecrire: ecrire);
+    }
+  }
+
+  /// Transforme la page PDF en image puis l'envoie en ESC/POS (le texte accentué s'imprime ainsi sans souci de police).
+  static Future<void> _imprimerBluetooth(
+    ImprimanteConfig c,
+    Uint8List pdf, {
+    Future<void> Function(List<int> octets)? ecrire,
+  }) async {
+    final points = c.largeurMm >= 80 ? 576 : 384;
+    final image = await pageVersImage(pdf, points);
 
     final gen = Generator(
       c.largeurMm >= 80 ? PaperSize.mm80 : PaperSize.mm58,
       await CapabilityProfile.load(),
     );
 
-    await _connecter(c);
+    if (ecrire == null) await _connecter(c);
     Future<void> envoyer(List<int> octets) async {
+      if (ecrire != null) return ecrire(octets);
       final ok = await PrintBluetoothThermal.writeBytes(octets);
       if (!ok) {
         _macConnectee = null;

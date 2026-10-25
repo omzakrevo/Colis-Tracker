@@ -6,6 +6,7 @@ import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:printing/printing.dart';
 
 import '../core/imprimante.dart';
+import '../core/imprimante_ble.dart';
 import '../core/ticket_texte.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
@@ -25,6 +26,8 @@ class ImprimanteScreen extends ConsumerStatefulWidget {
 class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with WidgetsBindingObserver {
   final _cfg = {for (final r in RoleImprimante.values) r: const ImprimanteConfig()};
   List<BluetoothInfo> _bt = [];
+  List<AppareilBle> _ble = [];
+  bool _rechercheBle = false;
   List<Printer> _sys = [];
   bool _charge = false, _recherche = false, _ouvertReglages = false;
   String? _erreur;
@@ -90,6 +93,35 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with Widget
     }
   }
 
+  Future<void> _chercherBle() async {
+    setState(() {
+      _rechercheBle = true;
+      _erreur = null;
+    });
+    try {
+      _ble = await ImprimanteBle.chercher();
+      _charge = true;
+      if (_ble.isEmpty) {
+        _erreur = 'Aucune imprimante trouvée. Allumez-la, rapprochez-la du téléphone, fermez l\'application du fabricant '
+            '(« Fun print ») puis recommencez.';
+      }
+    } catch (e) {
+      _erreur = errMsg(e);
+    } finally {
+      if (mounted) setState(() => _rechercheBle = false);
+    }
+  }
+
+  /// Connexion directe à l'appareil choisi (sans les réglages Bluetooth du téléphone) puis mémorisation.
+  Future<void> _choisirBle(RoleImprimante r, ImprimanteConfig c, AppareilBle a) => avecMessage(context, () async {
+    toast(context, 'Connexion à ${a.nom}…');
+    final protocole = await ImprimanteBle.connecter(a.id);
+    var info = '';
+    if (protocole == 'chat') info = ' · ${(await ImprimanteBle.statut()).resume}';
+    await _choisir(r, c.pour(type: 'ble', nom: a.nom, adresse: a.id, protocole: protocole));
+    if (mounted) toast(context, '${a.nom} connectée$info');
+  });
+
   Future<void> _choisir(RoleImprimante r, ImprimanteConfig c) async {
     await Imprimante.enregistrer(r, c);
     if (mounted) setState(() => _cfg[r] = c);
@@ -136,8 +168,8 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with Widget
   });
 
   Future<void> _testerConnexion(RoleImprimante r) => avecMessage(context, () async {
-    await Imprimante.verifierConnexion(r);
-    if (mounted) toast(context, 'Imprimante connectée');
+    final message = await Imprimante.verifierConnexion(r);
+    if (mounted) toast(context, message);
   });
 
   Widget _carte(RoleImprimante r, IconData icone, String aide) {
@@ -158,7 +190,7 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with Widget
               leading: const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A)),
               title: Text(c.nom, style: const TextStyle(fontWeight: FontWeight.w800)),
               subtitle: Text(
-                '${c.type == 'bluetooth' ? 'Bluetooth' : 'Imprimante de l\'ordinateur'} · papier ${c.largeurMm} mm',
+                '${c.type == 'ble' ? 'Bluetooth BLE' : c.type == 'bluetooth' ? 'Bluetooth' : 'Imprimante de l\'ordinateur'} · papier ${c.largeurMm} mm',
               ),
               trailing: TextButton(
                 onPressed: () => _choisir(r, const ImprimanteConfig()),
@@ -196,7 +228,23 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with Widget
               onSelectionChanged: (s) => _choisir(r, c.avec(vitesse: s.first)),
             ),
           ],
-          if (bt) ...[
+          if (bt && c.type == 'ble' && c.protocole == 'chat') ...[
+            const SizedBox(height: 10),
+            Text(
+              'Noirceur de l\'impression : ${c.intensite} % — plus clair si l\'étiquette est trop noire ou bavée, plus foncé si elle est pâle.',
+              style: const TextStyle(fontSize: 13, color: Brand.muted),
+            ),
+            Slider(
+              value: c.intensite.toDouble(),
+              min: 20,
+              max: 100,
+              divisions: 16,
+              label: '${c.intensite} %',
+              onChanged: (v) => setState(() => _cfg[r] = c.avec(intensite: v.round())),
+              onChangeEnd: (v) => _choisir(r, c.avec(intensite: v.round())),
+            ),
+          ],
+          if (bt && !(c.type == 'ble' && c.protocole == 'chat')) ...[
             const SizedBox(height: 10),
             const Text(
               'Mode d\'impression — « Texte » est le plus fiable (pas de bandes blanches) ; les modes image donnent le ticket complet avec logo mais exigent une imprimante rapide :',
@@ -241,7 +289,22 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with Widget
               ),
             ],
           ),
-          if (_charge && bt) ...[
+          if (bt && _ble.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text('Imprimantes Bluetooth BLE trouvées :', style: TextStyle(fontWeight: FontWeight.w800, color: Colors.grey.shade800)),
+            for (final a in _ble)
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(a.probableImprimante ? Icons.print_rounded : Icons.bluetooth_rounded),
+                title: Text(a.nom, style: TextStyle(fontWeight: a.probableImprimante ? FontWeight.w800 : FontWeight.w500)),
+                subtitle: Text('${a.id} · signal ${a.signal} dBm'),
+                trailing: c.adresse == a.id ? const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A)) : null,
+                selected: c.adresse == a.id,
+                onTap: () => _choisirBle(r, c, a),
+              ),
+          ],
+          if (_charge && bt && (_bt.isNotEmpty || _ble.isEmpty)) ...[
             const SizedBox(height: 10),
             Text('Choisir l\'imprimante :', style: TextStyle(fontWeight: FontWeight.w800, color: Colors.grey.shade800)),
             if (_bt.isEmpty)
@@ -257,18 +320,7 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with Widget
                 title: Text(b.name),
                 subtitle: Text(b.macAdress),
                 selected: c.adresse == b.macAdress,
-                onTap: () => _choisir(
-                  r,
-                  ImprimanteConfig(
-                    type: 'bluetooth',
-                    nom: b.name,
-                    adresse: b.macAdress,
-                    largeurMm: c.largeurMm,
-                    auto: c.auto,
-                    vitesse: c.vitesse,
-                    mode: c.mode,
-                  ),
-                ),
+                onTap: () => _choisir(r, c.pour(type: 'bluetooth', nom: b.name, adresse: b.macAdress)),
               ),
           ],
           if (_charge && sys) ...[
@@ -297,16 +349,7 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with Widget
                 ),
                 trailing: c.adresse == p.url ? const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A)) : null,
                 selected: c.adresse == p.url,
-                onTap: () => _choisir(
-                  r,
-                  ImprimanteConfig(
-                    type: 'systeme',
-                    nom: p.name,
-                    adresse: p.url,
-                    largeurMm: c.largeurMm,
-                    auto: c.auto,
-                  ),
-                ),
+                onTap: () => _choisir(r, c.pour(type: 'systeme', nom: p.name, adresse: p.url)),
               ),
           ],
         ],
@@ -348,6 +391,14 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with Widget
                       label: Text(bt ? 'Chercher les imprimantes Bluetooth' : 'Chercher les imprimantes'),
                     ),
                   if (bt)
+                    FilledButton.tonalIcon(
+                      onPressed: _rechercheBle ? null : _chercherBle,
+                      icon: _rechercheBle
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.bluetooth_searching_rounded),
+                      label: const Text('Chercher en BLE (mini-imprimantes)'),
+                    ),
+                  if (bt)
                     OutlinedButton.icon(
                       onPressed: _ouvrirReglagesBluetooth,
                       icon: const Icon(Icons.bluetooth_searching_rounded),
@@ -377,8 +428,11 @@ class _ImprimanteScreenState extends ConsumerState<ImprimanteScreen> with Widget
                 const Padding(
                   padding: EdgeInsets.only(top: 12),
                   child: Text(
-                    '1) Allumez l\'imprimante. 2) Touchez « Appairer une imprimante » et choisissez-la dans la liste '
-                    '(code 0000 ou 1234). 3) Revenez ici : elle apparaît dans la liste de chaque imprimante ci-dessous.',
+                    'Imprimante classique : 1) Allumez-la. 2) Touchez « Appairer une imprimante » et choisissez-la '
+                    '(code 0000 ou 1234). 3) Revenez ici : elle apparaît dans la liste ci-dessous.\n'
+                    'Mini-imprimante à étiquettes (MXW01, « cat printer », Fun print…) : « Connexion échouée » dans les réglages '
+                    'du téléphone est normal, elle n\'utilise pas le Bluetooth classique. Allumez-la, fermez l\'application '
+                    '« Fun print », touchez « Chercher en BLE » puis choisissez-la : la connexion se fait directement ici.',
                     style: TextStyle(color: Brand.muted, fontSize: 13),
                   ),
                 ),
