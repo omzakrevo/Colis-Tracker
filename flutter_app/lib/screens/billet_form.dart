@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,6 +37,11 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
   bool _prixManuel = false;
   PlacesVoyage? _places;
   int _jetonPlaces = 0;
+  // Fidélité : situation du client (numéro tapé) et choix d'offrir le voyage gratuit.
+  FideliteStatut? _fid;
+  bool _gratuit = false;
+  Timer? _attenteFid;
+  String _telFid = '';
 
   /// Trajet fixé par l'administrateur pour le départ/arrivée choisis (prix et heures proposés).
   Trajet? get _trajet {
@@ -49,7 +55,11 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
   void _appliquerTrajet() {
     final t = _trajet;
     if (t == null) return;
-    if (!_prixManuel) prix.text = '${t.prix.round()}';
+    if (_gratuit) {
+      prix.text = '0';
+    } else if (!_prixManuel) {
+      prix.text = '${t.prix.round()}';
+    }
     if (t.horaires.length == 1 && heure.text.isEmpty)
       heure.text = t.horaires.first;
   }
@@ -58,6 +68,38 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
   void initState() {
     super.initState();
     heure.addListener(_actualiserPlaces);
+    tel.addListener(_telChange);
+  }
+
+  /// Dès que le numéro est complet, on regarde si le client a droit à un voyage gratuit.
+  void _telChange() {
+    final chiffres = tel.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (chiffres == _telFid) return;
+    _telFid = chiffres;
+    _attenteFid?.cancel();
+    if (chiffres.length < 8) {
+      if (_fid != null || _gratuit) setState(() {
+        _fid = null;
+        _gratuit = false;
+        _appliquerTrajet();
+      });
+      return;
+    }
+    _attenteFid = Timer(const Duration(milliseconds: 500), () async {
+      final f = await Repo.fideliteStatut(tel.text.trim());
+      if (!mounted || _telFid != chiffres) return;
+      setState(() {
+        _fid = f;
+        // Voyage gratuit proposé d'office : le guichet peut le décocher.
+        _gratuit = f != null && f.actif && f.gratuit;
+        if (_gratuit) {
+          prix.text = '0';
+        } else {
+          _prixManuel = false;
+          _appliquerTrajet();
+        }
+      });
+    });
   }
 
   /// Recharge les places libres du voyage (trajet, date et heure choisis).
@@ -125,6 +167,8 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
   @override
   void dispose() {
     heure.removeListener(_actualiserPlaces);
+    tel.removeListener(_telChange);
+    _attenteFid?.cancel();
     for (final c in [nom, tel, prix, heure, siege]) {
       c.dispose();
     }
@@ -148,8 +192,9 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
             '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
         'heure_depart': heure.text.trim().isEmpty ? null : heure.text.trim(),
         'siege': siege.text.trim().isEmpty ? null : siege.text.trim(),
-        'prix': double.parse(prix.text.replaceAll(',', '.')),
-        if (_modePaiement != 'especes') 'mode_paiement': _modePaiement,
+        'prix': _gratuit ? 0 : double.parse(prix.text.replaceAll(',', '.')),
+        if (_gratuit) 'gratuit': true,
+        if (!_gratuit && _modePaiement != 'especes') 'mode_paiement': _modePaiement,
       }, vendeurNom: me?.nom, siegeSecours: _places?.suivante);
       ref.read(tickProvider.notifier).bump();
       if (!mounted) return;
@@ -165,11 +210,16 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
         nom.clear();
         tel.clear();
         siege.clear();
-        final p = prix.text, h = heure.text;
+        final p = prix.text, h = heure.text, etaitGratuit = _gratuit;
         _form.currentState?.reset(); // efface aussi les messages d'erreur
         prix.text = p;
         heure.text = h;
         _prixManuel = false;
+        _gratuit = false;
+        _fid = null;
+        _telFid = '';
+        _appliquerTrajet();
+        if (etaitGratuit && _trajet == null) prix.clear();
         setState(() {});
         _actualiserPlaces();
       }
@@ -291,6 +341,22 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                     }),
                   ),
                 ),
+                if (_fid != null && _fid!.actif) ...[
+                  const SizedBox(height: 14),
+                  _CarteFidelite(
+                    statut: _fid!,
+                    gratuit: _gratuit,
+                    onChanged: (v) => setState(() {
+                      _gratuit = v;
+                      if (v) {
+                        prix.text = '0';
+                      } else {
+                        _prixManuel = false;
+                        _appliquerTrajet();
+                      }
+                    }),
+                  ),
+                ],
                 const SizedBox(height: 14),
                 SectionCard(
                   title: 'Voyage',
@@ -458,6 +524,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                       TextFormField(
  textInputAction: TextInputAction.next,
                         controller: prix,
+                        readOnly: _gratuit,
                         onChanged: (_) => _prixManuel = true,
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
@@ -479,7 +546,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                         },
                       ),
                       const SizedBox(height: 12),
-                      ModePaiementChoix(valeur: _modePaiement, onChanged: (v) => setState(() => _modePaiement = v)),
+                      if (!_gratuit) ModePaiementChoix(valeur: _modePaiement, onChanged: (v) => setState(() => _modePaiement = v)),
                     ],
                   ),
                 ),
@@ -501,6 +568,43 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+
+/// Récompense de fidélité : progression du client et, si le seuil est atteint, voyage gratuit à offrir.
+class _CarteFidelite extends StatelessWidget {
+  const _CarteFidelite({required this.statut, required this.gratuit, required this.onChanged});
+  final FideliteStatut statut;
+  final bool gratuit;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = statut;
+    if (s.gratuit) {
+      return Card(
+        color: const Color(0xFFDCFCE7),
+        child: SwitchListTile(
+          value: gratuit,
+          onChanged: onChanged,
+          secondary: const Icon(Icons.card_giftcard_rounded, color: Color(0xFF16A34A)),
+          title: const Text('Voyage gratuit offert !', style: TextStyle(fontWeight: FontWeight.w800)),
+          subtitle: Text('Ce client a déjà payé ${s.voyages} voyages (récompense à partir de ${s.seuil}).'),
+        ),
+      );
+    }
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.card_giftcard_rounded, color: Color(0xFFEE801E)),
+        title: Text('Fidélité : ${s.voyages} / ${s.seuil} voyages', style: const TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: Text(
+          s.restant == 1
+              ? 'Encore 1 voyage payé et le suivant sera gratuit.'
+              : 'Encore ${s.restant} voyages payés avant un voyage gratuit.',
         ),
       ),
     );

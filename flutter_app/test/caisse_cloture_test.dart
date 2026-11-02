@@ -62,4 +62,18 @@ void main() {
     expect(txt(sans), isNot(contains('ORANGE MONEY')));
     expect(txt(sans), contains('BILLETS VENDUS'));
   });
+
+  test('billet gratuit et fidélité : modèle et statut', () {
+    final t = Ticket(
+      id: 1, numero: 'T', clientNom: 'M', clientTelephone: '1', gareDepartId: 1, gareArriveeId: 2,
+      dateVoyage: DateTime(2026, 10, 11), prix: 0, statut: 'emis', createdAt: DateTime(2026, 10, 10), gratuit: true,
+    );
+    expect(Ticket.fromJson(t.toJson()).gratuit, isTrue);
+    expect(Ticket.fromJson({...t.toJson(), 'gratuit': null}).gratuit, isFalse);
+    final f = FideliteStatut.fromJson({'actif': true, 'seuil': 10, 'voyages': 7, 'gratuit': false});
+    expect((f.restant, f.gratuit), (3, false));
+    final s = CompanySettings.fromJson({...CompanySettings.defaults.toJson(), 'fidelite_seuil': 12, 'fidelite_actif': false});
+    expect((s.fideliteSeuil, s.fideliteActif), (12, false));
+    expect(CompanySettings.defaults.fideliteSeuil, 10);
+  });
 }

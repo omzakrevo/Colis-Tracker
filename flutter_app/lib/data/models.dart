@@ -409,6 +409,7 @@ class Ticket {
     this.vendeurId,
     this.notes,
     this.modePaiement = 'especes',
+    this.gratuit = false,
     this.clientRef,
     this.enAttente = false,
   });
@@ -427,6 +428,9 @@ class Ticket {
 
   /// 'especes' ou 'orange_money'.
   final String modePaiement;
+
+  /// Voyage offert (récompense de fidélité) : prix 0.
+  final bool gratuit;
 
   /// Identifiant client d'un billet créé hors ligne (numéro provisoire LOC-…).
   final String? clientRef;
@@ -454,6 +458,7 @@ class Ticket {
     vendeurId: j['vendeur_id'] as String?,
     notes: j['notes'] as String?,
     modePaiement: (j['mode_paiement'] as String?) ?? 'especes',
+    gratuit: j['gratuit'] as bool? ?? false,
     createdAt: DateTime.parse(j['created_at'] as String),
     clientRef: j['client_ref'] as String?,
     enAttente: j['en_attente'] as bool? ?? false,
@@ -477,6 +482,7 @@ class Ticket {
     'vendeur_id': vendeurId,
     'notes': notes,
     'mode_paiement': modePaiement,
+    'gratuit': gratuit,
     'created_at': createdAt.toIso8601String(),
     'client_ref': clientRef,
     'en_attente': enAttente,
@@ -500,6 +506,7 @@ class Ticket {
     vendeurId: vendeurId,
     notes: notes,
     modePaiement: modePaiement,
+    gratuit: gratuit,
     createdAt: createdAt,
     clientRef: clientRef,
     enAttente: enAttente ?? this.enAttente,
@@ -593,6 +600,8 @@ class CompanySettings {
     required this.pays,
     this.logo,
     this.clotureMontants = false,
+    this.fideliteActif = true,
+    this.fideliteSeuil = 10,
   });
 
   final String nom, slogan, telephone, email, adresse, ville, pays;
@@ -600,6 +609,10 @@ class CompanySettings {
 
   /// Le rapport de fin de journée des guichets affiche les montants (choix de l'administrateur).
   final bool clotureMontants;
+
+  /// Fidélité : après [fideliteSeuil] voyages payés par la même personne, le voyage suivant est gratuit.
+  final bool fideliteActif;
+  final int fideliteSeuil;
 
   factory CompanySettings.fromJson(Map<String, dynamic> j) => CompanySettings(
     nom: j['nom'] as String,
@@ -611,6 +624,8 @@ class CompanySettings {
     pays: j['pays'] as String,
     logo: j['logo'] as String?,
     clotureMontants: j['cloture_montants'] as bool? ?? false,
+    fideliteActif: j['fidelite_actif'] as bool? ?? true,
+    fideliteSeuil: (j['fidelite_seuil'] as num?)?.toInt() ?? 10,
   );
 
   Map<String, dynamic> toJson() => {
@@ -623,6 +638,8 @@ class CompanySettings {
     'pays': pays,
     'logo': logo,
     'cloture_montants': clotureMontants,
+    'fidelite_actif': fideliteActif,
+    'fidelite_seuil': fideliteSeuil,
   };
 
   static CompanySettings get defaults => CompanySettings(
@@ -991,3 +1008,20 @@ class VerifResultat {
 /// Modes de paiement acceptés au guichet.
 const modesPaiementGuichet = {'especes': 'Espèces', 'orange_money': 'Orange Money'};
 String libelleModePaiement(String? m) => modesPaiementGuichet[m] ?? 'Espèces';
+
+
+/// Situation d'un client dans le programme de fidélité.
+class FideliteStatut {
+  FideliteStatut({required this.actif, required this.seuil, required this.voyages, required this.gratuit});
+  final bool actif, gratuit;
+  final int seuil, voyages;
+
+  int get restant => (seuil - voyages) < 0 ? 0 : seuil - voyages;
+
+  factory FideliteStatut.fromJson(Map<String, dynamic> j) => FideliteStatut(
+    actif: j['actif'] as bool? ?? true,
+    seuil: (j['seuil'] as num?)?.toInt() ?? 10,
+    voyages: (j['voyages'] as num?)?.toInt() ?? 0,
+    gratuit: j['gratuit'] as bool? ?? false,
+  );
+}

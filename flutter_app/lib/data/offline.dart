@@ -331,6 +331,7 @@ class Outbox {
       statut: 'emis',
       vendeurNom: vendeurNom,
       modePaiement: (data['mode_paiement'] as String?) ?? 'especes',
+      gratuit: data['gratuit'] == true,
       notes: data['notes'] as String?,
       createdAt: createdAt ?? DateTime.now(),
       clientRef: ref,

@@ -141,6 +141,8 @@ class _Modele {
     ),
   );
 
+  pw.Widget gratuit() => pw.Center(child: texte('VOYAGE GRATUIT — MERCI DE VOTRE FIDÉLITÉ', 14));
+
   pw.Widget prix(double montant) => pw.Row(
     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
     crossAxisAlignment: pw.CrossAxisAlignment.center,
@@ -202,9 +204,9 @@ pw.Widget ticketVoyage(
       if ((t.siege ?? '').isNotEmpty) m.ligne(_svgSiege, 'SIÈGE', t.siege!),
       m.ligne(_svgPersonne, 'PASSAGER', t.clientNom.toUpperCase()),
       if ((t.vendeurNom ?? '').isNotEmpty) m.ligne(_svgPersonne, 'AGENT', t.vendeurNom!.toUpperCase()),
-      m.ligne(_svgPersonne, 'PAIEMENT', libelleModePaiement(t.modePaiement).toUpperCase()),
+      m.ligne(_svgPersonne, 'PAIEMENT', t.gratuit ? 'GRATUIT (FIDÉLITÉ)' : libelleModePaiement(t.modePaiement).toUpperCase()),
       m.pointilles(),
-      m.prix(t.prix),
+      if (t.gratuit) m.gratuit() else m.prix(t.prix),
       m.pointilles(),
       m.qr(t.numero),
       pw.SizedBox(height: m.v(2)),

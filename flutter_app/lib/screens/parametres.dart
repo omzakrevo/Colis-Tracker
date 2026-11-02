@@ -224,6 +224,8 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
               ),
             ),
             const SizedBox(height: 28),
+            _FideliteCarte(settings: settings),
+            const SizedBox(height: 28),
             if (ref.watch(authProvider).value?.company?.moduleFinance ?? false) ...[
               const IdentiteLegaleCard(),
               const SizedBox(height: 28),
@@ -236,4 +238,85 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
       },
     );
   }
+}
+
+
+/// Récompense de fidélité : voyage gratuit après N voyages payés par la même personne (N choisi par l'administrateur).
+class _FideliteCarte extends ConsumerStatefulWidget {
+  const _FideliteCarte({required this.settings});
+  final CompanySettings settings;
+
+  @override
+  ConsumerState<_FideliteCarte> createState() => _FideliteCarteState();
+}
+
+class _FideliteCarteState extends ConsumerState<_FideliteCarte> {
+  late final TextEditingController _seuil = TextEditingController(text: '${widget.settings.fideliteSeuil}');
+  late bool _actif = widget.settings.fideliteActif;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _seuil.dispose();
+    super.dispose();
+  }
+
+  Future<void> _enregistrer() async {
+    final n = int.tryParse(_seuil.text.trim());
+    if (n == null || n < 2 || n > 500) {
+      toast(context, 'Le nombre de voyages doit être compris entre 2 et 500', error: true);
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final cid = ref.read(profilProvider).value?.companyId;
+      if (cid == null) throw 'Entreprise introuvable';
+      await Repo.saveSettings(cid, {'fidelite_actif': _actif, 'fidelite_seuil': n});
+      ref.invalidate(settingsProvider);
+      if (mounted) toast(context, 'Fidélité enregistrée');
+    } catch (e) {
+      if (mounted) toast(context, errMsg(e), error: true);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => SectionCard(
+    title: 'Récompense de fidélité',
+    icon: Icons.card_giftcard_rounded,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: _actif,
+          onChanged: (v) => setState(() => _actif = v),
+          title: const Text('Offrir un voyage gratuit aux clients fidèles'),
+          subtitle: const Text('Le client est reconnu par son numéro de téléphone, dans toutes vos gares.'),
+        ),
+        const SizedBox(height: 6),
+        SizedBox(
+          width: 260,
+          child: TextField(
+            controller: _seuil,
+            enabled: _actif,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Voyages payés avant le voyage gratuit',
+              helperText: 'Par exemple 10 : le 11e voyage est gratuit',
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: _saving ? null : _enregistrer,
+          icon: _saving
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Icon(Icons.save_rounded),
+          label: const Text('Enregistrer'),
+        ),
+      ],
+    ),
+  );
 }

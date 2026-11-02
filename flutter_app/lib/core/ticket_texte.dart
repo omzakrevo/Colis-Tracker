@@ -145,9 +145,15 @@ List<int> ticketVoyageTexte(Generator g, int cols, Ticket t, CompanySettings co)
   if ((t.siege ?? '').isNotEmpty) d.champ('SIEGE', t.siege!);
   d.champ('PASSAGER', t.clientNom);
   if ((t.vendeurNom ?? '').isNotEmpty) d.champ('AGENT', t.vendeurNom!);
-  d.champ('PAIEMENT', libelleModePaiement(t.modePaiement));
+  d.champ('PAIEMENT', t.gratuit ? 'GRATUIT (FIDELITE)' : libelleModePaiement(t.modePaiement));
   d.trait();
-  d.prix(t.prix);
+  if (t.gratuit) {
+    d.centre('VOYAGE GRATUIT', taille: PosTextSize.size2);
+    d.centre('Merci pour votre fidelite !');
+    d.trait();
+  } else {
+    d.prix(t.prix);
+  }
   d.qr(t.numero);
   d.ligne('Scannez ce QR code pour verifier le ticket a l\'embarquement.', gras: false, align: PosAlign.center);
   d.trait();

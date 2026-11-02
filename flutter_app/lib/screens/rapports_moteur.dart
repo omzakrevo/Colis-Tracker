@@ -188,7 +188,7 @@ Rapport construireRapport(
       for (final t in l)
         [
           t.createdAt.toLocal(), t.numero, t.vendeurNom ?? '—', t.clientNom, t.clientTelephone, t.gareDepartNom ?? '',
-          t.gareArriveeNom ?? '', _jour(t.dateVoyage), t.heureDepart ?? '', t.siege ?? '', t.prix, t.annule ? 'Annulé' : 'Valide', libelleModePaiement(t.modePaiement),
+          t.gareArriveeNom ?? '', _jour(t.dateVoyage), t.heureDepart ?? '', t.siege ?? '', t.prix, t.annule ? 'Annulé' : 'Valide', t.gratuit ? 'Gratuit (fidélité)' : libelleModePaiement(t.modePaiement),
         ],
     ],
     montants: {10},

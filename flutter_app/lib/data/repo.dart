@@ -678,6 +678,18 @@ class Repo {
     return PlacesVoyage(capacite, prises);
   }
 
+  /// Voyages payés par ce client et droit au voyage gratuit. `null` sans internet ou si le serveur n'est pas à jour :
+  /// la récompense n'est alors pas proposée (le serveur la contrôle de toute façon à l'enregistrement).
+  static Future<FideliteStatut?> fideliteStatut(String telephone) async {
+    try {
+      Reseau.exiger();
+      final r = await _db.rpc('fidelite_statut', params: {'p_telephone': telephone}).reseau(const Duration(seconds: 5));
+      return FideliteStatut.fromJson(Map<String, dynamic>.from(r as Map));
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Future<void> annulerTicket(int id) =>
       _db.rpc('annuler_ticket', params: {'p_id': id});
 
