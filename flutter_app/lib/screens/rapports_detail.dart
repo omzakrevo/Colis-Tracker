@@ -83,7 +83,10 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
     final profils = ref.read(profilsProvider).value ?? const <Profil>[];
     final gares = ref.read(garesProvider).value ?? const <Gare>[];
     final moi = ref.read(profilProvider).value;
-    if (moi != null && !moi.voitRapportsGlobaux) _agentId = moi.id;
+    // Chacun ne demande que ce qu'il a le droit de voir (le serveur le vérifie aussi).
+    final soi = moi != null && !moi.voitRapportsGlobaux;
+    if (soi) _agentId = null;
+    if (moi != null && moi.role == 'chef_gare') _gareId = moi.gareId;
     final agent = profils.where((p) => p.id == _agentId).firstOrNull;
     final gare = gares.where((g) => g.id == _gareId).firstOrNull;
     final f = FiltresRapport(
@@ -109,11 +112,12 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
               agentId: f.agentId,
               gareDepartId: f.gareId,
               statut: f.statut,
-              inclureTraites: moi != null && !moi.voitRapportsGlobaux,
+              inclureTraites: soi,
+              soi: soi,
             )
           : <Colis>[];
       final billets = _besoinBillets
-          ? await Repo.rapportBillets(debut: f.debut, fin: f.fin, vendeurId: f.agentId, gareDepartId: f.gareId)
+          ? await Repo.rapportBillets(debut: f.debut, fin: f.fin, vendeurId: f.agentId, gareDepartId: f.gareId, soi: soi)
           : <Ticket>[];
       var depenses = <Depense>[];
       var bulletins = <Bulletin>[];
@@ -196,6 +200,8 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
     final peutFiltrerAgent = me != null && me.voitRapportsGlobaux && agents.length > 1;
 
     final financeOuvert = moduleFinanceOuvert(ref);
+    final typesAutorises = typesPour(me?.role ?? '', finance: financeOuvert);
+    if (typesAutorises.isNotEmpty && !typesAutorises.contains(_type)) _type = typesAutorises.first;
     final wide = MediaQuery.sizeOf(context).width >= 900;
     Widget champ(Widget w, [double largeur = 300]) => SizedBox(width: wide ? largeur : double.infinity, child: w);
     final al = wide ? CrossAxisAlignment.center : CrossAxisAlignment.start;
@@ -210,7 +216,7 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
               initialValue: _type,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Type de rapport'),
-              items: [for (final t in TypeRapport.values) if ((!t.compta || financeOuvert) && (t != TypeRapport.caisse || (me?.isAdmin ?? false))) DropdownMenuItem(value: t, child: Text(t.titre))],
+              items: [for (final t in typesAutorises) DropdownMenuItem(value: t, child: Text(t.titre))],
               onChanged: (v) => setState(() {
                 _type = v ?? _type;
                 _rapport = null;
@@ -283,7 +289,7 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
                       onChanged: (v) => setState(() => _agentId = v),
                     ),
                   ),
-                if (gares.length > 1)
+                if (gares.length > 1 && (me?.voitToutLeReseau ?? false))
                   champ(
                     DropdownButtonFormField<int?>(
                       initialValue: _gareId,

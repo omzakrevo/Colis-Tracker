@@ -6,6 +6,7 @@ import '../core/identifiant.dart';
 import 'journal.dart';
 import 'models.dart';
 import 'offline.dart';
+import 'reseau.dart';
 
 SupabaseClient get _db => Supabase.instance.client;
 
@@ -231,8 +232,8 @@ class Repo {
   );
 
   // ── Lecture avec mémoire locale ───────────────────────
-  static const _delaiLecture = Duration(seconds: 10);
-  static const _delaiEcriture = Duration(seconds: 15);
+  static const _delaiLecture = Duration(seconds: 6);
+  static const _delaiEcriture = Duration(seconds: 8);
 
   /// Lit sur le serveur et mémorise le résultat ; sans réseau, renvoie la dernière copie mémorisée.
   static Future<T> _lire<T>(
@@ -242,7 +243,8 @@ class Repo {
     T Function(Object) decoder,
   ) async {
     try {
-      final v = await serveur().timeout(_delaiLecture);
+      Reseau.exiger();
+      final v = await serveur().reseau(_delaiLecture);
       await LocalStore.write(cle, encoder(v));
       return v;
     } catch (e) {
@@ -267,7 +269,8 @@ class Repo {
   static Future<List<Colis>> listColis(ColisFilter f, {int? maGareId}) async {
     List<Colis> base;
     try {
-      base = await _listColisServeur(f, maGareId).timeout(_delaiLecture);
+      Reseau.exiger();
+      base = await _listColisServeur(f, maGareId).reseau(_delaiLecture);
       final sansFiltre =
           f.activeCount == 0 && f.search.trim().isEmpty && !f.ancienFirst;
       if (sansFiltre) {
@@ -336,7 +339,7 @@ class Repo {
             .select()
             .eq('id', id)
             .single()
-            .timeout(_delaiLecture),
+            .reseau(_delaiLecture),
       );
       await LocalStore.writeCapped('colis', id, c.toJson());
     } catch (e) {
@@ -382,7 +385,7 @@ class Repo {
             .select('id')
             .eq('numero_provisoire', n)
             .maybeSingle()
-            .timeout(_delaiLecture);
+            .reseau(_delaiLecture);
         if (r != null) return await getColis(r['id'] as int);
       } else {
         final r = await _db
@@ -390,7 +393,7 @@ class Repo {
             .select()
             .eq('numero', n)
             .maybeSingle()
-            .timeout(_delaiLecture);
+            .reseau(_delaiLecture);
         if (r != null) {
           final c = Colis.fromJson(r);
           final ops = await Outbox.pending();
@@ -415,7 +418,7 @@ class Repo {
     final rows =
         await _db
                 .rpc('colis_scan_info', params: {'p_numero': numero})
-                .timeout(_delaiLecture)
+                .reseau(_delaiLecture)
             as List;
     if (rows.isEmpty) return null;
     final m = Map<String, dynamic>.from(rows.first as Map);
@@ -448,7 +451,7 @@ class Repo {
             .select()
             .eq('colis_id', colisId)
             .order('date_changement')
-            .timeout(_delaiLecture);
+            .reseau(_delaiLecture);
         base = rows.map(Historique.fromJson).toList();
         await LocalStore.writeCapped(
           'histo',
@@ -483,7 +486,8 @@ class Repo {
       'numero_provisoire': Outbox.provisoire(ref),
     };
     try {
-      return await _envoyerCreation(payload).timeout(_delaiEcriture);
+      Reseau.exiger();
+      return await _envoyerCreation(payload).reseau(_delaiEcriture);
     } catch (e) {
       if (!estErreurReseau(e)) rethrow;
     }
@@ -560,7 +564,7 @@ class Repo {
             .select()
             .eq('id', id)
             .single()
-            .timeout(_delaiLecture),
+            .reseau(_delaiLecture),
       );
     } catch (e) {
       if (!estErreurReseau(e)) rethrow;
@@ -586,7 +590,8 @@ class Repo {
       'numero_provisoire': Outbox.provisoire(ref),
     };
     try {
-      return await _envoyerTicket(payload).timeout(_delaiEcriture);
+      Reseau.exiger();
+      return await _envoyerTicket(payload).reseau(_delaiEcriture);
     } catch (e) {
       if (!estErreurReseau(e)) rethrow;
     }
@@ -635,6 +640,7 @@ class Repo {
   }) async {
     final h = (heure ?? '').trim();
     try {
+      Reseau.exiger();
       final rows = await _db
           .rpc('places_prises', params: {
             'p_depart': depart,
@@ -642,7 +648,7 @@ class Repo {
             'p_date': _iso(date),
             'p_heure': h.isEmpty ? null : h,
           })
-          .timeout(const Duration(seconds: 6));
+          .reseau(const Duration(seconds: 6));
       final l = _maps(rows);
       if (l.isNotEmpty) {
         return PlacesVoyage(
@@ -685,7 +691,7 @@ class Repo {
     try {
       final rows = await _db
           .rpc('clients_suggestions', params: {'p_terme': t})
-          .timeout(const Duration(seconds: 6));
+          .reseau(const Duration(seconds: 6));
       return _maps(rows).map(ClientSuggestion.fromJson).toList();
     } catch (e) {
       if (!estErreurReseau(e)) rethrow;
@@ -757,7 +763,7 @@ class Repo {
     try {
       final rows = await _db
           .rpc('billets_a_verifier')
-          .timeout(const Duration(seconds: 12));
+          .reseau(const Duration(seconds: 12));
       final locales = await _verifsLocales();
       final liste = [
         for (final m in _maps(rows))
@@ -825,7 +831,7 @@ class Repo {
             'verifier_billet',
             params: {'p_numero': num, 'p_ref': ref},
           )
-          .timeout(const Duration(seconds: 8));
+          .reseau(const Duration(seconds: 8));
       final l = _maps(rows);
       if (l.isEmpty) {
         // Un billet vendu hors ligne sur cet appareil n'est pas encore connu du serveur.
@@ -977,7 +983,7 @@ class Repo {
     final cible = await _cible(id);
     if (id >= 0) {
       try {
-        await _rpcStatut(id, statut, notes).timeout(_delaiEcriture);
+        await _rpcStatut(id, statut, notes).reseau(_delaiEcriture);
         return true;
       } catch (e) {
         if (!estErreurReseau(e)) rethrow;
@@ -1012,7 +1018,7 @@ class Repo {
     List<String> numeros,
   ) async {
     try {
-      return await _scanLotServeur(mode, numeros).timeout(_delaiEcriture);
+      return await _scanLotServeur(mode, numeros).reseau(_delaiEcriture);
     } catch (e) {
       if (!estErreurReseau(e)) rethrow;
     }
@@ -1065,7 +1071,7 @@ class Repo {
           telephone,
           piece,
           signature,
-        ).timeout(_delaiEcriture);
+        ).reseau(_delaiEcriture);
         return true;
       } catch (e) {
         if (!estErreurReseau(e)) rethrow;
@@ -1390,26 +1396,51 @@ class Repo {
     int? gareDepartId,
     String? statut,
     bool inclureTraites = false,
+    bool soi = false,
   }) async {
-    // « Mes rapports » (agent, guichet) : ce que j'ai enregistré + ce que j'ai fait avancer (arrivée, retrait…).
-    var ids = <int>[];
-    if (inclureTraites && agentId != null) {
-      final h = await _db
-          .from('historique_colis')
-          .select('colis_id')
-          .eq('agent_id', agentId)
-          .gte('date_changement', debut == null ? '2000-01-01' : _iso(debut))
-          .lt('date_changement', fin == null ? '2100-01-01' : _iso(fin.add(const Duration(days: 1))))
-          .limit(2000);
-      ids = {for (final r in h) (r['colis_id'] as num).toInt()}.toList();
+    // Le serveur (fonction rapport_colis) ne renvoie que ce que le rôle a le droit de voir :
+    // administrateur et comptable tout, chef de gare sa gare, agent et guichet leurs propres opérations.
+    Future<List<Colis>> viaServeur(String cols) async {
+      final out = <Colis>[];
+      for (var from = 0; from < 20000; from += 1000) {
+        final rows = await _db
+            .rpc('rapport_colis', params: {
+              'p_debut': debut == null ? null : _iso(debut),
+              'p_fin': fin == null ? null : _iso(fin),
+              'p_agent': soi ? null : agentId,
+              'p_gare_depart': gareDepartId,
+              'p_statut': statut,
+              'p_traites': inclureTraites,
+            })
+            .select(cols)
+            .order('created_at', ascending: false)
+            .range(from, from + 999);
+        out.addAll(rows.map(Colis.fromJson));
+        if (rows.length < 1000) break;
+      }
+      return out;
     }
-    Future<List<Colis>> lire(String cols) async {
+
+    // Serveur pas encore mis à jour : même résultat en filtrant ici (le serveur reste, lui, moins strict).
+    final moi = soi ? userId : agentId;
+    var ids = <int>[];
+    Future<List<Colis>> viaVue(String cols) async {
+      if (inclureTraites && moi != null && ids.isEmpty) {
+        final h = await _db
+            .from('historique_colis')
+            .select('colis_id')
+            .eq('agent_id', moi)
+            .gte('date_changement', debut == null ? '2000-01-01' : _iso(debut))
+            .lt('date_changement', fin == null ? '2100-01-01' : _iso(fin.add(const Duration(days: 1))))
+            .limit(2000);
+        ids = {for (final r in h) (r['colis_id'] as num).toInt()}.toList();
+      }
       final out = <Colis>[];
       for (var from = 0; from < 20000; from += 1000) {
         var q = _db.from('colis_detail').select(cols);
         if (debut != null) q = q.gte('date_envoi', _iso(debut));
         if (fin != null) q = q.lte('date_envoi', _iso(fin));
-        if (agentId != null) q = ids.isEmpty ? q.eq('agent_id', agentId) : q.or('agent_id.eq.$agentId,id.in.(${ids.join(',')})');
+        if (moi != null) q = ids.isEmpty ? q.eq('agent_id', moi) : q.or('agent_id.eq.$moi,id.in.(${ids.join(',')})');
         if (gareDepartId != null) q = q.eq('gare_depart_id', gareDepartId);
         if (statut != null) q = q.eq('statut', statut);
         final rows = await q.order('created_at', ascending: false).range(from, from + 999);
@@ -1419,32 +1450,72 @@ class Repo {
       return out;
     }
 
+    bool colonneAbsente(PostgrestException e) => e.code == '42703' || e.message.contains('billet_numero') || e.message.contains('mode_paiement');
+    // billet_numero (migration 24) et mode_paiement (migration 29) n'existent qu'après leur migration.
+    final choix = ['$_colisRapportCols, billet_numero, mode_paiement', '$_colisRapportCols, billet_numero', _colisRapportCols];
     try {
-      // billet_numero n'existe qu'après la migration 24.
-      return await lire('$_colisRapportCols, billet_numero');
+      for (final cols in choix) {
+        try {
+          return await viaServeur(cols);
+        } on PostgrestException catch (e) {
+          if (!colonneAbsente(e)) rethrow;
+        }
+      }
+      return await viaServeur(_colisRapportCols);
     } on PostgrestException catch (e) {
-      if (!(e.message.contains('billet_numero') || e.code == '42703')) rethrow;
-      return lire(_colisRapportCols);
+      if (e.code != 'PGRST202' && e.code != '42883' && !e.message.contains('rapport_colis')) rethrow;
     }
+    for (final cols in choix) {
+      try {
+        return await viaVue(cols);
+      } on PostgrestException catch (e) {
+        if (!colonneAbsente(e)) rethrow;
+      }
+    }
+    return viaVue(_colisRapportCols);
   }
 
   /// Billets vendus pendant la période (date de vente), filtrables par vendeur et gare de départ.
+  /// Le serveur ne renvoie que ce que le rôle a le droit de voir (voir `rapportColis`).
   static Future<List<Ticket>> rapportBillets({
     DateTime? debut,
     DateTime? fin,
     String? vendeurId,
     int? gareDepartId,
+    bool soi = false,
   }) async {
+    final d = debut == null ? null : DateTime(debut.year, debut.month, debut.day).toUtc().toIso8601String();
+    final f = fin == null ? null : DateTime(fin.year, fin.month, fin.day).add(const Duration(days: 1)).toUtc().toIso8601String();
     final out = <Ticket>[];
+    var serveurAJour = true;
     for (var from = 0; from < 20000; from += 1000) {
-      var q = _db.from('tickets_detail').select();
-      if (debut != null) q = q.gte('created_at', DateTime(debut.year, debut.month, debut.day).toUtc().toIso8601String());
-      if (fin != null) {
-        q = q.lt('created_at', DateTime(fin.year, fin.month, fin.day).add(const Duration(days: 1)).toUtc().toIso8601String());
+      List<Map<String, dynamic>> rows;
+      if (serveurAJour) {
+        try {
+          rows = _maps(await _db
+              .rpc('rapport_billets', params: {
+                'p_debut': d,
+                'p_fin': f,
+                'p_vendeur': soi ? null : vendeurId,
+                'p_gare_depart': gareDepartId,
+              })
+              .order('created_at', ascending: false)
+              .range(from, from + 999));
+        } on PostgrestException catch (e) {
+          if (e.code != 'PGRST202' && e.code != '42883' && !e.message.contains('rapport_billets')) rethrow;
+          serveurAJour = false;
+          from -= 1000;
+          continue;
+        }
+      } else {
+        var q = _db.from('tickets_detail').select();
+        if (d != null) q = q.gte('created_at', d);
+        if (f != null) q = q.lt('created_at', f);
+        final moi = soi ? userId : vendeurId;
+        if (moi != null) q = q.eq('vendeur_id', moi);
+        if (gareDepartId != null) q = q.eq('gare_depart_id', gareDepartId);
+        rows = _maps(await q.order('created_at', ascending: false).range(from, from + 999));
       }
-      if (vendeurId != null) q = q.eq('vendeur_id', vendeurId);
-      if (gareDepartId != null) q = q.eq('gare_depart_id', gareDepartId);
-      final rows = await q.order('created_at', ascending: false).range(from, from + 999);
       out.addAll(rows.map(Ticket.fromJson));
       if (rows.length < 1000) break;
     }

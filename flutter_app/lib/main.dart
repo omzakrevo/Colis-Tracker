@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/config.dart';
 import 'core/theme.dart';
+import 'data/reseau.dart';
 import 'router.dart';
 
 Future<void> main() async {
@@ -17,6 +18,7 @@ Future<void> main() async {
       publishableKey: AppConfig.supabaseAnonKey,
     );
   }
+  Reseau.demarrer();
   runApp(const ProviderScope(child: TchiApp()));
 }
 

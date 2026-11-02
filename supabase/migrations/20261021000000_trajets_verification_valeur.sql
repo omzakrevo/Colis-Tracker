@@ -54,7 +54,7 @@ end $$;
 
 alter table public.colis add column if not exists valeur numeric(12, 2) check (valeur is null or valeur >= 0);
 
-drop view if exists public.colis_detail;
+drop view if exists public.colis_detail cascade;
 create view public.colis_detail with (security_invoker = true) as
 select c.*,
        gd.nom as gare_depart_nom,
@@ -71,7 +71,7 @@ grant select on public.colis_detail to authenticated;
 alter table public.tickets add column if not exists nb_verifications integer not null default 0;
 alter table public.tickets add column if not exists derniere_verification timestamptz;
 
-drop view if exists public.tickets_detail;
+drop view if exists public.tickets_detail cascade;
 create view public.tickets_detail with (security_invoker = true) as
 select t.*, gd.nom as gare_depart_nom, ga.nom as gare_arrivee_nom, p.nom as vendeur_nom
 from public.tickets t

@@ -12,7 +12,7 @@ alter table public.tickets add constraint tickets_mode_paiement_check check (mod
 alter table public.company_settings add column if not exists cloture_montants boolean not null default false;
 
 -- Les vues doivent être recréées pour exposer la nouvelle colonne.
-drop view if exists public.colis_detail;
+drop view if exists public.colis_detail cascade;
 create view public.colis_detail with (security_invoker = true) as
 select c.*,
        gd.nom as gare_depart_nom,
@@ -24,7 +24,7 @@ left join public.gares ga on ga.id = c.gare_arrivee_id
 left join public.vip_profiles p on p.id = c.agent_id;
 grant select on public.colis_detail to authenticated;
 
-drop view if exists public.tickets_detail;
+drop view if exists public.tickets_detail cascade;
 create view public.tickets_detail with (security_invoker = true) as
 select t.*, gd.nom as gare_depart_nom, ga.nom as gare_arrivee_nom, p.nom as vendeur_nom
 from public.tickets t

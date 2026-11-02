@@ -4,7 +4,7 @@ alter table public.colis add column if not exists billet_numero text;
 create index if not exists colis_billet_numero_idx on public.colis (company_id, billet_numero) where billet_numero is not null;
 
 -- La vue doit être recréée pour exposer la nouvelle colonne.
-drop view if exists public.colis_detail;
+drop view if exists public.colis_detail cascade;
 create view public.colis_detail with (security_invoker = true) as
 select c.*,
        gd.nom as gare_depart_nom,

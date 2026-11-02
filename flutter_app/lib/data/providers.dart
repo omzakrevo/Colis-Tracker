@@ -11,6 +11,7 @@ import '../core/local_auth.dart';
 import 'models.dart';
 import 'offline.dart';
 import 'repo.dart';
+import 'reseau.dart';
 
 String errMsg(Object e) {
   if (estErreurReseau(e))
@@ -284,6 +285,8 @@ class SyncNotifier extends Notifier<SyncState> {
     final conn = Connectivity().onConnectivityChanged.listen((r) {
       if (!r.contains(ConnectivityResult.none)) sync();
     });
+    // Le serveur répond de nouveau : on envoie tout de suite ce qui attendait sur l'appareil.
+    final retour = Reseau.retour.listen((_) => sync());
     final timer = Timer.periodic(const Duration(seconds: 45), (_) => sync());
     // Billets à vérifier : copie mise à jour sur le téléphone à chaque changement et régulièrement.
     ref.listen(tickProvider, (_, _) => _majVerif());
@@ -296,6 +299,7 @@ class SyncNotifier extends Notifier<SyncState> {
     ref.onDispose(() {
       Outbox.changes.removeListener(onChange);
       conn.cancel();
+      retour.cancel();
       timer.cancel();
     });
     Future.microtask(() async {

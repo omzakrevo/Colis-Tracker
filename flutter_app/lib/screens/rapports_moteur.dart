@@ -33,6 +33,31 @@ enum TypeRapport {
   final bool compta;
 }
 
+/// Types de rapport que ce rôle a le droit de voir.
+///  - administrateur : tous (la caisse par personne est réservée à lui) ;
+///  - comptable : tous sauf la caisse par personne ;
+///  - chef de gare : l'activité de sa gare ;
+///  - guichet, agent, convoyeur : seulement leurs propres colis ou billets.
+List<TypeRapport> typesPour(String role, {required bool finance}) {
+  const gare = {
+    TypeRapport.colis, TypeRapport.agents, TypeRapport.billets, TypeRapport.ventesBillets,
+    TypeRapport.billetsTrajet, TypeRapport.billetsHeure, TypeRapport.nonRetires, TypeRapport.synthese,
+  };
+  return [
+    for (final t in TypeRapport.values)
+      if (switch (role) {
+        'admin' => !t.compta || finance,
+        'comptable' => (!t.compta || finance) && t != TypeRapport.caisse,
+        'chef_gare' => gare.contains(t),
+        'guichet' => t == TypeRapport.colis || t == TypeRapport.billets || t == TypeRapport.ventesBillets,
+        'convoyeur' => t == TypeRapport.billets || t == TypeRapport.ventesBillets,
+        'agent' => t == TypeRapport.colis,
+        _ => false,
+      })
+        t,
+  ];
+}
+
 /// Un tableau du rapport. Les cellules sont des `String`, nombres, `DateTime` ou `null`.
 class SectionRapport {
   SectionRapport(this.titre, this.entetes, this.lignes, {this.totaux, this.montants = const {}});

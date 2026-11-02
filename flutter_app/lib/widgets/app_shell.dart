@@ -10,6 +10,7 @@ import '../core/format.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../data/providers.dart';
+import '../data/reseau.dart';
 import 'common.dart';
 import 'mot_de_passe.dart';
 import 'update_dialog.dart';
@@ -155,7 +156,10 @@ class AppShell extends ConsumerWidget {
     });
     final body = Column(
       children: [
-        SyncBanner(offline: offline),
+        ValueListenableBuilder<bool>(
+          valueListenable: Reseau.enLigne,
+          builder: (_, enLigne, _) => SyncBanner(offline: offline || !enLigne),
+        ),
         Expanded(child: child),
       ],
     );
