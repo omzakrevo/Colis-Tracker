@@ -28,6 +28,10 @@ on:
         description: "Nom de la version (vide = celui de pubspec.yaml)"
         type: string
         default: ""
+      cle_temporaire:
+        description: "Autoriser une clé de signature TEMPORAIRE (déconseillé : l'APK ne pourra pas mettre à jour les autres)"
+        type: boolean
+        default: false
   push:
     tags: ["v*"]
 
@@ -73,9 +77,13 @@ jobs:
               echo "keyPassword=${KS_KEYPASS:-$KS_PASS}"
             } > android/key.properties
             echo "- Signature : **clé stable** (les téléphones peuvent se mettre à jour)" >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ inputs.cle_temporaire }}" = "true" ]; then
+            echo "::warning::Clé TEMPORAIRE demandée : cet APK ne pourra pas mettre à jour une version signée avec la clé stable."
+            echo "- Signature : **clé temporaire** (demandée)" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "::warning::Secrets ANDROID_KEYSTORE_* absents : APK signé avec une clé temporaire, les mises à jour par-dessus une autre version seront refusées par Android."
-            echo "- Signature : **clé temporaire** (secrets ANDROID_KEYSTORE_* manquants)" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Secrets ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD et ANDROID_KEY_ALIAS absents : sans eux l'APK serait signé avec une clé jetable et Android refuserait les mises à jour (« en conflit avec une autre application »). Ajoutez-les dans GitHub : Settings > Secrets and variables > Actions."
+            echo "- Signature : **ÉCHEC** (secrets ANDROID_KEYSTORE_* manquants)" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
           fi
       - name: Construire l'APK
         run: |
@@ -86,6 +94,10 @@ jobs:
             echo "- Version : **${{ steps.ver.outputs.name }}**"
             echo "- Numéro de build : **${{ steps.ver.outputs.build }}**"
           } >> "$GITHUB_STEP_SUMMARY"
+          # Empreinte de la clé de signature : doit être IDENTIQUE à chaque build pour que les mises à jour passent.
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs "build/app/outputs/flutter-apk/tchi-${{ steps.ver.outputs.build }}.apk" \
+            | grep -i "SHA-256" | head -1 | sed 's/^/- Empreinte de signature : /' >> "$GITHUB_STEP_SUMMARY" || true
       - uses: actions/upload-artifact@v4
         with:
           name: tchi-android-build-${{ steps.ver.outputs.build }}
