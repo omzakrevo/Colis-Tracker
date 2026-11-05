@@ -117,7 +117,11 @@ jobs:
           : "${SUPABASE_URL:?Secret SUPABASE_URL manquant}"
           : "${SUPABASE_SERVICE_KEY:?Secret SUPABASE_SERVICE_KEY manquant}"
           SUPABASE_URL="${SUPABASE_URL%/}"
+          # Tolérance : adresse collée avec /rest/v1, /storage/v1, /auth/v1… (erreur PGRST125 « Invalid path »)
+          SUPABASE_URL="$(echo "$SUPABASE_URL" | sed -E 's#/(rest|storage|auth|functions|realtime)/v1.*$##; s#/+$##')"
+          echo "Serveur : $(echo "$SUPABASE_URL" | sed -E 's#(https?://[^/]+).*#\1#')"
           FILE="build/app/outputs/flutter-apk/tchi-${BUILD}.apk"
+          echo "Envoi de l'APK (stockage)…"
           curl -sS --fail-with-body -X POST "$SUPABASE_URL/storage/v1/object/app-releases/android/tchi-${BUILD}.apk" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" -H "apikey: $SUPABASE_SERVICE_KEY" \
             -H "Content-Type: application/vnd.android.package-archive" -H "x-upsert: true" \
@@ -125,6 +129,7 @@ jobs:
           URL="$SUPABASE_URL/storage/v1/object/public/app-releases/android/tchi-${BUILD}.apk"
           BODY=$(jq -n --arg n "$NAME" --argjson b "$BUILD" --arg u "$URL" --arg notes "$NOTES" --argjson o "$OBLIG" \
             '{version_name:$n, build_number:$b, apk_url:$u, notes:(if $notes=="" then null else $notes end), obligatoire:$o}')
+          echo "Annonce de la version (table app_versions)…"
           curl -sS --fail-with-body -X POST "$SUPABASE_URL/rest/v1/app_versions" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" -H "apikey: $SUPABASE_SERVICE_KEY" \
             -H "Content-Type: application/json" -H "Prefer: return=minimal" -d "$BODY"
