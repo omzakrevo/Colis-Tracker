@@ -39,8 +39,16 @@ const _verifier = _Item(
   'Vérifier',
   Icons.fact_check_rounded,
 );
-const _compta = _Item('/finance', 'Comptabilité', Icons.account_balance_rounded);
-const _cloture = _Item('/cloture', 'Fin de journée', Icons.receipt_long_rounded);
+const _compta = _Item(
+  '/finance',
+  'Comptabilité',
+  Icons.account_balance_rounded,
+);
+const _cloture = _Item(
+  '/cloture',
+  'Fin de journée',
+  Icons.receipt_long_rounded,
+);
 const _imprimante = _Item('/imprimante', 'Imprimante', Icons.print_rounded);
 const _scanner = _Item('/scanner', 'Scanner', Icons.qr_code_scanner_rounded);
 
@@ -63,7 +71,11 @@ List<_Item> _menu(Profil me, [bool finance = false]) => me.isBarragiste
     ? [
         if (finance) _compta,
         const _Item('/rapports', 'Rapports', Icons.insights_rounded),
-        const _Item('/rapports/detail', 'Rapports détaillés', Icons.table_chart_rounded),
+        const _Item(
+          '/rapports/detail',
+          'Rapports détaillés',
+          Icons.table_chart_rounded,
+        ),
       ]
     : me.isConvoyeur
     ? const [_billets, _verifier, _scanner, _cloture, _imprimante]
@@ -79,8 +91,14 @@ List<_Item> _menu(Profil me, [bool finance = false]) => me.isBarragiste
         if (me.peutVerifierBillets) _verifier,
         _cloture,
         _imprimante,
-        if (me.voitRapportsGlobaux) const _Item('/rapports', 'Rapports', Icons.insights_rounded),
-        if (!me.voitRapportsGlobaux) const _Item('/rapports/detail', 'Mes rapports', Icons.table_chart_rounded),
+        if (me.voitRapportsGlobaux)
+          const _Item('/rapports', 'Rapports', Icons.insights_rounded),
+        if (!me.voitRapportsGlobaux)
+          const _Item(
+            '/rapports/detail',
+            'Mes rapports',
+            Icons.table_chart_rounded,
+          ),
         if (me.isAdmin && finance) _compta,
         if (me.isAdmin) ...const [
           _Item('/gares', 'Gares', Icons.location_city_rounded),
@@ -132,7 +150,9 @@ class AppShell extends ConsumerWidget {
       ? location.startsWith('/billets') &&
             !location.startsWith('/billets/verifier')
       : path == '/rapports'
-      ? location == '/rapports' || (location.startsWith('/rapports/') && !location.startsWith('/rapports/detail'))
+      ? location == '/rapports' ||
+            (location.startsWith('/rapports/') &&
+                !location.startsWith('/rapports/detail'))
       : location.startsWith(path);
 
   @override
@@ -143,7 +163,8 @@ class AppShell extends ConsumerWidget {
     if (me == null) return const SizedBox.shrink();
     final settings = me.isSuper ? null : ref.watch(settingsProvider).value;
     final wide = MediaQuery.sizeOf(context).width >= 900;
-    final finance = ref.watch(authProvider).value?.company?.moduleFinance ?? false;
+    final finance =
+        ref.watch(authProvider).value?.company?.moduleFinance ?? false;
     final menu = _menu(me, finance);
     final offline = ref.watch(sessionProvider).offline;
     ref.listen(miseAJourProvider, (_, next) {
@@ -202,24 +223,28 @@ class AppShell extends ConsumerWidget {
     return Scaffold(
       appBar: clavier
           // Clavier ouvert : toute la hauteur sert à la saisie.
-          ? const PreferredSize(preferredSize: Size.zero, child: SizedBox.shrink())
+          ? const PreferredSize(
+              preferredSize: Size.zero,
+              child: SizedBox.shrink(),
+            )
           : AppBar(
-        titleSpacing: 0,
-        title: Row(
-          children: [
-            Logo(size: 30, data: settings?.logo),
-            const SizedBox(width: 10),
-            Text(
-              settings?.nom.toUpperCase() ?? AppConfig.appName.toUpperCase(),
-              style: const TextStyle(
-                fontWeight: FontWeight.w800,
-                letterSpacing: .5,
-                fontSize: 17,
+              titleSpacing: 0,
+              title: Row(
+                children: [
+                  Logo(size: 30, data: settings?.logo),
+                  const SizedBox(width: 10),
+                  Text(
+                    settings?.nom.toUpperCase() ??
+                        AppConfig.appName.toUpperCase(),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: .5,
+                      fontSize: 17,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
       drawer: Drawer(
         backgroundColor: Brand.emerald,
         child: _Sidebar(
@@ -382,7 +407,11 @@ class _Sidebar extends StatelessWidget {
                   InkWell(
                     onTap: () async {
                       if (await changerMotDePasseDialog(context)) {
-                        if (context.mounted) toast(context, 'Mot de passe changé : reconnectez-vous avec le nouveau.');
+                        if (context.mounted)
+                          toast(
+                            context,
+                            'Mot de passe changé : reconnectez-vous avec le nouveau.',
+                          );
                         onLogout();
                       }
                     },
@@ -391,11 +420,19 @@ class _Sidebar extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Row(
                         children: [
-                          Icon(Icons.lock_reset_rounded, size: 16, color: Colors.white.withValues(alpha: .85)),
+                          Icon(
+                            Icons.lock_reset_rounded,
+                            size: 16,
+                            color: Colors.white.withValues(alpha: .85),
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'Changer mon mot de passe',
-                            style: TextStyle(color: Colors.white.withValues(alpha: .85), fontSize: 13, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: .85),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ),

@@ -65,7 +65,9 @@ class _ClientFieldsState extends State<ClientFields> {
       final tel = _chiffres(widget.telephone.text);
       // Numéro complet reconnu : on remplit le nom sans qu'il y ait rien à choisir.
       final exact = tel.length >= 8
-          ? r.where((c) => c.telephone == tel || c.telephone.endsWith(tel)).toList()
+          ? r
+                .where((c) => c.telephone == tel || c.telephone.endsWith(tel))
+                .toList()
           : <ClientSuggestion>[];
       if (exact.length == 1 && widget.nom.text.trim().isEmpty) {
         _choisir(exact.first);
@@ -96,7 +98,7 @@ class _ClientFieldsState extends State<ClientFields> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TextFormField(
- textInputAction: TextInputAction.next,
+          textInputAction: TextInputAction.next,
           controller: widget.telephone,
           keyboardType: TextInputType.phone,
           decoration: InputDecoration(
@@ -109,7 +111,7 @@ class _ClientFieldsState extends State<ClientFields> {
         ),
         const SizedBox(height: 12),
         TextFormField(
- textInputAction: TextInputAction.next,
+          textInputAction: TextInputAction.next,
           controller: widget.nom,
           textCapitalization: TextCapitalization.words,
           decoration: InputDecoration(
@@ -124,7 +126,11 @@ class _ClientFieldsState extends State<ClientFields> {
             padding: const EdgeInsets.only(top: 10),
             child: Row(
               children: [
-                const Icon(Icons.verified_rounded, size: 18, color: Color(0xFF16A34A)),
+                const Icon(
+                  Icons.verified_rounded,
+                  size: 18,
+                  color: Color(0xFF16A34A),
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(

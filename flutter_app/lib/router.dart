@@ -74,7 +74,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       final p = d.profil;
       if (p == null) return publiques.contains(loc) ? null : '/login';
       if (p.isSuper)
-        return (loc == '/entreprises' || loc == '/mises-a-jour' || loc == '/sms-plateforme')
+        return (loc == '/entreprises' ||
+                loc == '/mises-a-jour' ||
+                loc == '/sms-plateforme')
             ? null
             : '/entreprises';
       if (d.bloque) return loc == '/attente' ? null : '/attente';
@@ -83,11 +85,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Le comptable ne voit que les rapports et le financier.
       if (p.isComptable) {
         final fin = d.company?.moduleFinance ?? false;
-        return (loc.startsWith('/rapports') || (fin && loc.startsWith('/finance'))) ? null : (fin ? '/finance' : '/rapports');
+        return (loc.startsWith('/rapports') ||
+                (fin && loc.startsWith('/finance')))
+            ? null
+            : (fin ? '/finance' : '/rapports');
       }
-      if (loc.startsWith('/finance') && !(p.isAdmin && (d.company?.moduleFinance ?? false))) return '/';
+      if (loc.startsWith('/finance') &&
+          !(p.isAdmin && (d.company?.moduleFinance ?? false)))
+        return '/';
       // Rapports globaux : administrateur, chef de gare, comptable ; les autres n'ont que « Mes rapports ».
-      if (loc == '/rapports' && !p.voitRapportsGlobaux) return '/rapports/detail';
+      if (loc == '/rapports' && !p.voitRapportsGlobaux)
+        return '/rapports/detail';
       // Le convoyeur vend des billets et scanne, rien d'autre.
       if (p.isConvoyeur) {
         return (loc.startsWith('/billets') ||
@@ -102,7 +110,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           loc == '/mises-a-jour' ||
           loc.startsWith('/entreprises'))
         return '/';
-      const adminOnly = ['/gares', '/utilisateurs', '/parametres', '/trajets', '/sms'];
+      const adminOnly = [
+        '/gares',
+        '/utilisateurs',
+        '/parametres',
+        '/trajets',
+        '/sms',
+      ];
       if (!p.isAdmin && adminOnly.any(loc.startsWith)) return '/';
       return null;
     },
@@ -185,19 +199,31 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/recherche',
             pageBuilder: (c, s) => _page(s, const RechercheScreen()),
           ),
-          GoRoute(path: '/finance', pageBuilder: (c, s) => _page(s, const FinanceHubScreen())),
-          GoRoute(path: '/finance/depenses', pageBuilder: (c, s) => _page(s, const FinanceDepensesScreen())),
-          GoRoute(path: '/finance/documents', pageBuilder: (c, s) => _page(s, const FinanceDocumentsScreen())),
-          GoRoute(path: '/finance/employes', pageBuilder: (c, s) => _page(s, const FinanceEmployesScreen())),
-          GoRoute(path: '/finance/paie', pageBuilder: (c, s) => _page(s, const FinancePaieScreen())),
+          GoRoute(
+            path: '/finance',
+            pageBuilder: (c, s) => _page(s, const FinanceHubScreen()),
+          ),
+          GoRoute(
+            path: '/finance/depenses',
+            pageBuilder: (c, s) => _page(s, const FinanceDepensesScreen()),
+          ),
+          GoRoute(
+            path: '/finance/documents',
+            pageBuilder: (c, s) => _page(s, const FinanceDocumentsScreen()),
+          ),
+          GoRoute(
+            path: '/finance/employes',
+            pageBuilder: (c, s) => _page(s, const FinanceEmployesScreen()),
+          ),
+          GoRoute(
+            path: '/finance/paie',
+            pageBuilder: (c, s) => _page(s, const FinancePaieScreen()),
+          ),
           GoRoute(
             path: '/rapports/detail',
             pageBuilder: (c, s) => _page(s, const RapportsDetailScreen()),
           ),
-          GoRoute(
-            path: '/cloture',
-            builder: (_, _) => const ClotureScreen(),
-          ),
+          GoRoute(path: '/cloture', builder: (_, _) => const ClotureScreen()),
           GoRoute(
             path: '/rapports',
             pageBuilder: (c, s) => _page(s, const RapportsScreen()),

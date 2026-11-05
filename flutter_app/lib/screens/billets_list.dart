@@ -36,7 +36,9 @@ class _BilletsListScreenState extends ConsumerState<BilletsListScreen> {
       children: [
         PageHeader(
           'Billets',
-          subtitle: list.hasValue ? '${list.value!.length} billets' : 'Chargement…',
+          subtitle: list.hasValue
+              ? '${list.value!.length} billets'
+              : 'Chargement…',
           actions: wide && (me?.peutVendreBillets ?? false)
               ? [
                   FilledButton.icon(
@@ -63,8 +65,11 @@ class _BilletsListScreenState extends ConsumerState<BilletsListScreen> {
             builder: (tous) {
               final l = tous.where((t) {
                 if (q.isEmpty) return true;
-                return [t.numero, t.clientNom, t.clientTelephone]
-                    .any((x) => x.toLowerCase().contains(q));
+                return [
+                  t.numero,
+                  t.clientNom,
+                  t.clientTelephone,
+                ].any((x) => x.toLowerCase().contains(q));
               }).toList();
               if (l.isEmpty) {
                 return const EmptyState(
@@ -105,7 +110,10 @@ class _BilletTile extends StatelessWidget {
                 color: Brand.orange.withValues(alpha: .12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.confirmation_number_rounded, color: Brand.orange),
+              child: const Icon(
+                Icons.confirmation_number_rounded,
+                color: Brand.orange,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(

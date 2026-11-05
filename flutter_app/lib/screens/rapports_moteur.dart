@@ -11,20 +11,65 @@ import 'receipt.dart' show pdfImage, pdfTexte;
 
 /// Types de rapport proposés à l'administrateur.
 enum TypeRapport {
-  colis('Colis envoyés', 'Liste détaillée des colis, avec l\'agent qui les a enregistrés'),
-  caisse('Caisse par personne (espèces / Orange Money)', 'Pour chaque personne : colis et billets vendus, encaissés en espèces ou par Orange Money, par jour, mois ou année'),
-  agents('Activité par agent', 'Colis et billets enregistrés par chaque compte, avec les recettes'),
-  gares('Recettes par gare', 'Colis, billets et recettes de chaque gare de départ'),
-  billets('Billets vendus (liste)', 'Liste détaillée des billets, avec le vendeur'),
-  ventesBillets('Ventes de billets par jour / mois', 'Nombre de billets et prix total vendus par jour, par mois ou par année'),
-  billetsTrajet('Billets par trajet', 'Billets vendus et chiffre d\'affaires de chaque trajet (départ → arrivée)'),
-  billetsHeure('Billets par heure de départ', 'Billets vendus par heure de départ et par trajet'),
-  caGare('Chiffre d\'affaires par gare (jour / mois)', 'Chiffre d\'affaires (colis + billets) de chaque gare, jour par jour, mois par mois ou année par année'),
-  nonRetires('Colis en attente de retrait', 'Colis arrivés et pas encore retirés, du plus ancien au plus récent'),
-  synthese('Synthèse générale', 'Vue d\'ensemble : chiffres clés, jour par jour, statuts, agents et gares (tout en un)'),
-  depenses('Dépenses', 'Dépenses par catégorie, par jour / mois / année, et détail de chaque dépense', compta: true),
-  bilan('Bilan (entrées, sorties, résultat)', 'Entrées (colis, billets), sorties (dépenses, salaires) et résultat, par jour, mois ou année', compta: true),
-  financier('Rapport financier complet', 'Tout ce qui s\'est passé : entrées, dépenses, salaires, résultat, gare par gare', compta: true);
+  colis(
+    'Colis envoyés',
+    'Liste détaillée des colis, avec l\'agent qui les a enregistrés',
+  ),
+  caisse(
+    'Caisse par personne (espèces / Orange Money)',
+    'Pour chaque personne : colis et billets vendus, encaissés en espèces ou par Orange Money, par jour, mois ou année',
+  ),
+  agents(
+    'Activité par agent',
+    'Colis et billets enregistrés par chaque compte, avec les recettes',
+  ),
+  gares(
+    'Recettes par gare',
+    'Colis, billets et recettes de chaque gare de départ',
+  ),
+  billets(
+    'Billets vendus (liste)',
+    'Liste détaillée des billets, avec le vendeur',
+  ),
+  ventesBillets(
+    'Ventes de billets par jour / mois',
+    'Nombre de billets et prix total vendus par jour, par mois ou par année',
+  ),
+  billetsTrajet(
+    'Billets par trajet',
+    'Billets vendus et chiffre d\'affaires de chaque trajet (départ → arrivée)',
+  ),
+  billetsHeure(
+    'Billets par heure de départ',
+    'Billets vendus par heure de départ et par trajet',
+  ),
+  caGare(
+    'Chiffre d\'affaires par gare (jour / mois)',
+    'Chiffre d\'affaires (colis + billets) de chaque gare, jour par jour, mois par mois ou année par année',
+  ),
+  nonRetires(
+    'Colis en attente de retrait',
+    'Colis arrivés et pas encore retirés, du plus ancien au plus récent',
+  ),
+  synthese(
+    'Synthèse générale',
+    'Vue d\'ensemble : chiffres clés, jour par jour, statuts, agents et gares (tout en un)',
+  ),
+  depenses(
+    'Dépenses',
+    'Dépenses par catégorie, par jour / mois / année, et détail de chaque dépense',
+    compta: true,
+  ),
+  bilan(
+    'Bilan (entrées, sorties, résultat)',
+    'Entrées (colis, billets), sorties (dépenses, salaires) et résultat, par jour, mois ou année',
+    compta: true,
+  ),
+  financier(
+    'Rapport financier complet',
+    'Tout ce qui s\'est passé : entrées, dépenses, salaires, résultat, gare par gare',
+    compta: true,
+  );
 
   const TypeRapport(this.titre, this.description, {this.compta = false});
   final String titre, description;
@@ -40,8 +85,14 @@ enum TypeRapport {
 ///  - guichet, agent, convoyeur : seulement leurs propres colis ou billets.
 List<TypeRapport> typesPour(String role, {required bool finance}) {
   const gare = {
-    TypeRapport.colis, TypeRapport.agents, TypeRapport.billets, TypeRapport.ventesBillets,
-    TypeRapport.billetsTrajet, TypeRapport.billetsHeure, TypeRapport.nonRetires, TypeRapport.synthese,
+    TypeRapport.colis,
+    TypeRapport.agents,
+    TypeRapport.billets,
+    TypeRapport.ventesBillets,
+    TypeRapport.billetsTrajet,
+    TypeRapport.billetsHeure,
+    TypeRapport.nonRetires,
+    TypeRapport.synthese,
   };
   return [
     for (final t in TypeRapport.values)
@@ -49,8 +100,12 @@ List<TypeRapport> typesPour(String role, {required bool finance}) {
         'admin' => !t.compta || finance,
         'comptable' => (!t.compta || finance) && t != TypeRapport.caisse,
         'chef_gare' => gare.contains(t),
-        'guichet' => t == TypeRapport.colis || t == TypeRapport.billets || t == TypeRapport.ventesBillets,
-        'convoyeur' => t == TypeRapport.billets || t == TypeRapport.ventesBillets,
+        'guichet' =>
+          t == TypeRapport.colis ||
+              t == TypeRapport.billets ||
+              t == TypeRapport.ventesBillets,
+        'convoyeur' =>
+          t == TypeRapport.billets || t == TypeRapport.ventesBillets,
         'agent' => t == TypeRapport.colis,
         _ => false,
       })
@@ -60,7 +115,13 @@ List<TypeRapport> typesPour(String role, {required bool finance}) {
 
 /// Un tableau du rapport. Les cellules sont des `String`, nombres, `DateTime` ou `null`.
 class SectionRapport {
-  SectionRapport(this.titre, this.entetes, this.lignes, {this.totaux, this.montants = const {}});
+  SectionRapport(
+    this.titre,
+    this.entetes,
+    this.lignes, {
+    this.totaux,
+    this.montants = const {},
+  });
   final String titre;
   final List<String> entetes;
   final List<List<Object?>> lignes;
@@ -89,7 +150,13 @@ class SectionRapport {
         if (a == null || b == null) return cmp(a, b);
         return croissant ? cmp(a, b) : -cmp(a, b);
       });
-    return SectionRapport(titre, entetes, l, totaux: totaux, montants: montants);
+    return SectionRapport(
+      titre,
+      entetes,
+      l,
+      totaux: totaux,
+      montants: montants,
+    );
   }
 }
 
@@ -132,7 +199,8 @@ class FiltresRapport {
   final String? agentId, agentNom, gareNom, statut;
   final int? gareId;
 
-  String get periode => '${debut == null ? '...' : dateFr(debut!)} au ${fin == null ? '...' : dateFr(fin!)}';
+  String get periode =>
+      '${debut == null ? '...' : dateFr(debut!)} au ${fin == null ? '...' : dateFr(fin!)}';
 
   String get description => [
     'Période : $periode',
@@ -160,41 +228,128 @@ Rapport construireRapport(
   final recetteColis = actifs.fold<double>(0, (a, c) => a + c.prix);
   final recetteBillets = billetsActifs.fold<double>(0, (a, t) => a + t.prix);
 
-  SectionRapport colisListe(List<Colis> l, {String titre = 'Colis envoyés'}) => SectionRapport(
-    titre,
-    [
-      'Date', 'N°', 'Agent (envoyé par)', 'Expéditeur', 'Tél. exp.', 'Destinataire', 'Tél. dest.', 'Départ', 'Arrivée',
-      'Description', 'Nb', 'Poids (kg)', 'Valeur', 'Prix', 'Statut', 'Billet lié', 'Paiement',
-    ],
-    [
-      for (final c in l)
+  SectionRapport colisListe(List<Colis> l, {String titre = 'Colis envoyés'}) =>
+      SectionRapport(
+        titre,
         [
-          _jour(c.dateEnvoi), c.numero, c.agentNom ?? '—', c.expediteurNom, c.expediteurTelephone, c.destinataireNom,
-          c.destinataireTelephone, c.gareDepartNom ?? '', c.gareArriveeNom ?? '', c.description, c.nombre, c.poids, c.valeur,
-          c.prix, Statut.of(c.statut).label, c.billetNumero ?? '', libelleModePaiement(c.modePaiement),
+          'Date',
+          'N°',
+          'Agent (envoyé par)',
+          'Expéditeur',
+          'Tél. exp.',
+          'Destinataire',
+          'Tél. dest.',
+          'Départ',
+          'Arrivée',
+          'Description',
+          'Nb',
+          'Poids (kg)',
+          'Valeur',
+          'Prix',
+          'Statut',
+          'Billet lié',
+          'Paiement',
         ],
-    ],
-    montants: {12, 13},
-    totaux: [
-      'TOTAL', '${l.length} colis', '', '', '', '', '', '', '', '', l.fold<int>(0, (a, c) => a + c.nombre), null, null,
-      l.where((c) => c.statut != 'annule').fold<double>(0, (a, c) => a + c.prix), '', '', '',
-    ],
-  );
+        [
+          for (final c in l)
+            [
+              _jour(c.dateEnvoi),
+              c.numero,
+              c.agentNom ?? '—',
+              c.expediteurNom,
+              c.expediteurTelephone,
+              c.destinataireNom,
+              c.destinataireTelephone,
+              c.gareDepartNom ?? '',
+              c.gareArriveeNom ?? '',
+              c.description,
+              c.nombre,
+              c.poids,
+              c.valeur,
+              c.prix,
+              Statut.of(c.statut).label,
+              c.billetNumero ?? '',
+              libelleModePaiement(c.modePaiement),
+            ],
+        ],
+        montants: {12, 13},
+        totaux: [
+          'TOTAL',
+          '${l.length} colis',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          l.fold<int>(0, (a, c) => a + c.nombre),
+          null,
+          null,
+          l
+              .where((c) => c.statut != 'annule')
+              .fold<double>(0, (a, c) => a + c.prix),
+          '',
+          '',
+          '',
+        ],
+      );
 
   SectionRapport billetsListe(List<Ticket> l) => SectionRapport(
     'Billets vendus',
-    ['Date de vente', 'N°', 'Vendu par', 'Passager', 'Téléphone', 'Départ', 'Arrivée', 'Date voyage', 'Heure', 'Siège', 'Prix', 'Statut', 'Paiement'],
+    [
+      'Date de vente',
+      'N°',
+      'Vendu par',
+      'Passager',
+      'Téléphone',
+      'Départ',
+      'Arrivée',
+      'Date voyage',
+      'Heure',
+      'Siège',
+      'Prix',
+      'Statut',
+      'Paiement',
+    ],
     [
       for (final t in l)
         [
-          t.createdAt.toLocal(), t.numero, t.vendeurNom ?? '—', t.clientNom, t.clientTelephone, t.gareDepartNom ?? '',
-          t.gareArriveeNom ?? '', _jour(t.dateVoyage), t.heureDepart ?? '', t.siege ?? '', t.prix, t.annule ? 'Annulé' : 'Valide', t.gratuit ? 'Gratuit (fidélité)' : libelleModePaiement(t.modePaiement),
+          t.createdAt.toLocal(),
+          t.numero,
+          t.vendeurNom ?? '—',
+          t.clientNom,
+          t.clientTelephone,
+          t.gareDepartNom ?? '',
+          t.gareArriveeNom ?? '',
+          _jour(t.dateVoyage),
+          t.heureDepart ?? '',
+          t.siege ?? '',
+          t.prix,
+          t.annule ? 'Annulé' : 'Valide',
+          t.gratuit
+              ? 'Gratuit (fidélité)'
+              : libelleModePaiement(t.modePaiement),
         ],
     ],
     montants: {10},
-    totaux: ['TOTAL', '${l.length} billets', '', '', '', '', '', '', '', '', l.where((t) => !t.annule).fold<double>(0, (a, t) => a + t.prix), '', ''],
+    totaux: [
+      'TOTAL',
+      '${l.length} billets',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      l.where((t) => !t.annule).fold<double>(0, (a, t) => a + t.prix),
+      '',
+      '',
+    ],
   );
-
 
   SectionRapport caisseParPersonne() {
     // personne -> [nbColis, colisEsp, colisOM, nbBillets, billetsEsp, billetsOM]
@@ -210,21 +365,60 @@ Rapport construireRapport(
       x[3]++;
       x[t.modePaiement == 'orange_money' ? 5 : 4] += t.prix;
     }
-    final noms = m.keys.toList()..sort((a, b) => (m[b]!.sublist(1, 3).fold(0.0, (p, e) => p + e) + m[b]!.sublist(4).fold(0.0, (p, e) => p + e)).compareTo(m[a]!.sublist(1, 3).fold(0.0, (p, e) => p + e) + m[a]!.sublist(4).fold(0.0, (p, e) => p + e)));
+    final noms = m.keys.toList()
+      ..sort(
+        (a, b) =>
+            (m[b]!.sublist(1, 3).fold(0.0, (p, e) => p + e) +
+                    m[b]!.sublist(4).fold(0.0, (p, e) => p + e))
+                .compareTo(
+                  m[a]!.sublist(1, 3).fold(0.0, (p, e) => p + e) +
+                      m[a]!.sublist(4).fold(0.0, (p, e) => p + e),
+                ),
+      );
     final lignes = [
       for (final n in noms)
         [
-          n, m[n]![0].toInt(), m[n]![1], m[n]![2], m[n]![3].toInt(), m[n]![4], m[n]![5],
-          m[n]![1] + m[n]![4], m[n]![2] + m[n]![5], m[n]![1] + m[n]![2] + m[n]![4] + m[n]![5],
+          n,
+          m[n]![0].toInt(),
+          m[n]![1],
+          m[n]![2],
+          m[n]![3].toInt(),
+          m[n]![4],
+          m[n]![5],
+          m[n]![1] + m[n]![4],
+          m[n]![2] + m[n]![5],
+          m[n]![1] + m[n]![2] + m[n]![4] + m[n]![5],
         ],
     ];
     double somme(int i) => lignes.fold<double>(0, (a, l) => a + (l[i] as num));
     return SectionRapport(
       'Caisse par personne',
-      ['Personne', 'Colis', 'Colis espèces', 'Colis Orange Money', 'Billets', 'Billets espèces', 'Billets Orange Money', 'Total espèces', 'Total Orange Money', 'Total'],
+      [
+        'Personne',
+        'Colis',
+        'Colis espèces',
+        'Colis Orange Money',
+        'Billets',
+        'Billets espèces',
+        'Billets Orange Money',
+        'Total espèces',
+        'Total Orange Money',
+        'Total',
+      ],
       lignes,
       montants: {2, 3, 5, 6, 7, 8, 9},
-      totaux: ['TOTAL', somme(1).toInt(), somme(2), somme(3), somme(4).toInt(), somme(5), somme(6), somme(7), somme(8), somme(9)],
+      totaux: [
+        'TOTAL',
+        somme(1).toInt(),
+        somme(2),
+        somme(3),
+        somme(4).toInt(),
+        somme(5),
+        somme(6),
+        somme(7),
+        somme(8),
+        somme(9),
+      ],
     );
   }
 
@@ -240,13 +434,31 @@ Rapport construireRapport(
       final v = m[k] ?? (c: 0, rc: 0, b: 0, rb: 0);
       m[k] = (c: v.c, rc: v.rc, b: v.b + 1, rb: v.rb + t.prix);
     }
-    final noms = m.keys.toList()..sort((a, b) => (m[b]!.rc + m[b]!.rb).compareTo(m[a]!.rc + m[a]!.rb));
+    final noms = m.keys.toList()
+      ..sort((a, b) => (m[b]!.rc + m[b]!.rb).compareTo(m[a]!.rc + m[a]!.rb));
     return SectionRapport(
       'Activité par agent',
-      ['Agent', 'Colis', 'Recette colis', 'Billets', 'Recette billets', 'Total'],
-      [for (final n in noms) [n, m[n]!.c, m[n]!.rc, m[n]!.b, m[n]!.rb, m[n]!.rc + m[n]!.rb]],
+      [
+        'Agent',
+        'Colis',
+        'Recette colis',
+        'Billets',
+        'Recette billets',
+        'Total',
+      ],
+      [
+        for (final n in noms)
+          [n, m[n]!.c, m[n]!.rc, m[n]!.b, m[n]!.rb, m[n]!.rc + m[n]!.rb],
+      ],
       montants: {2, 4, 5},
-      totaux: ['TOTAL', actifs.length, recetteColis, billetsActifs.length, recetteBillets, recetteColis + recetteBillets],
+      totaux: [
+        'TOTAL',
+        actifs.length,
+        recetteColis,
+        billetsActifs.length,
+        recetteBillets,
+        recetteColis + recetteBillets,
+      ],
     );
   }
 
@@ -262,13 +474,24 @@ Rapport construireRapport(
       final v = m[k] ?? (c: 0, rc: 0, b: 0, rb: 0);
       m[k] = (c: v.c, rc: v.rc, b: v.b + 1, rb: v.rb + t.prix);
     }
-    final noms = m.keys.toList()..sort((a, b) => (m[b]!.rc + m[b]!.rb).compareTo(m[a]!.rc + m[a]!.rb));
+    final noms = m.keys.toList()
+      ..sort((a, b) => (m[b]!.rc + m[b]!.rb).compareTo(m[a]!.rc + m[a]!.rb));
     return SectionRapport(
       'Recettes par gare de départ',
       ['Gare', 'Colis', 'Recette colis', 'Billets', 'Recette billets', 'Total'],
-      [for (final n in noms) [n, m[n]!.c, m[n]!.rc, m[n]!.b, m[n]!.rb, m[n]!.rc + m[n]!.rb]],
+      [
+        for (final n in noms)
+          [n, m[n]!.c, m[n]!.rc, m[n]!.b, m[n]!.rb, m[n]!.rc + m[n]!.rb],
+      ],
       montants: {2, 4, 5},
-      totaux: ['TOTAL', actifs.length, recetteColis, billetsActifs.length, recetteBillets, recetteColis + recetteBillets],
+      totaux: [
+        'TOTAL',
+        actifs.length,
+        recetteColis,
+        billetsActifs.length,
+        recetteBillets,
+        recetteColis + recetteBillets,
+      ],
     );
   }
 
@@ -288,7 +511,10 @@ Rapport construireRapport(
     return SectionRapport(
       'Activité jour par jour',
       ['Date', 'Colis', 'Recette colis', 'Billets', 'Recette billets', 'Total'],
-      [for (final j in jours) [j, m[j]!.c, m[j]!.rc, m[j]!.b, m[j]!.rb, m[j]!.rc + m[j]!.rb]],
+      [
+        for (final j in jours)
+          [j, m[j]!.c, m[j]!.rc, m[j]!.b, m[j]!.rb, m[j]!.rc + m[j]!.rb],
+      ],
       montants: {2, 4, 5},
     );
   }
@@ -301,11 +527,13 @@ Rapport construireRapport(
     return SectionRapport(
       'Colis par statut',
       ['Statut', 'Colis'],
-      [for (final s in Statut.values) if ((m[s.code] ?? 0) > 0) [s.label, m[s.code]]],
+      [
+        for (final s in Statut.values)
+          if ((m[s.code] ?? 0) > 0) [s.label, m[s.code]],
+      ],
       totaux: ['TOTAL', colisBruts.length],
     );
   }
-
 
   /// Début de la période contenant `d` selon le regroupement choisi.
   DateTime cle(DateTime d) => switch (granularite) {
@@ -329,13 +557,30 @@ Rapport construireRapport(
     for (final t in billetsBruts) {
       final k = cle(t.createdAt.toLocal());
       final v = m[k] ?? (n: 0, ca: 0, ann: 0);
-      m[k] = t.annule ? (n: v.n, ca: v.ca, ann: v.ann + 1) : (n: v.n + 1, ca: v.ca + t.prix, ann: v.ann);
+      m[k] = t.annule
+          ? (n: v.n, ca: v.ca, ann: v.ann + 1)
+          : (n: v.n + 1, ca: v.ca + t.prix, ann: v.ann);
     }
     final ks = m.keys.toList()..sort();
     return SectionRapport(
       'Ventes de billets (${granularite.label.toLowerCase()})',
-      [periodeNom(), 'Billets vendus', 'Prix total', 'Prix moyen', 'Billets annulés'],
-      [for (final k in ks) [libelle(k), m[k]!.n, m[k]!.ca, m[k]!.n == 0 ? 0.0 : m[k]!.ca / m[k]!.n, m[k]!.ann]],
+      [
+        periodeNom(),
+        'Billets vendus',
+        'Prix total',
+        'Prix moyen',
+        'Billets annulés',
+      ],
+      [
+        for (final k in ks)
+          [
+            libelle(k),
+            m[k]!.n,
+            m[k]!.ca,
+            m[k]!.n == 0 ? 0.0 : m[k]!.ca / m[k]!.n,
+            m[k]!.ann,
+          ],
+      ],
       montants: {2, 3},
       totaux: [
         'TOTAL',
@@ -347,7 +592,8 @@ Rapport construireRapport(
     );
   }
 
-  String trajetNom(Ticket t) => '${t.gareDepartNom ?? '—'} → ${t.gareArriveeNom ?? '—'}';
+  String trajetNom(Ticket t) =>
+      '${t.gareDepartNom ?? '—'} → ${t.gareArriveeNom ?? '—'}';
 
   SectionRapport billetsParTrajet() {
     final m = <String, ({int n, double ca})>{};
@@ -359,20 +605,42 @@ Rapport construireRapport(
     final noms = m.keys.toList()..sort((a, b) => m[b]!.ca.compareTo(m[a]!.ca));
     return SectionRapport(
       'Billets par trajet',
-      ['Trajet', 'Billets vendus', 'Prix total', 'Prix moyen', 'Part du total (%)'],
+      [
+        'Trajet',
+        'Billets vendus',
+        'Prix total',
+        'Prix moyen',
+        'Part du total (%)',
+      ],
       [
         for (final n in noms)
-          [n, m[n]!.n, m[n]!.ca, m[n]!.ca / m[n]!.n, recetteBillets == 0 ? 0.0 : (m[n]!.ca * 1000 / recetteBillets).round() / 10],
+          [
+            n,
+            m[n]!.n,
+            m[n]!.ca,
+            m[n]!.ca / m[n]!.n,
+            recetteBillets == 0
+                ? 0.0
+                : (m[n]!.ca * 1000 / recetteBillets).round() / 10,
+          ],
       ],
       montants: {2, 3},
-      totaux: ['TOTAL', billetsActifs.length, recetteBillets, billetsActifs.isEmpty ? 0.0 : recetteBillets / billetsActifs.length, 100],
+      totaux: [
+        'TOTAL',
+        billetsActifs.length,
+        recetteBillets,
+        billetsActifs.isEmpty ? 0.0 : recetteBillets / billetsActifs.length,
+        100,
+      ],
     );
   }
 
   SectionRapport billetsParHeure() {
     final m = <String, ({int n, double ca})>{};
     for (final t in billetsActifs) {
-      final h = (t.heureDepart ?? '').trim().isEmpty ? 'Sans horaire' : t.heureDepart!.trim();
+      final h = (t.heureDepart ?? '').trim().isEmpty
+          ? 'Sans horaire'
+          : t.heureDepart!.trim();
       final k = '$h|${trajetNom(t)}';
       final v = m[k] ?? (n: 0, ca: 0);
       m[k] = (n: v.n + 1, ca: v.ca + t.prix);
@@ -382,7 +650,8 @@ Rapport construireRapport(
       'Billets par heure de départ',
       ['Heure de départ', 'Trajet', 'Billets vendus', 'Prix total'],
       [
-        for (final k in ks) [k.split('|').first, k.split('|').last, m[k]!.n, m[k]!.ca],
+        for (final k in ks)
+          [k.split('|').first, k.split('|').last, m[k]!.n, m[k]!.ca],
       ],
       montants: {3},
       totaux: ['TOTAL', '', billetsActifs.length, recetteBillets],
@@ -393,7 +662,14 @@ Rapport construireRapport(
     final m = <String, ({int c, double rc, int b, double rb})>{};
     final periodes = <String, DateTime>{};
     String k(String gare, DateTime p) => '$gare|${p.toIso8601String()}';
-    void add(String gare, DateTime d, {double rc = 0, int c = 0, double rb = 0, int b = 0}) {
+    void add(
+      String gare,
+      DateTime d, {
+      double rc = 0,
+      int c = 0,
+      double rb = 0,
+      int b = 0,
+    }) {
       final p = cle(d);
       final key = k(gare, p);
       periodes[key] = p;
@@ -415,13 +691,37 @@ Rapport construireRapport(
       });
     return SectionRapport(
       'Chiffre d\'affaires par gare (${granularite.label.toLowerCase()})',
-      ['Gare', periodeNom(), 'Colis', 'CA colis', 'Billets', 'CA billets', 'CA total'],
+      [
+        'Gare',
+        periodeNom(),
+        'Colis',
+        'CA colis',
+        'Billets',
+        'CA billets',
+        'CA total',
+      ],
       [
         for (final key in ks)
-          [key.split('|').first, libelle(periodes[key]!), m[key]!.c, m[key]!.rc, m[key]!.b, m[key]!.rb, m[key]!.rc + m[key]!.rb],
+          [
+            key.split('|').first,
+            libelle(periodes[key]!),
+            m[key]!.c,
+            m[key]!.rc,
+            m[key]!.b,
+            m[key]!.rb,
+            m[key]!.rc + m[key]!.rb,
+          ],
       ],
       montants: {3, 5, 6},
-      totaux: ['TOTAL', '', actifs.length, recetteColis, billetsActifs.length, recetteBillets, recetteColis + recetteBillets],
+      totaux: [
+        'TOTAL',
+        '',
+        actifs.length,
+        recetteColis,
+        billetsActifs.length,
+        recetteBillets,
+        recetteColis + recetteBillets,
+      ],
     );
   }
 
@@ -451,7 +751,9 @@ Rapport construireRapport(
     return SectionRapport(
       'Encaissements (${granularite.label.toLowerCase()})',
       [periodeNom(), 'Espèces', 'Orange Money', 'Total'],
-      [for (final k in ks) [libelle(k), m[k]!.e, m[k]!.o, m[k]!.e + m[k]!.o]],
+      [
+        for (final k in ks) [libelle(k), m[k]!.e, m[k]!.o, m[k]!.e + m[k]!.o],
+      ],
       montants: {1, 2, 3},
       totaux: ['TOTAL', e, o, e + o],
     );
@@ -467,7 +769,17 @@ Rapport construireRapport(
     return SectionRapport(
       'Dépenses par catégorie',
       ['Catégorie', 'Nombre', 'Montant', 'Part du total (%)'],
-      [for (final k in ks) [k, m[k]!.n, m[k]!.s, totalDepenses == 0 ? 0.0 : (m[k]!.s * 1000 / totalDepenses).round() / 10]],
+      [
+        for (final k in ks)
+          [
+            k,
+            m[k]!.n,
+            m[k]!.s,
+            totalDepenses == 0
+                ? 0.0
+                : (m[k]!.s * 1000 / totalDepenses).round() / 10,
+          ],
+      ],
       montants: {2},
       totaux: ['TOTAL', depenses.length, totalDepenses, 100],
     );
@@ -484,7 +796,9 @@ Rapport construireRapport(
     return SectionRapport(
       'Dépenses (${granularite.label.toLowerCase()})',
       [periodeNom(), 'Nombre', 'Montant'],
-      [for (final k in ks) [libelle(k), m[k]!.n, m[k]!.s]],
+      [
+        for (final k in ks) [libelle(k), m[k]!.n, m[k]!.s],
+      ],
       montants: {2},
       totaux: ['TOTAL', depenses.length, totalDepenses],
     );
@@ -492,10 +806,37 @@ Rapport construireRapport(
 
   SectionRapport depensesDetail() => SectionRapport(
     'Détail des dépenses',
-    ['Date', 'Libellé', 'Catégorie', 'Bénéficiaire', 'Mode', 'Référence', 'Montant'],
-    [for (final d in depenses) [_jour(d.date), d.libelle, d.categorie, d.beneficiaire, d.modePaiement, d.reference, d.montant]],
+    [
+      'Date',
+      'Libellé',
+      'Catégorie',
+      'Bénéficiaire',
+      'Mode',
+      'Référence',
+      'Montant',
+    ],
+    [
+      for (final d in depenses)
+        [
+          _jour(d.date),
+          d.libelle,
+          d.categorie,
+          d.beneficiaire,
+          d.modePaiement,
+          d.reference,
+          d.montant,
+        ],
+    ],
     montants: {6},
-    totaux: ['TOTAL', '${depenses.length} dépenses', '', '', '', '', totalDepenses],
+    totaux: [
+      'TOTAL',
+      '${depenses.length} dépenses',
+      '',
+      '',
+      '',
+      '',
+      totalDepenses,
+    ],
   );
 
   SectionRapport salairesPayes() => SectionRapport(
@@ -503,15 +844,35 @@ Rapport construireRapport(
     ['Employé', 'Mois', 'Date de paiement', 'Brut', 'Retenues', 'Net payé'],
     [
       for (final b in bulletins)
-        [employes[b.employeId] ?? 'Employé n° ${b.employeId}', '${b.mois.month.toString().padLeft(2, '0')}/${b.mois.year}', b.datePaiement == null ? null : _jour(b.datePaiement!), b.brut, b.totalRetenues, b.net],
+        [
+          employes[b.employeId] ?? 'Employé n° ${b.employeId}',
+          '${b.mois.month.toString().padLeft(2, '0')}/${b.mois.year}',
+          b.datePaiement == null ? null : _jour(b.datePaiement!),
+          b.brut,
+          b.totalRetenues,
+          b.net,
+        ],
     ],
     montants: {3, 4, 5},
-    totaux: ['TOTAL', '', null, bulletins.fold<double>(0, (a, b) => a + b.brut), bulletins.fold<double>(0, (a, b) => a + b.totalRetenues), totalSalaires],
+    totaux: [
+      'TOTAL',
+      '',
+      null,
+      bulletins.fold<double>(0, (a, b) => a + b.brut),
+      bulletins.fold<double>(0, (a, b) => a + b.totalRetenues),
+      totalSalaires,
+    ],
   );
 
   SectionRapport bilanParPeriode() {
     final m = <DateTime, ({double c, double b, double d, double s})>{};
-    void ajoute(DateTime d, {double c = 0, double b = 0, double dep = 0, double sal = 0}) {
+    void ajoute(
+      DateTime d, {
+      double c = 0,
+      double b = 0,
+      double dep = 0,
+      double sal = 0,
+    }) {
       final k = cle(d);
       final v = m[k] ?? (c: 0, b: 0, d: 0, s: 0);
       m[k] = (c: v.c + c, b: v.b + b, d: v.d + dep, s: v.s + sal);
@@ -532,13 +893,40 @@ Rapport construireRapport(
     final ks = m.keys.toList()..sort();
     return SectionRapport(
       'Bilan (${granularite.label.toLowerCase()})',
-      [periodeNom(), 'Entrées colis', 'Entrées billets', 'Total entrées', 'Dépenses', 'Salaires', 'Total sorties', 'Résultat'],
+      [
+        periodeNom(),
+        'Entrées colis',
+        'Entrées billets',
+        'Total entrées',
+        'Dépenses',
+        'Salaires',
+        'Total sorties',
+        'Résultat',
+      ],
       [
         for (final k in ks)
-          [libelle(k), m[k]!.c, m[k]!.b, m[k]!.c + m[k]!.b, m[k]!.d, m[k]!.s, m[k]!.d + m[k]!.s, m[k]!.c + m[k]!.b - m[k]!.d - m[k]!.s],
+          [
+            libelle(k),
+            m[k]!.c,
+            m[k]!.b,
+            m[k]!.c + m[k]!.b,
+            m[k]!.d,
+            m[k]!.s,
+            m[k]!.d + m[k]!.s,
+            m[k]!.c + m[k]!.b - m[k]!.d - m[k]!.s,
+          ],
       ],
       montants: {1, 2, 3, 4, 5, 6, 7},
-      totaux: ['TOTAL', recetteColis, recetteBillets, entrees, totalDepenses, totalSalaires, sorties, resultat],
+      totaux: [
+        'TOTAL',
+        recetteColis,
+        recetteBillets,
+        entrees,
+        totalDepenses,
+        totalSalaires,
+        sorties,
+        resultat,
+      ],
     );
   }
 
@@ -574,44 +962,104 @@ Rapport construireRapport(
 
   switch (type) {
     case TypeRapport.colis:
-      return Rapport(type, [colisListe(colisBruts)], {
-        'Colis': '${actifs.length}',
-        'Recette': fcfa(recetteColis),
-        'Annulés': '${colisBruts.length - actifs.length}',
-      });
+      return Rapport(
+        type,
+        [colisListe(colisBruts)],
+        {
+          'Colis': '${actifs.length}',
+          'Recette': fcfa(recetteColis),
+          'Annulés': '${colisBruts.length - actifs.length}',
+        },
+      );
     case TypeRapport.caisse:
-      return Rapport(type, [caisseParPersonne(), caisseParPeriode()], {
-        'Colis': '${actifs.length}',
-        'Billets': '${billetsActifs.length}',
-        'Espèces': fcfa(actifs.where((c) => c.modePaiement != 'orange_money').fold<double>(0, (a, c) => a + c.prix) + billetsActifs.where((t) => t.modePaiement != 'orange_money').fold<double>(0, (a, t) => a + t.prix)),
-        'Orange Money': fcfa(actifs.where((c) => c.modePaiement == 'orange_money').fold<double>(0, (a, c) => a + c.prix) + billetsActifs.where((t) => t.modePaiement == 'orange_money').fold<double>(0, (a, t) => a + t.prix)),
-        'Total': fcfa(recetteColis + recetteBillets),
-      });
+      return Rapport(
+        type,
+        [caisseParPersonne(), caisseParPeriode()],
+        {
+          'Colis': '${actifs.length}',
+          'Billets': '${billetsActifs.length}',
+          'Espèces': fcfa(
+            actifs
+                    .where((c) => c.modePaiement != 'orange_money')
+                    .fold<double>(0, (a, c) => a + c.prix) +
+                billetsActifs
+                    .where((t) => t.modePaiement != 'orange_money')
+                    .fold<double>(0, (a, t) => a + t.prix),
+          ),
+          'Orange Money': fcfa(
+            actifs
+                    .where((c) => c.modePaiement == 'orange_money')
+                    .fold<double>(0, (a, c) => a + c.prix) +
+                billetsActifs
+                    .where((t) => t.modePaiement == 'orange_money')
+                    .fold<double>(0, (a, t) => a + t.prix),
+          ),
+          'Total': fcfa(recetteColis + recetteBillets),
+        },
+      );
     case TypeRapport.billets:
-      return Rapport(type, [billetsListe(billetsBruts)], {
-        'Billets': '${billetsActifs.length}',
-        'Recette': fcfa(recetteBillets),
-        'Annulés': '${billetsBruts.length - billetsActifs.length}',
-      });
+      return Rapport(
+        type,
+        [billetsListe(billetsBruts)],
+        {
+          'Billets': '${billetsActifs.length}',
+          'Recette': fcfa(recetteBillets),
+          'Annulés': '${billetsBruts.length - billetsActifs.length}',
+        },
+      );
     case TypeRapport.depenses:
-      return Rapport(type, [depensesParCategorie(), depensesParPeriode(), depensesDetail()], {
-        'Dépenses': '${depenses.length}',
-        'Montant total': fcfa(totalDepenses),
-      });
+      return Rapport(
+        type,
+        [depensesParCategorie(), depensesParPeriode(), depensesDetail()],
+        {
+          'Dépenses': '${depenses.length}',
+          'Montant total': fcfa(totalDepenses),
+        },
+      );
     case TypeRapport.bilan:
-      return Rapport(type, [chiffresFinanciers(), bilanParPeriode()], resumeFinancier);
+      return Rapport(type, [
+        chiffresFinanciers(),
+        bilanParPeriode(),
+      ], resumeFinancier);
     case TypeRapport.financier:
-      return Rapport(type, [chiffresFinanciers(), bilanParPeriode(), parGare(), depensesParCategorie(), salairesPayes(), depensesDetail()], resumeFinancier);
+      return Rapport(type, [
+        chiffresFinanciers(),
+        bilanParPeriode(),
+        parGare(),
+        depensesParCategorie(),
+        salairesPayes(),
+        depensesDetail(),
+      ], resumeFinancier);
     case TypeRapport.ventesBillets:
-      return Rapport(type, [ventesBilletsPeriode()], {
-        'Billets': '${billetsActifs.length}',
-        'Prix total': fcfa(recetteBillets),
-        'Prix moyen': fcfa(billetsActifs.isEmpty ? 0 : recetteBillets / billetsActifs.length),
-      });
+      return Rapport(
+        type,
+        [ventesBilletsPeriode()],
+        {
+          'Billets': '${billetsActifs.length}',
+          'Prix total': fcfa(recetteBillets),
+          'Prix moyen': fcfa(
+            billetsActifs.isEmpty ? 0 : recetteBillets / billetsActifs.length,
+          ),
+        },
+      );
     case TypeRapport.billetsTrajet:
-      return Rapport(type, [billetsParTrajet()], {'Billets': '${billetsActifs.length}', 'Prix total': fcfa(recetteBillets)});
+      return Rapport(
+        type,
+        [billetsParTrajet()],
+        {
+          'Billets': '${billetsActifs.length}',
+          'Prix total': fcfa(recetteBillets),
+        },
+      );
     case TypeRapport.billetsHeure:
-      return Rapport(type, [billetsParHeure()], {'Billets': '${billetsActifs.length}', 'Prix total': fcfa(recetteBillets)});
+      return Rapport(
+        type,
+        [billetsParHeure()],
+        {
+          'Billets': '${billetsActifs.length}',
+          'Prix total': fcfa(recetteBillets),
+        },
+      );
     case TypeRapport.caGare:
       return Rapport(type, [caParGare()], resume);
     case TypeRapport.agents:
@@ -619,38 +1067,79 @@ Rapport construireRapport(
     case TypeRapport.gares:
       return Rapport(type, [parGare()], resume);
     case TypeRapport.nonRetires:
-      final l = colisBruts.where((c) => c.statut == 'arrive').toList()..sort((a, b) => a.dateEnvoi.compareTo(b.dateEnvoi));
+      final l = colisBruts.where((c) => c.statut == 'arrive').toList()
+        ..sort((a, b) => a.dateEnvoi.compareTo(b.dateEnvoi));
       final auj = _jour(DateTime.now());
       return Rapport(
         type,
         [
           SectionRapport(
             'Colis arrivés, pas encore retirés',
-            ['Date d\'envoi', 'N°', 'Destinataire', 'Téléphone', 'Départ', 'Arrivée', 'Description', 'Prix', 'Jours d\'attente', 'Agent'],
+            [
+              'Date d\'envoi',
+              'N°',
+              'Destinataire',
+              'Téléphone',
+              'Départ',
+              'Arrivée',
+              'Description',
+              'Prix',
+              'Jours d\'attente',
+              'Agent',
+            ],
             [
               for (final c in l)
                 [
-                  _jour(c.dateEnvoi), c.numero, c.destinataireNom, c.destinataireTelephone, c.gareDepartNom ?? '',
-                  c.gareArriveeNom ?? '', c.description, c.prix, auj.difference(_jour(c.dateEnvoi)).inDays, c.agentNom ?? '—',
+                  _jour(c.dateEnvoi),
+                  c.numero,
+                  c.destinataireNom,
+                  c.destinataireTelephone,
+                  c.gareDepartNom ?? '',
+                  c.gareArriveeNom ?? '',
+                  c.description,
+                  c.prix,
+                  auj.difference(_jour(c.dateEnvoi)).inDays,
+                  c.agentNom ?? '—',
                 ],
             ],
             montants: {7},
-            totaux: ['TOTAL', '${l.length} colis', '', '', '', '', '', l.fold<double>(0, (a, c) => a + c.prix), null, ''],
+            totaux: [
+              'TOTAL',
+              '${l.length} colis',
+              '',
+              '',
+              '',
+              '',
+              '',
+              l.fold<double>(0, (a, c) => a + c.prix),
+              null,
+              '',
+            ],
           ),
         ],
-        {'Colis en attente': '${l.length}', 'Valeur à encaisser/livrer': fcfa(l.fold<double>(0, (a, c) => a + c.prix))},
+        {
+          'Colis en attente': '${l.length}',
+          'Valeur à encaisser/livrer': fcfa(
+            l.fold<double>(0, (a, c) => a + c.prix),
+          ),
+        },
       );
     case TypeRapport.synthese:
       return Rapport(type, [
-        SectionRapport('Chiffres clés', ['Indicateur', 'Valeur'], [
-          ['Colis enregistrés (hors annulés)', actifs.length],
-          ['Colis annulés', colisBruts.length - actifs.length],
-          ['Recette colis', recetteColis],
-          ['Billets vendus (hors annulés)', billetsActifs.length],
-          ['Billets annulés', billetsBruts.length - billetsActifs.length],
-          ['Recette billets', recetteBillets],
-          ['Recette totale', recetteColis + recetteBillets],
-        ], montants: {1}),
+        SectionRapport(
+          'Chiffres clés',
+          ['Indicateur', 'Valeur'],
+          [
+            ['Colis enregistrés (hors annulés)', actifs.length],
+            ['Colis annulés', colisBruts.length - actifs.length],
+            ['Recette colis', recetteColis],
+            ['Billets vendus (hors annulés)', billetsActifs.length],
+            ['Billets annulés', billetsBruts.length - billetsActifs.length],
+            ['Recette billets', recetteBillets],
+            ['Recette totale', recetteColis + recetteBillets],
+          ],
+          montants: {1},
+        ),
         parJour(),
         parStatut(),
         parAgent(),
@@ -674,7 +1163,8 @@ Uint8List rapportXlsx(Rapport r, FiltresRapport f) => classeurXlsx([
 
 String _cellule(Object? v, bool montant) {
   if (v == null) return '';
-  if (v is DateTime) return (v.hour != 0 || v.minute != 0) ? dateHeureFr(v) : dateFr(v);
+  if (v is DateTime)
+    return (v.hour != 0 || v.minute != 0) ? dateHeureFr(v) : dateFr(v);
   if (v is num) return (montant || v is double) ? nombre(v) : '$v';
   return '$v';
 }
@@ -699,22 +1189,48 @@ Future<Uint8List> rapportDetailPdf({
       footer: (ctx) => pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(t('${co.nom} · édité par ${me.nom} le ${dateHeureFr(DateTime.now())}'), style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey700)),
-          pw.Text('Page ${ctx.pageNumber} / ${ctx.pagesCount}', style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey700)),
+          pw.Text(
+            t(
+              '${co.nom} · édité par ${me.nom} le ${dateHeureFr(DateTime.now())}',
+            ),
+            style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey700),
+          ),
+          pw.Text(
+            'Page ${ctx.pageNumber} / ${ctx.pagesCount}',
+            style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey700),
+          ),
         ],
       ),
       build: (_) => [
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
-            if (logo != null) ...[pw.Image(logo, height: 40), pw.SizedBox(width: 12)],
+            if (logo != null) ...[
+              pw.Image(logo, height: 40),
+              pw.SizedBox(width: 12),
+            ],
             pw.Expanded(
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text(t(co.nom.toUpperCase()), style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
-                  pw.Text(t(rapport.type.titre), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
-                  pw.Text(t(filtres.description), style: const pw.TextStyle(fontSize: 8.5)),
+                  pw.Text(
+                    t(co.nom.toUpperCase()),
+                    style: pw.TextStyle(
+                      fontSize: 15,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.Text(
+                    t(rapport.type.titre),
+                    style: pw.TextStyle(
+                      fontSize: 12,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.Text(
+                    t(filtres.description),
+                    style: const pw.TextStyle(fontSize: 8.5),
+                  ),
                 ],
               ),
             ),
@@ -729,8 +1245,20 @@ Future<Uint8List> rapportDetailPdf({
               pw.RichText(
                 text: pw.TextSpan(
                   children: [
-                    pw.TextSpan(text: t('${e.key} : '), style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
-                    pw.TextSpan(text: t(e.value), style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                    pw.TextSpan(
+                      text: t('${e.key} : '),
+                      style: const pw.TextStyle(
+                        fontSize: 9,
+                        color: PdfColors.grey700,
+                      ),
+                    ),
+                    pw.TextSpan(
+                      text: t(e.value),
+                      style: pw.TextStyle(
+                        fontSize: 10,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -739,27 +1267,62 @@ Future<Uint8List> rapportDetailPdf({
         for (final s in rapport.sections) ...[
           pw.Padding(
             padding: const pw.EdgeInsets.only(top: 14, bottom: 5),
-            child: pw.Text(t(s.titre), style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+            child: pw.Text(
+              t(s.titre),
+              style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
+            ),
           ),
           if (s.lignes.isEmpty)
-            pw.Text(t('Aucune donnée sur cette période.'), style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700))
+            pw.Text(
+              t('Aucune donnée sur cette période.'),
+              style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+            )
           else
             pw.TableHelper.fromTextArray(
               headers: s.entetes.map(t).toList(),
               data: [
-                for (final l in s.lignes) [for (var i = 0; i < s.entetes.length; i++) t(_cellule(i < l.length ? l[i] : null, s.montants.contains(i)))],
+                for (final l in s.lignes)
+                  [
+                    for (var i = 0; i < s.entetes.length; i++)
+                      t(
+                        _cellule(
+                          i < l.length ? l[i] : null,
+                          s.montants.contains(i),
+                        ),
+                      ),
+                  ],
                 if (s.totaux != null)
-                  [for (var i = 0; i < s.entetes.length; i++) t(_cellule(i < s.totaux!.length ? s.totaux![i] : null, s.montants.contains(i)))],
+                  [
+                    for (var i = 0; i < s.entetes.length; i++)
+                      t(
+                        _cellule(
+                          i < s.totaux!.length ? s.totaux![i] : null,
+                          s.montants.contains(i),
+                        ),
+                      ),
+                  ],
               ],
-              headerStyle: pw.TextStyle(fontSize: s.entetes.length > 12 ? 6.5 : 8, fontWeight: pw.FontWeight.bold),
-              cellStyle: pw.TextStyle(fontSize: s.entetes.length > 12 ? 6.5 : 8),
-              headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-              cellPadding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 2.5),
+              headerStyle: pw.TextStyle(
+                fontSize: s.entetes.length > 12 ? 6.5 : 8,
+                fontWeight: pw.FontWeight.bold,
+              ),
+              cellStyle: pw.TextStyle(
+                fontSize: s.entetes.length > 12 ? 6.5 : 8,
+              ),
+              headerDecoration: const pw.BoxDecoration(
+                color: PdfColors.grey300,
+              ),
+              cellPadding: const pw.EdgeInsets.symmetric(
+                horizontal: 3,
+                vertical: 2.5,
+              ),
               border: pw.TableBorder.all(color: PdfColors.grey400, width: .4),
               cellAlignments: {
                 for (final i in s.montants) i: pw.Alignment.centerRight,
               },
-              oddRowDecoration: const pw.BoxDecoration(color: PdfColors.grey100),
+              oddRowDecoration: const pw.BoxDecoration(
+                color: PdfColors.grey100,
+              ),
               rowDecoration: null,
             ),
         ],

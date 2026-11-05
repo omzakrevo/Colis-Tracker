@@ -39,7 +39,9 @@ class RapportsScreen extends ConsumerWidget {
       final pdf = await rapportPdf(
         co: co,
         me: me,
-        perimetre: me.voitToutLeReseau ? 'Toutes les gares' : (gare?.nom ?? 'Ma gare'),
+        perimetre: me.voitToutLeReseau
+            ? 'Toutes les gares'
+            : (gare?.nom ?? 'Ma gare'),
         debut: p.debut,
         fin: p.fin,
         colis: colis,
@@ -173,7 +175,9 @@ class RapportsScreen extends ConsumerWidget {
               label: Text('Au ${p.fin == null ? '…' : dateFr(p.fin!)}'),
             ),
             FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF16A34A)),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF16A34A),
+              ),
               onPressed: () => context.push('/rapports/detail'),
               icon: const Icon(Icons.table_chart_rounded, size: 18),
               label: const Text('Rapports détaillés (PDF / Excel)'),

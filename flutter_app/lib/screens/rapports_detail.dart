@@ -40,8 +40,14 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
   /// Tri choisi par l'utilisateur en touchant un en-tête : tableau → (colonne, croissant).
   final Map<int, (int, bool)> _tri = {};
 
-  static const _surBillets = {TypeRapport.billets, TypeRapport.ventesBillets, TypeRapport.billetsTrajet, TypeRapport.billetsHeure};
-  bool get _besoinColis => !_surBillets.contains(_type) && _type != TypeRapport.depenses;
+  static const _surBillets = {
+    TypeRapport.billets,
+    TypeRapport.ventesBillets,
+    TypeRapport.billetsTrajet,
+    TypeRapport.billetsHeure,
+  };
+  bool get _besoinColis =>
+      !_surBillets.contains(_type) && _type != TypeRapport.depenses;
   bool get _besoinBillets =>
       _surBillets.contains(_type) ||
       _type == TypeRapport.bilan ||
@@ -51,7 +57,12 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
       _type == TypeRapport.gares ||
       _type == TypeRapport.caGare ||
       _type == TypeRapport.synthese;
-  bool get _regroupe => _type == TypeRapport.ventesBillets || _type == TypeRapport.caGare || _type == TypeRapport.depenses || _type == TypeRapport.bilan || _type == TypeRapport.caisse;
+  bool get _regroupe =>
+      _type == TypeRapport.ventesBillets ||
+      _type == TypeRapport.caGare ||
+      _type == TypeRapport.depenses ||
+      _type == TypeRapport.bilan ||
+      _type == TypeRapport.caisse;
   bool get _besoinFinance => _type.compta;
 
   /// Le rapport avec le tri demandé appliqué (aperçu, PDF et Excel sortent dans le même ordre).
@@ -59,7 +70,10 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
     final r = _rapport;
     if (r == null) return null;
     return Rapport(r.type, [
-      for (var i = 0; i < r.sections.length; i++) _tri[i] == null ? r.sections[i] : r.sections[i].trie(_tri[i]!.$1, _tri[i]!.$2),
+      for (var i = 0; i < r.sections.length; i++)
+        _tri[i] == null
+            ? r.sections[i]
+            : r.sections[i].trie(_tri[i]!.$1, _tri[i]!.$2),
     ], r.resume);
   }
 
@@ -76,7 +90,11 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
   void _raccourci(int jours) => setState(() {
     final auj = DateTime.now();
     _fin = auj;
-    _debut = DateTime(auj.year, auj.month, auj.day).subtract(Duration(days: jours));
+    _debut = DateTime(
+      auj.year,
+      auj.month,
+      auj.day,
+    ).subtract(Duration(days: jours));
   });
 
   Future<void> _generer() async {
@@ -117,19 +135,40 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
             )
           : <Colis>[];
       final billets = _besoinBillets
-          ? await Repo.rapportBillets(debut: f.debut, fin: f.fin, vendeurId: f.agentId, gareDepartId: f.gareId, soi: soi)
+          ? await Repo.rapportBillets(
+              debut: f.debut,
+              fin: f.fin,
+              vendeurId: f.agentId,
+              gareDepartId: f.gareId,
+              soi: soi,
+            )
           : <Ticket>[];
       var depenses = <Depense>[];
       var bulletins = <Bulletin>[];
       var employes = <int, String>{};
       if (_besoinFinance) {
-        depenses = await FinanceRepo.depenses(debut: f.debut, fin: f.fin, gareId: f.gareId);
-        bulletins = await FinanceRepo.bulletinsPayes(debut: f.debut, fin: f.fin);
+        depenses = await FinanceRepo.depenses(
+          debut: f.debut,
+          fin: f.fin,
+          gareId: f.gareId,
+        );
+        bulletins = await FinanceRepo.bulletinsPayes(
+          debut: f.debut,
+          fin: f.fin,
+        );
         employes = {for (final e in await FinanceRepo.employes()) e.id!: e.nom};
       }
       if (!mounted) return;
       setState(() {
-        _rapport = construireRapport(_type, colis, billets, granularite: _granularite, depenses: depenses, bulletins: bulletins, employes: employes);
+        _rapport = construireRapport(
+          _type,
+          colis,
+          billets,
+          granularite: _granularite,
+          depenses: depenses,
+          bulletins: bulletins,
+          employes: employes,
+        );
         _filtres = f;
         _tri.clear();
       });
@@ -150,9 +189,17 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
     if (r == null || f == null || me == null) return;
     try {
       final co = await ref.read(settingsProvider.future);
-      final bytes = await rapportDetailPdf(co: co, me: me, rapport: r, filtres: f);
+      final bytes = await rapportDetailPdf(
+        co: co,
+        me: me,
+        rapport: r,
+        filtres: f,
+      );
       if (imprimer) {
-        await Printing.layoutPdf(onLayout: (_) async => bytes, name: _nomFichier);
+        await Printing.layoutPdf(
+          onLayout: (_) async => bytes,
+          name: _nomFichier,
+        );
       } else {
         await Printing.sharePdf(bytes: bytes, filename: '$_nomFichier.pdf');
       }
@@ -169,7 +216,8 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
         dialogTitle: 'Enregistrer le fichier Excel',
         fileName: '$_nomFichier.xlsx',
         bytes: rapportXlsx(r, f),
-        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        mimeType:
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         type: FileType.custom,
         allowedExtensions: const ['xlsx'],
       );
@@ -197,13 +245,16 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
     final profils = ref.watch(profilsProvider).value ?? const <Profil>[];
     final gares = ref.watch(garesProvider).value ?? const <Gare>[];
     final agents = profils.where((p) => p.role != 'superadmin').toList();
-    final peutFiltrerAgent = me != null && me.voitRapportsGlobaux && agents.length > 1;
+    final peutFiltrerAgent =
+        me != null && me.voitRapportsGlobaux && agents.length > 1;
 
     final financeOuvert = moduleFinanceOuvert(ref);
     final typesAutorises = typesPour(me?.role ?? '', finance: financeOuvert);
-    if (typesAutorises.isNotEmpty && !typesAutorises.contains(_type)) _type = typesAutorises.first;
+    if (typesAutorises.isNotEmpty && !typesAutorises.contains(_type))
+      _type = typesAutorises.first;
     final wide = MediaQuery.sizeOf(context).width >= 900;
-    Widget champ(Widget w, [double largeur = 300]) => SizedBox(width: wide ? largeur : double.infinity, child: w);
+    Widget champ(Widget w, [double largeur = 300]) =>
+        SizedBox(width: wide ? largeur : double.infinity, child: w);
     final al = wide ? CrossAxisAlignment.center : CrossAxisAlignment.start;
     final filtres = SectionCard(
       title: 'Choisir le rapport',
@@ -216,7 +267,10 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
               initialValue: _type,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Type de rapport'),
-              items: [for (final t in typesAutorises) DropdownMenuItem(value: t, child: Text(t.titre))],
+              items: [
+                for (final t in typesAutorises)
+                  DropdownMenuItem(value: t, child: Text(t.titre)),
+              ],
               onChanged: (v) => setState(() {
                 _type = v ?? _type;
                 _rapport = null;
@@ -248,9 +302,18 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
                 icon: const Icon(Icons.event_rounded, size: 18),
                 label: Text('Au ${dateFr(_fin)}'),
               ),
-              ActionChip(label: const Text('Aujourd\'hui'), onPressed: () => _raccourci(0)),
-              ActionChip(label: const Text('7 jours'), onPressed: () => _raccourci(6)),
-              ActionChip(label: const Text('30 jours'), onPressed: () => _raccourci(29)),
+              ActionChip(
+                label: const Text('Aujourd\'hui'),
+                onPressed: () => _raccourci(0),
+              ),
+              ActionChip(
+                label: const Text('7 jours'),
+                onPressed: () => _raccourci(6),
+              ),
+              ActionChip(
+                label: const Text('30 jours'),
+                onPressed: () => _raccourci(29),
+              ),
               ActionChip(
                 label: const Text('Ce mois'),
                 onPressed: () => setState(() {
@@ -264,7 +327,10 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
           if (_regroupe) ...[
             const SizedBox(height: 14),
             SegmentedButton<Granularite>(
-              segments: [for (final g in Granularite.values) ButtonSegment(value: g, label: Text(g.label))],
+              segments: [
+                for (final g in Granularite.values)
+                  ButtonSegment(value: g, label: Text(g.label)),
+              ],
               selected: {_granularite},
               onSelectionChanged: (v) => setState(() => _granularite = v.first),
             ),
@@ -281,10 +347,19 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
                     DropdownButtonFormField<String?>(
                       initialValue: _agentId,
                       isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Agent (qui a enregistré)'),
+                      decoration: const InputDecoration(
+                        labelText: 'Agent (qui a enregistré)',
+                      ),
                       items: [
-                        const DropdownMenuItem<String?>(value: null, child: Text('Tous les agents')),
-                        for (final a in agents) DropdownMenuItem<String?>(value: a.id, child: Text('${a.nom} · ${roleLabel(a.role)}')),
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('Tous les agents'),
+                        ),
+                        for (final a in agents)
+                          DropdownMenuItem<String?>(
+                            value: a.id,
+                            child: Text('${a.nom} · ${roleLabel(a.role)}'),
+                          ),
                       ],
                       onChanged: (v) => setState(() => _agentId = v),
                     ),
@@ -294,10 +369,19 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
                     DropdownButtonFormField<int?>(
                       initialValue: _gareId,
                       isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Gare de départ'),
+                      decoration: const InputDecoration(
+                        labelText: 'Gare de départ',
+                      ),
                       items: [
-                        const DropdownMenuItem<int?>(value: null, child: Text('Toutes les gares')),
-                        for (final g in gares) DropdownMenuItem<int?>(value: g.id, child: Text(g.nom)),
+                        const DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text('Toutes les gares'),
+                        ),
+                        for (final g in gares)
+                          DropdownMenuItem<int?>(
+                            value: g.id,
+                            child: Text(g.nom),
+                          ),
                       ],
                       onChanged: (v) => setState(() => _gareId = v),
                     ),
@@ -307,10 +391,19 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
                     DropdownButtonFormField<String?>(
                       initialValue: _statut,
                       isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Statut du colis'),
+                      decoration: const InputDecoration(
+                        labelText: 'Statut du colis',
+                      ),
                       items: [
-                        const DropdownMenuItem<String?>(value: null, child: Text('Tous les statuts')),
-                        for (final st in Statut.values) DropdownMenuItem<String?>(value: st.code, child: Text(st.label)),
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('Tous les statuts'),
+                        ),
+                        for (final st in Statut.values)
+                          DropdownMenuItem<String?>(
+                            value: st.code,
+                            child: Text(st.label),
+                          ),
                       ],
                       onChanged: (v) => setState(() => _statut = v),
                     ),
@@ -324,7 +417,14 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
             child: FilledButton.icon(
               onPressed: _charge ? null : _generer,
               icon: _charge
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Icon(Icons.analytics_rounded),
               label: Text(_charge ? 'Calcul en cours…' : 'Générer le rapport'),
             ),
@@ -339,9 +439,15 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
       children: [
         Row(
           children: [
-            IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back_rounded)),
+            IconButton(
+              onPressed: () => context.pop(),
+              icon: const Icon(Icons.arrow_back_rounded),
+            ),
             const Expanded(
-              child: PageHeader('Rapports détaillés', subtitle: 'Plusieurs types de rapports, en PDF et en Excel.'),
+              child: PageHeader(
+                'Rapports détaillés',
+                subtitle: 'Plusieurs types de rapports, en PDF et en Excel.',
+              ),
             ),
           ],
         ),
@@ -360,7 +466,10 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_filtres!.description, style: const TextStyle(color: Brand.muted, fontSize: 12.5)),
+                Text(
+                  _filtres!.description,
+                  style: const TextStyle(color: Brand.muted, fontSize: 12.5),
+                ),
                 const SizedBox(height: 10),
                 Wrap(
                   alignment: WrapAlignment.center,
@@ -371,8 +480,20 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(e.key, style: const TextStyle(color: Brand.muted, fontSize: 12)),
-                          Text(e.value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+                          Text(
+                            e.key,
+                            style: const TextStyle(
+                              color: Brand.muted,
+                              fontSize: 12,
+                            ),
+                          ),
+                          Text(
+                            e.value,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 17,
+                            ),
+                          ),
                         ],
                       ),
                   ],
@@ -389,7 +510,9 @@ class _RapportsDetailState extends ConsumerState<RapportsDetailScreen> {
                       label: const Text('PDF'),
                     ),
                     FilledButton.icon(
-                      style: FilledButton.styleFrom(backgroundColor: const Color(0xFF16A34A)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF16A34A),
+                      ),
                       onPressed: _excel,
                       icon: const Icon(Icons.table_chart_rounded, size: 18),
                       label: const Text('Excel'),
@@ -428,8 +551,10 @@ class _Apercu extends StatelessWidget {
 
   String _c(Object? v, int i) {
     if (v == null) return '';
-    if (v is DateTime) return (v.hour != 0 || v.minute != 0) ? dateHeureFr(v) : dateFr(v);
-    if (v is num) return (s.montants.contains(i) || v is double) ? nombre(v) : '$v';
+    if (v is DateTime)
+      return (v.hour != 0 || v.minute != 0) ? dateHeureFr(v) : dateFr(v);
+    if (v is num)
+      return (s.montants.contains(i) || v is double) ? nombre(v) : '$v';
     return '$v';
   }
 
@@ -442,7 +567,10 @@ class _Apercu extends StatelessWidget {
       icon: Icons.table_rows_rounded,
       accent: const Color(0xFF2563EB),
       child: s.lignes.isEmpty
-          ? const Text('Aucune donnée sur cette période.', style: TextStyle(color: Brand.muted))
+          ? const Text(
+              'Aucune donnée sur cette période.',
+              style: TextStyle(color: Brand.muted),
+            )
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -458,19 +586,48 @@ class _Apercu extends StatelessWidget {
                     columns: [
                       for (var i = 0; i < s.entetes.length; i++)
                         DataColumn(
-                          label: Text(s.entetes[i], style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
-                          onSort: onTri == null ? null : (c, asc) => onTri!(c, asc),
+                          label: Text(
+                            s.entetes[i],
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                            ),
+                          ),
+                          onSort: onTri == null
+                              ? null
+                              : (c, asc) => onTri!(c, asc),
                         ),
                     ],
                     rows: [
                       for (final l in lignes)
-                        DataRow(cells: [for (var i = 0; i < s.entetes.length; i++) DataCell(Text(_c(i < l.length ? l[i] : null, i), style: const TextStyle(fontSize: 12)))]),
+                        DataRow(
+                          cells: [
+                            for (var i = 0; i < s.entetes.length; i++)
+                              DataCell(
+                                Text(
+                                  _c(i < l.length ? l[i] : null, i),
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                          ],
+                        ),
                       if (s.totaux != null)
                         DataRow(
                           color: WidgetStatePropertyAll(Brand.orangeSoft),
                           cells: [
                             for (var i = 0; i < s.entetes.length; i++)
-                              DataCell(Text(_c(i < s.totaux!.length ? s.totaux![i] : null, i), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800))),
+                              DataCell(
+                                Text(
+                                  _c(
+                                    i < s.totaux!.length ? s.totaux![i] : null,
+                                    i,
+                                  ),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                     ],
@@ -478,14 +635,20 @@ class _Apercu extends StatelessWidget {
                 ),
                 const Padding(
                   padding: EdgeInsets.only(top: 6),
-                  child: Text('Touchez un titre de colonne pour trier.', style: TextStyle(color: Brand.muted, fontSize: 12)),
+                  child: Text(
+                    'Touchez un titre de colonne pour trier.',
+                    style: TextStyle(color: Brand.muted, fontSize: 12),
+                  ),
                 ),
                 if (s.lignes.length > max)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
                       'Aperçu limité à $max lignes : le PDF et le fichier Excel contiennent les ${s.lignes.length} lignes.',
-                      style: const TextStyle(color: Brand.muted, fontSize: 12.5),
+                      style: const TextStyle(
+                        color: Brand.muted,
+                        fontSize: 12.5,
+                      ),
                     ),
                   ),
               ],

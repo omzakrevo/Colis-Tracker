@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 
 /// Choix du mode de paiement avant de valider (espèces ou Orange Money).
 class ModePaiementChoix extends StatelessWidget {
-  const ModePaiementChoix({super.key, required this.valeur, required this.onChanged});
+  const ModePaiementChoix({
+    super.key,
+    required this.valeur,
+    required this.onChanged,
+  });
   final String valeur;
   final ValueChanged<String> onChanged;
 
@@ -17,8 +21,16 @@ class ModePaiementChoix extends StatelessWidget {
         child: SegmentedButton<String>(
           showSelectedIcon: false,
           segments: const [
-            ButtonSegment(value: 'especes', icon: Icon(Icons.payments_rounded), label: Text('Espèces')),
-            ButtonSegment(value: 'orange_money', icon: Icon(Icons.phone_android_rounded), label: Text('Orange Money')),
+            ButtonSegment(
+              value: 'especes',
+              icon: Icon(Icons.payments_rounded),
+              label: Text('Espèces'),
+            ),
+            ButtonSegment(
+              value: 'orange_money',
+              icon: Icon(Icons.phone_android_rounded),
+              label: Text('Orange Money'),
+            ),
           ],
           selected: {valeur},
           onSelectionChanged: (s) => onChanged(s.first),

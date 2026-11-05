@@ -474,7 +474,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     // Écran court (terminal POS) : caméra réduite pour laisser voir la liste des colis scannés.
     final hauteur = MediaQuery.sizeOf(context).height;
     final camera = ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: wide ? 420 : (hauteur < 700 ? 130 : 200)),
+      constraints: BoxConstraints(
+        maxHeight: wide ? 420 : (hauteur < 700 ? 130 : 200),
+      ),
       child: AspectRatio(aspectRatio: wide ? 1 : 16 / 9, child: _camera()),
     );
 
@@ -482,68 +484,68 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       builder: (context, box) {
         final court = box.maxHeight < 430;
         return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (wide || !court) header,
-        _modeSelector(),
-        const SizedBox(height: 12),
-        Expanded(
-          child: wide
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 420,
-                      child: Column(
-                        children: [
-                          camera,
-                          const SizedBox(height: 12),
-                          _manualField(),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          Expanded(child: _list()),
-                          _validateBar(),
-                        ],
-                      ),
-                    ),
-                  ],
-                )
-              : Column(
-                  children: [
-                    // Tout défile ensemble : on peut descendre voir les colis déjà scannés.
-                    Expanded(
-                      child: ListView(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        children: [
-                          Center(child: camera),
-                          const SizedBox(height: 10),
-                          _manualField(),
-                          const SizedBox(height: 10),
-                          if (_items.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Text(
-                                '${_items.length} colis scanné${_items.length > 1 ? 's' : ''}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (wide || !court) header,
+            _modeSelector(),
+            const SizedBox(height: 12),
+            Expanded(
+              child: wide
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 420,
+                          child: Column(
+                            children: [
+                              camera,
+                              const SizedBox(height: 12),
+                              _manualField(),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Expanded(child: _list()),
+                              _validateBar(),
+                            ],
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        // Tout défile ensemble : on peut descendre voir les colis déjà scannés.
+                        Expanded(
+                          child: ListView(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            children: [
+                              Center(child: camera),
+                              const SizedBox(height: 10),
+                              _manualField(),
+                              const SizedBox(height: 10),
+                              if (_items.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Text(
+                                    '${_items.length} colis scanné${_items.length > 1 ? 's' : ''}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          _list(defile: true),
-                        ],
-                      ),
+                              _list(defile: true),
+                            ],
+                          ),
+                        ),
+                        _validateBar(),
+                      ],
                     ),
-                    _validateBar(),
-                  ],
-                ),
-        ),
-      ],
-    );
+            ),
+          ],
+        );
       },
     );
   }

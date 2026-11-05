@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import '../widgets/torche.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -47,7 +49,10 @@ class _BilletVerifScreenState extends ConsumerState<BilletVerifScreen> {
     final numero = raw.trim().toUpperCase();
     if (numero.isEmpty || _busy) return;
     final now = DateTime.now();
-    if (camera && numero == _lastCode && now.difference(_lastAt).inMilliseconds < 3000) return;
+    if (camera &&
+        numero == _lastCode &&
+        now.difference(_lastAt).inMilliseconds < 3000)
+      return;
     _lastCode = numero;
     _lastAt = now;
     setState(() => _busy = true);
@@ -113,7 +118,9 @@ class _BilletVerifScreenState extends ConsumerState<BilletVerifScreen> {
           if (_busy)
             Container(
               color: Colors.black38,
-              child: const Center(child: CircularProgressIndicator(color: Colors.white)),
+              child: const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
             ),
         ],
       ),
@@ -151,7 +158,11 @@ class _BilletVerifScreenState extends ConsumerState<BilletVerifScreen> {
           ],
         ),
         const SizedBox(height: 14),
-        Expanded(child: SingleChildScrollView(child: _Resultat(res: _res, numero: _numero))),
+        Expanded(
+          child: SingleChildScrollView(
+            child: _Resultat(res: _res, numero: _numero),
+          ),
+        ),
       ],
     );
 
@@ -196,7 +207,10 @@ class _Resultat extends StatelessWidget {
       return const Padding(
         padding: EdgeInsets.all(24),
         child: Center(
-          child: Text('En attente d\'un billet…', style: TextStyle(color: Brand.muted)),
+          child: Text(
+            'En attente d\'un billet…',
+            style: TextStyle(color: Brand.muted),
+          ),
         ),
       );
     }
@@ -213,8 +227,16 @@ class _Resultat extends StatelessWidget {
     final (couleur, icone, titre) = b.annule
         ? (Colors.red, Icons.cancel_rounded, 'BILLET ANNULÉ')
         : autreJour
-        ? (const Color(0xFFEA580C), Icons.warning_amber_rounded, 'BILLET POUR UN AUTRE JOUR')
-        : (const Color(0xFF16A34A), Icons.check_circle_rounded, 'BILLET VALIDE');
+        ? (
+            const Color(0xFFEA580C),
+            Icons.warning_amber_rounded,
+            'BILLET POUR UN AUTRE JOUR',
+          )
+        : (
+            const Color(0xFF16A34A),
+            Icons.check_circle_rounded,
+            'BILLET VALIDE',
+          );
     return _Carte(
       couleur: couleur,
       icone: icone,
@@ -228,7 +250,8 @@ class _Resultat extends StatelessWidget {
         b.nbVerifications > 1
             ? 'Vérifié ${b.nbVerifications} fois'
             : 'Première vérification',
-        if (r.horsLigne) 'Vérifié sans internet — sera enregistré au retour du réseau',
+        if (r.horsLigne)
+          'Vérifié sans internet — sera enregistré au retour du réseau',
       ],
     );
   }
@@ -261,13 +284,21 @@ class _Carte extends StatelessWidget {
         Text(
           titre,
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: couleur),
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+            color: couleur,
+          ),
         ),
         const SizedBox(height: 10),
         for (final l in lignes.where((l) => l.isNotEmpty))
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Text(l, textAlign: TextAlign.center, style: const TextStyle(fontSize: 15)),
+            child: Text(
+              l,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 15),
+            ),
           ),
       ],
     ),

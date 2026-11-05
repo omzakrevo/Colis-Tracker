@@ -36,9 +36,15 @@ String _col(int i) {
 }
 
 /// Numéro de série Excel d'une date (jours depuis le 30/12/1899).
-double _serie(DateTime d) => DateTime.utc(d.year, d.month, d.day, d.hour, d.minute, d.second)
-        .difference(DateTime.utc(1899, 12, 30))
-        .inSeconds /
+double _serie(DateTime d) =>
+    DateTime.utc(
+      d.year,
+      d.month,
+      d.day,
+      d.hour,
+      d.minute,
+      d.second,
+    ).difference(DateTime.utc(1899, 12, 30)).inSeconds /
     86400;
 
 String _nomFeuille(String s, Set<String> pris) {
@@ -49,7 +55,11 @@ String _nomFeuille(String s, Set<String> pris) {
   var i = 2;
   while (pris.contains(n.toLowerCase())) {
     final suf = ' ($i)';
-    n = (base.length + suf.length > 31 ? base.substring(0, 31 - suf.length) : base) + suf;
+    n =
+        (base.length + suf.length > 31
+            ? base.substring(0, 31 - suf.length)
+            : base) +
+        suf;
     i++;
   }
   pris.add(n.toLowerCase());
@@ -62,10 +72,14 @@ String _feuilleXml(FeuilleXlsx f) {
     '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
   );
   final n = f.entetes.length;
-  b.write('<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>');
+  b.write(
+    '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>',
+  );
   b.write('<cols>');
   for (var c = 0; c < n; c++) {
-    var w = f.largeurs != null && c < f.largeurs!.length ? f.largeurs![c] : f.entetes[c].length + 4.0;
+    var w = f.largeurs != null && c < f.largeurs!.length
+        ? f.largeurs![c]
+        : f.entetes[c].length + 4.0;
     if (f.largeurs == null) {
       for (final l in f.lignes.take(300)) {
         if (c < l.length && l[c] is String) {
@@ -75,12 +89,16 @@ String _feuilleXml(FeuilleXlsx f) {
       }
       if (w > 48) w = 48;
     }
-    b.write('<col min="${c + 1}" max="${c + 1}" width="${w.toStringAsFixed(1)}" customWidth="1"/>');
+    b.write(
+      '<col min="${c + 1}" max="${c + 1}" width="${w.toStringAsFixed(1)}" customWidth="1"/>',
+    );
   }
   b.write('</cols><sheetData>');
   b.write('<row r="1">');
   for (var c = 0; c < n; c++) {
-    b.write('<c r="${_col(c)}1" s="1" t="inlineStr"><is><t>${_echapper(f.entetes[c])}</t></is></c>');
+    b.write(
+      '<c r="${_col(c)}1" s="1" t="inlineStr"><is><t>${_echapper(f.entetes[c])}</t></is></c>',
+    );
   }
   b.write('</row>');
   for (var r = 0; r < f.lignes.length; r++) {
@@ -97,13 +115,16 @@ String _feuilleXml(FeuilleXlsx f) {
       } else if (v is num) {
         b.write('<c r="$ref" s="${v is int ? 0 : 4}"><v>$v</v></c>');
       } else {
-        b.write('<c r="$ref" t="inlineStr"><is><t xml:space="preserve">${_echapper('$v')}</t></is></c>');
+        b.write(
+          '<c r="$ref" t="inlineStr"><is><t xml:space="preserve">${_echapper('$v')}</t></is></c>',
+        );
       }
     }
     b.write('</row>');
   }
   b.write('</sheetData>');
-  if (n > 0) b.write('<autoFilter ref="A1:${_col(n - 1)}${f.lignes.length + 1}"/>');
+  if (n > 0)
+    b.write('<autoFilter ref="A1:${_col(n - 1)}${f.lignes.length + 1}"/>');
   b.write('</worksheet>');
   return b.toString();
 }
@@ -114,60 +135,61 @@ Uint8List classeurXlsx(List<FeuilleXlsx> feuilles) {
   final pris = <String>{};
   final noms = [for (final f in feuilles) _nomFeuille(f.nom, pris)];
   final a = Archive();
-  void ajouter(String chemin, String contenu) => a.addFile(ArchiveFile.bytes(chemin, utf8.encode(contenu)));
+  void ajouter(String chemin, String contenu) =>
+      a.addFile(ArchiveFile.bytes(chemin, utf8.encode(contenu)));
 
   ajouter(
     '[Content_Types].xml',
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
-    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
-    '<Default Extension="xml" ContentType="application/xml"/>'
-    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
-    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
-    '${[for (var i = 0; i < feuilles.length; i++) '<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'].join()}'
-    '</Types>',
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+        '${[for (var i = 0; i < feuilles.length; i++) '<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'].join()}'
+        '</Types>',
   );
   ajouter(
     '_rels/.rels',
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
-    '</Relationships>',
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+        '</Relationships>',
   );
   ajouter(
     'xl/workbook.xml',
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
-    'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'
-    '${[for (var i = 0; i < feuilles.length; i++) '<sheet name="${_echapper(noms[i])}" sheetId="${i + 1}" r:id="rId${i + 1}"/>'].join()}'
-    '</sheets></workbook>',
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'
+        '${[for (var i = 0; i < feuilles.length; i++) '<sheet name="${_echapper(noms[i])}" sheetId="${i + 1}" r:id="rId${i + 1}"/>'].join()}'
+        '</sheets></workbook>',
   );
   ajouter(
     'xl/_rels/workbook.xml.rels',
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-    '${[for (var i = 0; i < feuilles.length; i++) '<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>'].join()}'
-    '<Relationship Id="rId${feuilles.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
-    '</Relationships>',
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '${[for (var i = 0; i < feuilles.length; i++) '<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>'].join()}'
+        '<Relationship Id="rId${feuilles.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+        '</Relationships>',
   );
   // Styles : 0 normal, 1 en-tête gras sur fond gris, 2 date, 3 date + heure, 4 montant avec séparateur de milliers.
   ajouter(
     'xl/styles.xml',
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-    '<numFmts count="2"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/><numFmt numFmtId="165" formatCode="dd/mm/yyyy hh:mm"/></numFmts>'
-    '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'
-    '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>'
-    '<fill><patternFill patternType="solid"><fgColor rgb="FFE5E7EB"/><bgColor indexed="64"/></patternFill></fill></fills>'
-    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
-    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
-    '<cellXfs count="5">'
-    '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
-    '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>'
-    '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
-    '<xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
-    '<xf numFmtId="3" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
-    '</cellXfs></styleSheet>',
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        '<numFmts count="2"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/><numFmt numFmtId="165" formatCode="dd/mm/yyyy hh:mm"/></numFmts>'
+        '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'
+        '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>'
+        '<fill><patternFill patternType="solid"><fgColor rgb="FFE5E7EB"/><bgColor indexed="64"/></patternFill></fill></fills>'
+        '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+        '<cellXfs count="5">'
+        '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
+        '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>'
+        '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
+        '<xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
+        '<xf numFmtId="3" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
+        '</cellXfs></styleSheet>',
   );
   for (var i = 0; i < feuilles.length; i++) {
     ajouter('xl/worksheets/sheet${i + 1}.xml', _feuilleXml(feuilles[i]));

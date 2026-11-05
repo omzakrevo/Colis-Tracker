@@ -165,14 +165,22 @@ class MisesAJourScreen extends ConsumerWidget {
                           );
                           if (f == null) return;
                           // Un nom comme « tchi-12.apk » renseigne le numéro de build.
-                          final n = RegExp(r'(\d+)\.apk$', caseSensitive: false).firstMatch(f.name);
+                          final n = RegExp(
+                            r'(\d+)\.apk$',
+                            caseSensitive: false,
+                          ).firstMatch(f.name);
                           setS(() {
                             fichier = f;
-                            if (n != null && build.text.isEmpty) build.text = n.group(1)!;
+                            if (n != null && build.text.isEmpty)
+                              build.text = n.group(1)!;
                           });
                         } catch (e) {
                           if (ctx.mounted) {
-                            toast(ctx, 'Impossible d\'ouvrir le fichier : ${errMsg(e)}', error: true);
+                            toast(
+                              ctx,
+                              'Impossible d\'ouvrir le fichier : ${errMsg(e)}',
+                              error: true,
+                            );
                           }
                         }
                       },
@@ -189,9 +197,7 @@ class MisesAJourScreen extends ConsumerWidget {
                       controller: url,
                       keyboardType: TextInputType.url,
                       decoration: InputDecoration(
-                        labelText: fichier == null
-                            ? 'ou lien de l\'APK *'
-                            : 'Lien de l\'APK (inutile : le fichier sera téléversé)',
+                        labelText: fichier == null ? 'ou lien de l\'APK *' : 'Lien de l\'APK (inutile : le fichier sera téléversé)',
                         hintText: 'https://…/tchi-15.apk',
                       ),
                       validator: (v) =>
@@ -280,13 +286,17 @@ class MisesAJourScreen extends ConsumerWidget {
       if (context.mounted) toast(context, 'Version publiée');
     } catch (e) {
       final pendantEnvoi = enCours;
-      if (enCours && context.mounted) Navigator.of(context, rootNavigator: true).pop();
+      if (enCours && context.mounted)
+        Navigator.of(context, rootNavigator: true).pop();
       if (pendantEnvoi && context.mounted) {
         // Un échec pendant l'envoi du fichier n'est pas forcément « pas d'internet » : on montre la vraie cause.
         await showDialog<void>(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text('Téléversement impossible', style: TextStyle(fontWeight: FontWeight.w800)),
+            title: const Text(
+              'Téléversement impossible',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
             content: SingleChildScrollView(
               child: SelectableText(
                 'La connexion à votre serveur fonctionne (vous êtes connecté), mais l\'envoi du fichier a échoué.\n\n'
@@ -297,7 +307,12 @@ class MisesAJourScreen extends ConsumerWidget {
                 'Détail technique : ${e.runtimeType} — $e',
               ),
             ),
-            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer'))],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Fermer'),
+              ),
+            ],
           ),
         );
         return;

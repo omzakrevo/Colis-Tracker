@@ -41,19 +41,23 @@ Future<Uint8List> rapportPdf({
       style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
     ),
   );
-  pw.Widget tableau(List<String> entetes, List<List<String>> lignes, {Map<int, pw.TableColumnWidth>? largeurs}) =>
-      pw.TableHelper.fromTextArray(
-        headers: entetes.map(t).toList(),
-        data: [for (final l in lignes) l.map(t).toList()],
-        columnWidths: largeurs,
-        headerStyle: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold),
-        cellStyle: const pw.TextStyle(fontSize: 8.5),
-        headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-        cellPadding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-        border: pw.TableBorder.all(color: PdfColors.grey400, width: .4),
-      );
+  pw.Widget tableau(
+    List<String> entetes,
+    List<List<String>> lignes, {
+    Map<int, pw.TableColumnWidth>? largeurs,
+  }) => pw.TableHelper.fromTextArray(
+    headers: entetes.map(t).toList(),
+    data: [for (final l in lignes) l.map(t).toList()],
+    columnWidths: largeurs,
+    headerStyle: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold),
+    cellStyle: const pw.TextStyle(fontSize: 8.5),
+    headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+    cellPadding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+    border: pw.TableBorder.all(color: PdfColors.grey400, width: .4),
+  );
 
-  final periode = '${debut == null ? '...' : dateFr(debut)} au ${fin == null ? '...' : dateFr(fin)}';
+  final periode =
+      '${debut == null ? '...' : dateFr(debut)} au ${fin == null ? '...' : dateFr(fin)}';
 
   doc.addPage(
     pw.MultiPage(
@@ -70,22 +74,46 @@ Future<Uint8List> rapportPdf({
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
-            if (logo != null) ...[pw.Image(logo, height: 42), pw.SizedBox(width: 12)],
+            if (logo != null) ...[
+              pw.Image(logo, height: 42),
+              pw.SizedBox(width: 12),
+            ],
             pw.Expanded(
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text(t(co.nom.toUpperCase()), style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-                  pw.Text(t('Rapport d\'activité'), style: const pw.TextStyle(fontSize: 11)),
+                  pw.Text(
+                    t(co.nom.toUpperCase()),
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.Text(
+                    t('Rapport d\'activité'),
+                    style: const pw.TextStyle(fontSize: 11),
+                  ),
                 ],
               ),
             ),
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.end,
               children: [
-                pw.Text(t('Période : $periode'), style: const pw.TextStyle(fontSize: 9)),
-                pw.Text(t('Périmètre : $perimetre'), style: const pw.TextStyle(fontSize: 9)),
-                pw.Text(t('Édité le ${dateHeureFr(DateTime.now())} par ${me.nom}'), style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+                pw.Text(
+                  t('Période : $periode'),
+                  style: const pw.TextStyle(fontSize: 9),
+                ),
+                pw.Text(
+                  t('Périmètre : $perimetre'),
+                  style: const pw.TextStyle(fontSize: 9),
+                ),
+                pw.Text(
+                  t('Édité le ${dateHeureFr(DateTime.now())} par ${me.nom}'),
+                  style: const pw.TextStyle(
+                    fontSize: 8,
+                    color: PdfColors.grey700,
+                  ),
+                ),
               ],
             ),
           ],
@@ -93,28 +121,48 @@ Future<Uint8List> rapportPdf({
         pw.Divider(thickness: .8),
         titre('Synthèse'),
         tableau(
-          ['Colis', 'Recette (au départ)', ...parStatut.keys.map((s) => Statut.of(s).label)],
           [
-            ['${colis.length}', fcfa(recette), ...parStatut.values.map((v) => '$v')],
+            'Colis',
+            'Recette (au départ)',
+            ...parStatut.keys.map((s) => Statut.of(s).label),
+          ],
+          [
+            [
+              '${colis.length}',
+              fcfa(recette),
+              ...parStatut.values.map((v) => '$v'),
+            ],
           ],
         ),
         if (gares.isNotEmpty) ...[
           titre('Recettes par gare'),
           tableau(
             ['Gare', 'Colis', 'Recette'],
-            [for (final g in gares) [g.nom, '${g.total}', fcfa(g.recette)]],
+            [
+              for (final g in gares) [g.nom, '${g.total}', fcfa(g.recette)],
+            ],
           ),
         ],
         if (agents.isNotEmpty) ...[
           titre('Recettes par agent'),
           tableau(
             ['Agent', 'Colis', 'Recette'],
-            [for (final a in agents) [a.nom, '${a.total}', fcfa(a.recette)]],
+            [
+              for (final a in agents) [a.nom, '${a.total}', fcfa(a.recette)],
+            ],
           ),
         ],
         titre('Liste des colis (${colis.length})'),
         tableau(
-          ['N°', 'Date', 'Expéditeur', 'Destinataire', 'Trajet', 'Statut', 'Prix'],
+          [
+            'N°',
+            'Date',
+            'Expéditeur',
+            'Destinataire',
+            'Trajet',
+            'Statut',
+            'Prix',
+          ],
           [
             for (final c in colis)
               [
@@ -139,7 +187,10 @@ Future<Uint8List> rapportPdf({
         ),
         titre('Retraits et signatures (${retires.length})'),
         if (retires.isEmpty)
-          pw.Text('Aucun retrait sur la période.', style: const pw.TextStyle(fontSize: 9))
+          pw.Text(
+            'Aucun retrait sur la période.',
+            style: const pw.TextStyle(fontSize: 9),
+          )
         else
           pw.Wrap(
             spacing: 10,
@@ -151,27 +202,61 @@ Future<Uint8List> rapportPdf({
                   padding: const pw.EdgeInsets.all(8),
                   decoration: pw.BoxDecoration(
                     border: pw.Border.all(color: PdfColors.grey500, width: .5),
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                    borderRadius: const pw.BorderRadius.all(
+                      pw.Radius.circular(4),
+                    ),
                   ),
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(t(c.numero), style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-                      pw.Text(t('Retiré par : ${c.retraitNom ?? '-'}'), style: const pw.TextStyle(fontSize: 8.5)),
-                      pw.Text(t('Téléphone : ${c.retraitTelephone ?? '-'}'), style: const pw.TextStyle(fontSize: 8.5)),
+                      pw.Text(
+                        t(c.numero),
+                        style: pw.TextStyle(
+                          fontSize: 10,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                      pw.Text(
+                        t('Retiré par : ${c.retraitNom ?? '-'}'),
+                        style: const pw.TextStyle(fontSize: 8.5),
+                      ),
+                      pw.Text(
+                        t('Téléphone : ${c.retraitTelephone ?? '-'}'),
+                        style: const pw.TextStyle(fontSize: 8.5),
+                      ),
                       if ((c.retraitPieceIdentite ?? '').isNotEmpty)
-                        pw.Text(t('Pièce : ${c.retraitPieceIdentite}'), style: const pw.TextStyle(fontSize: 8.5)),
+                        pw.Text(
+                          t('Pièce : ${c.retraitPieceIdentite}'),
+                          style: const pw.TextStyle(fontSize: 8.5),
+                        ),
                       if (c.retraitDate != null)
-                        pw.Text(t('Le ${dateHeureFr(c.retraitDate!)}'), style: const pw.TextStyle(fontSize: 8.5)),
+                        pw.Text(
+                          t('Le ${dateHeureFr(c.retraitDate!)}'),
+                          style: const pw.TextStyle(fontSize: 8.5),
+                        ),
                       pw.SizedBox(height: 4),
                       pw.Container(
                         height: 52,
                         width: double.infinity,
                         alignment: pw.Alignment.center,
-                        decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey400, width: .4)),
+                        decoration: pw.BoxDecoration(
+                          border: pw.Border.all(
+                            color: PdfColors.grey400,
+                            width: .4,
+                          ),
+                        ),
                         child: pdfImage(c.retraitSignature) == null
-                            ? pw.Text('Signature non disponible', style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey600))
-                            : pw.Image(pdfImage(c.retraitSignature)!, fit: pw.BoxFit.contain),
+                            ? pw.Text(
+                                'Signature non disponible',
+                                style: const pw.TextStyle(
+                                  fontSize: 7.5,
+                                  color: PdfColors.grey600,
+                                ),
+                              )
+                            : pw.Image(
+                                pdfImage(c.retraitSignature)!,
+                                fit: pw.BoxFit.contain,
+                              ),
                       ),
                     ],
                   ),
@@ -185,7 +270,14 @@ Future<Uint8List> rapportPdf({
 }
 
 /// Télécharge (web) ou partage (mobile) le rapport PDF.
-Future<void> telechargerRapport(Uint8List pdf, {DateTime? debut, DateTime? fin}) {
+Future<void> telechargerRapport(
+  Uint8List pdf, {
+  DateTime? debut,
+  DateTime? fin,
+}) {
   String j(DateTime? d) => d == null ? 'debut' : dateIso(d);
-  return Printing.sharePdf(bytes: pdf, filename: 'rapport-${j(debut)}_${fin == null ? 'fin' : dateIso(fin)}.pdf');
+  return Printing.sharePdf(
+    bytes: pdf,
+    filename: 'rapport-${j(debut)}_${fin == null ? 'fin' : dateIso(fin)}.pdf',
+  );
 }

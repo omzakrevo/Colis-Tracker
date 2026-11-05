@@ -37,23 +37,39 @@ class _ClotureState extends ConsumerState<ClotureScreen> {
     _charger();
   }
 
-  void _charger() => setState(() => _futur = Repo.journalActivite(_jour, agentId: _agentId));
+  void _charger() =>
+      setState(() => _futur = Repo.journalActivite(_jour, agentId: _agentId));
 
-  bool _montants(Profil? me, CompanySettings? co) => (me?.isAdmin ?? false) || (co?.clotureMontants ?? false);
+  bool _montants(Profil? me, CompanySettings? co) =>
+      (me?.isAdmin ?? false) || (co?.clotureMontants ?? false);
 
   String _nomPersonne(Profil? me, List<Profil> profils) {
     if (_agentId == null) return me?.nom ?? '';
     return profils.where((p) => p.id == _agentId).firstOrNull?.nom ?? '';
   }
 
-  Future<void> _imprimer(List<JournalLigne> l, Profil? me, CompanySettings co, bool montants, List<Profil> profils) async {
+  Future<void> _imprimer(
+    List<JournalLigne> l,
+    Profil? me,
+    CompanySettings co,
+    bool montants,
+    List<Profil> profils,
+  ) async {
     final nom = _nomPersonne(me, profils);
     try {
       final ok = await Imprimante.imprimerDirect(
         RoleImprimante.client,
         'Fin-de-journee',
         (format) => _pdf(l, co, nom, montants, format),
-        texte: (g, cols) => clotureTexte(g, cols, co, nom: nom, jour: _jour, lignes: l, montants: montants),
+        texte: (g, cols) => clotureTexte(
+          g,
+          cols,
+          co,
+          nom: nom,
+          jour: _jour,
+          lignes: l,
+          montants: montants,
+        ),
       );
       if (!ok) {
         await Printing.layoutPdf(
@@ -67,31 +83,74 @@ class _ClotureState extends ConsumerState<ClotureScreen> {
     }
   }
 
-  Future<Uint8List> _pdf(List<JournalLigne> l, CompanySettings co, String nom, bool montants, PdfPageFormat format) async {
+  Future<Uint8List> _pdf(
+    List<JournalLigne> l,
+    CompanySettings co,
+    String nom,
+    bool montants,
+    PdfPageFormat format,
+  ) async {
     final t = JournalTotaux(l);
     final doc = pw.Document();
     pw.Widget ligne(String a, String b, {bool gras = false}) => pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
-        pw.Text(pdfTexte(a), style: pw.TextStyle(fontSize: 9, fontWeight: gras ? pw.FontWeight.bold : pw.FontWeight.normal)),
-        pw.Text(pdfTexte(b), style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+        pw.Text(
+          pdfTexte(a),
+          style: pw.TextStyle(
+            fontSize: 9,
+            fontWeight: gras ? pw.FontWeight.bold : pw.FontWeight.normal,
+          ),
+        ),
+        pw.Text(
+          pdfTexte(b),
+          style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+        ),
       ],
     );
     doc.addPage(
       pw.MultiPage(
-        pageFormat: format.width > 300 ? format : format.copyWith(marginLeft: 6, marginRight: 6, marginTop: 8, marginBottom: 8),
+        pageFormat: format.width > 300
+            ? format
+            : format.copyWith(
+                marginLeft: 6,
+                marginRight: 6,
+                marginTop: 8,
+                marginBottom: 8,
+              ),
         build: (c) => [
-          pw.Center(child: pw.Text(pdfTexte(co.nom.toUpperCase()), style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold))),
-          pw.Center(child: pw.Text('RAPPORT DE FIN DE JOURNEE', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold))),
+          pw.Center(
+            child: pw.Text(
+              pdfTexte(co.nom.toUpperCase()),
+              style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.Center(
+            child: pw.Text(
+              'RAPPORT DE FIN DE JOURNEE',
+              style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
           pw.SizedBox(height: 6),
           ligne('Agent', nom),
           ligne('Date', dateFr(_jour)),
           pw.Divider(),
-          if (l.isEmpty) pw.Center(child: pw.Text('Aucune operation ce jour', style: const pw.TextStyle(fontSize: 9))),
+          if (l.isEmpty)
+            pw.Center(
+              child: pw.Text(
+                'Aucune operation ce jour',
+                style: const pw.TextStyle(fontSize: 9),
+              ),
+            ),
           for (final x in l) ...[
-            ligne('${_h(x.quand)}  ${x.typeLibelle} ${x.numero}', montants && x.encaisse ? fcfa(x.montant!) : ''),
+            ligne(
+              '${_h(x.quand)}  ${x.typeLibelle} ${x.numero}',
+              montants && x.encaisse ? fcfa(x.montant!) : '',
+            ),
             pw.Text(
-              pdfTexte('   ${x.libelle}${montants && x.encaisse ? ' - ${libelleModePaiement(x.modePaiement)}' : ''}'),
+              pdfTexte(
+                '   ${x.libelle}${montants && x.encaisse ? ' - ${libelleModePaiement(x.modePaiement)}' : ''}',
+              ),
               style: const pw.TextStyle(fontSize: 8),
             ),
             pw.SizedBox(height: 2),
@@ -116,7 +175,8 @@ class _ClotureState extends ConsumerState<ClotureScreen> {
     return doc.save();
   }
 
-  static String _h(DateTime d) => '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  static String _h(DateTime d) =>
+      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) {
@@ -124,7 +184,9 @@ class _ClotureState extends ConsumerState<ClotureScreen> {
     final co = ref.watch(settingsProvider).value;
     final profils = ref.watch(profilsProvider).value ?? const <Profil>[];
     final montants = _montants(me, co);
-    final employes = profils.where((p) => !p.isSuper && !p.isComptable).toList();
+    final employes = profils
+        .where((p) => !p.isSuper && !p.isComptable)
+        .toList();
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 100),
@@ -162,10 +224,14 @@ class _ClotureState extends ConsumerState<ClotureScreen> {
                   child: DropdownButtonFormField<String?>(
                     initialValue: _agentId,
                     isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Employé', isDense: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Employé',
+                      isDense: true,
+                    ),
                     items: [
                       const DropdownMenuItem(value: null, child: Text('Moi')),
-                      for (final p in employes.where((p) => p.id != me?.id)) DropdownMenuItem(value: p.id, child: Text(p.nom)),
+                      for (final p in employes.where((p) => p.id != me?.id))
+                        DropdownMenuItem(value: p.id, child: Text(p.nom)),
                     ],
                     onChanged: (v) {
                       _agentId = v;
@@ -173,7 +239,11 @@ class _ClotureState extends ConsumerState<ClotureScreen> {
                     },
                   ),
                 ),
-              IconButton(tooltip: 'Actualiser', onPressed: _charger, icon: const Icon(Icons.refresh_rounded)),
+              IconButton(
+                tooltip: 'Actualiser',
+                onPressed: _charger,
+                icon: const Icon(Icons.refresh_rounded),
+              ),
             ],
           ),
         ),
@@ -182,7 +252,10 @@ class _ClotureState extends ConsumerState<ClotureScreen> {
           future: _futur,
           builder: (context, snap) {
             if (snap.connectionState != ConnectionState.done) {
-              return const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()));
+              return const Padding(
+                padding: EdgeInsets.all(40),
+                child: Center(child: CircularProgressIndicator()),
+              );
             }
             if (snap.hasError) {
               return Padding(
@@ -202,13 +275,43 @@ class _ClotureState extends ConsumerState<ClotureScreen> {
                   spacing: 12,
                   runSpacing: 12,
                   children: [
-                    _Chiffre('Billets vendus', '${t.billets}', Icons.confirmation_number_rounded, Brand.orange),
-                    _Chiffre('Colis envoyés', '${t.colisEnvoyes}', Icons.outbox_rounded, const Color(0xFF2563EB)),
-                    _Chiffre('Colis reçus', '${t.colisRecus}', Icons.move_to_inbox_rounded, const Color(0xFF16A34A)),
+                    _Chiffre(
+                      'Billets vendus',
+                      '${t.billets}',
+                      Icons.confirmation_number_rounded,
+                      Brand.orange,
+                    ),
+                    _Chiffre(
+                      'Colis envoyés',
+                      '${t.colisEnvoyes}',
+                      Icons.outbox_rounded,
+                      const Color(0xFF2563EB),
+                    ),
+                    _Chiffre(
+                      'Colis reçus',
+                      '${t.colisRecus}',
+                      Icons.move_to_inbox_rounded,
+                      const Color(0xFF16A34A),
+                    ),
                     if (montants) ...[
-                      _Chiffre('Espèces', fcfa(t.especes), Icons.payments_rounded, const Color(0xFF16A34A)),
-                      _Chiffre('Orange Money', fcfa(t.orangeMoney), Icons.phone_android_rounded, const Color(0xFFEA580C)),
-                      _Chiffre('Total encaissé', fcfa(t.total), Icons.account_balance_wallet_rounded, const Color(0xFF7C3AED)),
+                      _Chiffre(
+                        'Espèces',
+                        fcfa(t.especes),
+                        Icons.payments_rounded,
+                        const Color(0xFF16A34A),
+                      ),
+                      _Chiffre(
+                        'Orange Money',
+                        fcfa(t.orangeMoney),
+                        Icons.phone_android_rounded,
+                        const Color(0xFFEA580C),
+                      ),
+                      _Chiffre(
+                        'Total encaissé',
+                        fcfa(t.total),
+                        Icons.account_balance_wallet_rounded,
+                        const Color(0xFF7C3AED),
+                      ),
                     ],
                   ],
                 ),
@@ -216,14 +319,19 @@ class _ClotureState extends ConsumerState<ClotureScreen> {
                 FilledButton.icon(
                   icon: const Icon(Icons.print_rounded),
                   label: const Text('Imprimer le rapport'),
-                  onPressed: co == null ? null : () => _imprimer(l, me, co, montants, profils),
+                  onPressed: co == null
+                      ? null
+                      : () => _imprimer(l, me, co, montants, profils),
                 ),
                 const SizedBox(height: 16),
                 SectionCard(
                   title: 'Détail de la journée (${l.length})',
                   icon: Icons.list_alt_rounded,
                   child: l.isEmpty
-                      ? const Padding(padding: EdgeInsets.all(12), child: Text('Aucune opération à cette date.'))
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Text('Aucune opération à cette date.'),
+                        )
                       : Column(
                           children: [
                             for (final x in l)
@@ -233,28 +341,53 @@ class _ClotureState extends ConsumerState<ClotureScreen> {
                                 leading: CircleAvatar(
                                   radius: 16,
                                   backgroundColor: switch (x.type) {
-                                    'billet' => Brand.orange.withValues(alpha: .15),
-                                    'colis_envoye' => const Color(0xFF2563EB).withValues(alpha: .15),
-                                    _ => const Color(0xFF16A34A).withValues(alpha: .15),
+                                    'billet' => Brand.orange.withValues(
+                                      alpha: .15,
+                                    ),
+                                    'colis_envoye' => const Color(
+                                      0xFF2563EB,
+                                    ).withValues(alpha: .15),
+                                    _ => const Color(
+                                      0xFF16A34A,
+                                    ).withValues(alpha: .15),
                                   },
-                                  child: Icon(
-                                    switch (x.type) {
-                                      'billet' => Icons.confirmation_number_rounded,
-                                      'colis_envoye' => Icons.outbox_rounded,
-                                      _ => Icons.move_to_inbox_rounded,
-                                    },
-                                    size: 16,
+                                  child: Icon(switch (x.type) {
+                                    'billet' =>
+                                      Icons.confirmation_number_rounded,
+                                    'colis_envoye' => Icons.outbox_rounded,
+                                    _ => Icons.move_to_inbox_rounded,
+                                  }, size: 16),
+                                ),
+                                title: Text(
+                                  '${_h(x.quand)} · ${x.typeLibelle} ${x.numero}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                                title: Text('${_h(x.quand)} · ${x.typeLibelle} ${x.numero}', style: const TextStyle(fontWeight: FontWeight.w700)),
-                                subtitle: Text(x.libelle, maxLines: 2, overflow: TextOverflow.ellipsis),
+                                subtitle: Text(
+                                  x.libelle,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                                 trailing: montants && x.encaisse
                                     ? Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
                                         children: [
-                                          Text(fcfa(x.montant!), style: const TextStyle(fontWeight: FontWeight.w800)),
-                                          Text(libelleModePaiement(x.modePaiement), style: Theme.of(context).textTheme.labelSmall),
+                                          Text(
+                                            fcfa(x.montant!),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                          Text(
+                                            libelleModePaiement(x.modePaiement),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .labelSmall,
+                                          ),
                                         ],
                                       )
                                     : null,
@@ -288,7 +421,16 @@ class _Chiffre extends StatelessWidget {
           children: [
             Icon(icone, color: couleur),
             const SizedBox(height: 8),
-            FittedBox(fit: BoxFit.scaleDown, child: Text(valeur, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800))),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                valeur,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
             Text(titre, style: Theme.of(context).textTheme.bodySmall),
           ],
         ),

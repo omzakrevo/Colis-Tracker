@@ -1,10 +1,36 @@
 // Nombres en toutes lettres, en français (pour « la somme de … francs CFA » sur les décharges, factures, bulletins).
 
 const _unites = [
-  'zéro', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze', 'treize',
-  'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf',
+  'zéro',
+  'un',
+  'deux',
+  'trois',
+  'quatre',
+  'cinq',
+  'six',
+  'sept',
+  'huit',
+  'neuf',
+  'dix',
+  'onze',
+  'douze',
+  'treize',
+  'quatorze',
+  'quinze',
+  'seize',
+  'dix-sept',
+  'dix-huit',
+  'dix-neuf',
 ];
-const _dizaines = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante'];
+const _dizaines = [
+  '',
+  '',
+  'vingt',
+  'trente',
+  'quarante',
+  'cinquante',
+  'soixante',
+];
 
 /// 0 à 99. `final` : vrai si le nombre termine le groupe (donne « quatre-vingts » mais « quatre-vingt-un »).
 String _moinsDeCent(int n, {required bool fin}) {
@@ -17,7 +43,10 @@ String _moinsDeCent(int n, {required bool fin}) {
     if (d == 7 && u == 1) return 'soixante et onze';
     return '$base-${_unites[reste]}';
   }
-  if (d == 8) return u == 0 ? (fin ? 'quatre-vingts' : 'quatre-vingt') : 'quatre-vingt-${_unites[u]}';
+  if (d == 8)
+    return u == 0
+        ? (fin ? 'quatre-vingts' : 'quatre-vingt')
+        : 'quatre-vingt-${_unites[u]}';
   final base = _dizaines[d];
   if (u == 0) return base;
   if (u == 1) return '$base et un';
@@ -28,7 +57,9 @@ String _moinsDeCent(int n, {required bool fin}) {
 String _moinsDeMille(int n, {required bool fin}) {
   if (n < 100) return _moinsDeCent(n, fin: fin);
   final c = n ~/ 100, r = n % 100;
-  final centaines = c == 1 ? 'cent' : '${_unites[c]} cent${r == 0 && fin ? 's' : ''}';
+  final centaines = c == 1
+      ? 'cent'
+      : '${_unites[c]} cent${r == 0 && fin ? 's' : ''}';
   if (r == 0) return centaines;
   return '$centaines ${_moinsDeCent(r, fin: fin)}';
 }
@@ -65,6 +96,7 @@ String enLettres(int n) {
 /// « Cent vingt mille francs CFA » (première lettre en majuscule).
 String montantEnLettres(num montant, {String devise = 'francs CFA'}) {
   final n = montant.round();
-  final t = '${enLettres(n)} ${n > 1 ? devise : devise.replaceFirst('francs', 'franc')}';
+  final t =
+      '${enLettres(n)} ${n > 1 ? devise : devise.replaceFirst('francs', 'franc')}';
   return t[0].toUpperCase() + t.substring(1);
 }

@@ -94,9 +94,24 @@ class _MonActivite extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cards = <_Stat>[
-      _Stat('Colis envoyés', (a['colis_envoyes'] ?? 0).toDouble(), Icons.outbox_rounded, Brand.orange),
-      _Stat('Colis réceptionnés', (a['colis_recus'] ?? 0).toDouble(), Icons.move_to_inbox_rounded, const Color(0xFF16A34A)),
-      _Stat('Billets vendus', (a['billets_vendus'] ?? 0).toDouble(), Icons.confirmation_number_rounded, const Color(0xFF2563EB)),
+      _Stat(
+        'Colis envoyés',
+        (a['colis_envoyes'] ?? 0).toDouble(),
+        Icons.outbox_rounded,
+        Brand.orange,
+      ),
+      _Stat(
+        'Colis réceptionnés',
+        (a['colis_recus'] ?? 0).toDouble(),
+        Icons.move_to_inbox_rounded,
+        const Color(0xFF16A34A),
+      ),
+      _Stat(
+        'Billets vendus',
+        (a['billets_vendus'] ?? 0).toDouble(),
+        Icons.confirmation_number_rounded,
+        const Color(0xFF2563EB),
+      ),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,7 +124,10 @@ class _MonActivite extends StatelessWidget {
             return Wrap(
               spacing: gap,
               runSpacing: gap,
-              children: [for (var i = 0; i < cards.length; i++) SizedBox(width: w, child: _StatCard(cards[i]).reveal(i))],
+              children: [
+                for (var i = 0; i < cards.length; i++)
+                  SizedBox(width: w, child: _StatCard(cards[i]).reveal(i)),
+              ],
             );
           },
         ),

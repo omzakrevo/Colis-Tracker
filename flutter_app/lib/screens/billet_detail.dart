@@ -20,8 +20,14 @@ class BilletDetailScreen extends ConsumerWidget {
         title: const Text('Annuler ce billet ?'),
         content: Text('Le billet ${t.numero} sera marqué comme annulé.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Non')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Annuler le billet')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Non'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Annuler le billet'),
+          ),
         ],
       ),
     );
@@ -38,13 +44,15 @@ class BilletDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final value = ref.watch(ticketProvider(id));
     final me = ref.watch(profilProvider).value;
-    final company = ref.watch(settingsProvider).value ?? CompanySettings.defaults;
+    final company =
+        ref.watch(settingsProvider).value ?? CompanySettings.defaults;
 
     return AsyncView<Ticket>(
       value: value,
       onRetry: () => ref.invalidate(ticketProvider(id)),
       builder: (t) {
-        final peutAnnuler = !t.annule &&
+        final peutAnnuler =
+            !t.annule &&
             !t.enAttente &&
             me != null &&
             (me.isAdmin || (me.isGuichet && me.gareId == t.gareDepartId));
@@ -86,10 +94,12 @@ class BilletDetailScreen extends ConsumerWidget {
                     InfoRow('Départ', t.gareDepartNom ?? '—', bold: true),
                     InfoRow('Arrivée', t.gareArriveeNom ?? '—', bold: true),
                     InfoRow('Date', dateFr(t.dateVoyage)),
-                    if ((t.heureDepart ?? '').isNotEmpty) InfoRow('Heure', t.heureDepart!),
+                    if ((t.heureDepart ?? '').isNotEmpty)
+                      InfoRow('Heure', t.heureDepart!),
                     if ((t.siege ?? '').isNotEmpty) InfoRow('Place', t.siege!),
                     InfoRow('Prix', fcfa(t.prix), bold: true),
-                    if (t.vendeurNom != null) InfoRow('Vendu par', t.vendeurNom!),
+                    if (t.vendeurNom != null)
+                      InfoRow('Vendu par', t.vendeurNom!),
                   ],
                 ),
               ),
@@ -99,18 +109,24 @@ class BilletDetailScreen extends ConsumerWidget {
                 runSpacing: 10,
                 children: [
                   OutlinedButton.icon(
-                    onPressed: () => avecMessage(context, () => imprimerBillet(t, company, ticket: true)),
+                    onPressed: () => avecMessage(
+                      context,
+                      () => imprimerBillet(t, company, ticket: true),
+                    ),
                     icon: const Icon(Icons.receipt_long_rounded),
                     label: const Text('Ticket'),
                   ),
                   OutlinedButton.icon(
-                    onPressed: () => avecMessage(context, () => imprimerBillet(t, company)),
+                    onPressed: () =>
+                        avecMessage(context, () => imprimerBillet(t, company)),
                     icon: const Icon(Icons.print_rounded),
                     label: const Text('Billet A4'),
                   ),
                   if (peutAnnuler)
                     OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                      ),
                       onPressed: () => _annuler(context, ref, t),
                       icon: const Icon(Icons.cancel_outlined),
                       label: const Text('Annuler'),

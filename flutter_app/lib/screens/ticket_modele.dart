@@ -49,13 +49,14 @@ class _Modele {
   );
 
   /// Texte centré sur une ligne, réduit si besoin pour tenir dans la largeur.
-  pw.Widget centreAjuste(String s, double taille, {bool gras = true}) => pw.SizedBox(
-    width: double.infinity,
-    child: pw.FittedBox(
-      fit: pw.BoxFit.scaleDown,
-      child: texte(s, taille, gras: gras),
-    ),
-  );
+  pw.Widget centreAjuste(String s, double taille, {bool gras = true}) =>
+      pw.SizedBox(
+        width: double.infinity,
+        child: pw.FittedBox(
+          fit: pw.BoxFit.scaleDown,
+          child: texte(s, taille, gras: gras),
+        ),
+      );
 
   pw.Widget trait({double epaisseur = 1.4}) => pw.Padding(
     padding: pw.EdgeInsets.symmetric(vertical: v(4)),
@@ -78,33 +79,45 @@ class _Modele {
     child: pw.Center(child: texte(s, 9)),
   );
 
-  /// En-tête : logo (ou pictogramme) à gauche, nom de l'entreprise en grand, activité, slogan, téléphone.
-  pw.Widget entete(CompanySettings co, pw.MemoryImage? logo, String activite, {String svg = _svgBus}) {
+  /// Nom coupé en deux lignes équilibrées s'il est long (« MYEASYTRANSPORT » / « MYEGALA »), pour pouvoir l'agrandir.
+  List<String> lignesNom(String nom) {
+    final n = nom.toUpperCase().trim();
+    if (n.length <= 14 || !n.contains(' ')) return [n];
+    var meilleur = -1;
+    for (var i = 0; i < n.length; i++) {
+      if (n[i] == ' ' &&
+          (meilleur < 0 ||
+              (i - n.length / 2).abs() < (meilleur - n.length / 2).abs()))
+        meilleur = i;
+    }
+    return [n.substring(0, meilleur).trim(), n.substring(meilleur + 1).trim()];
+  }
+
+  /// En-tête : logo en grand au centre, puis le nom de l'entreprise aussi large que le ticket, activité, slogan.
+  pw.Widget entete(
+    CompanySettings co,
+    pw.MemoryImage? logo,
+    String activite, {
+    String svg = _svgBus,
+  }) {
     final icone = logo != null
-        ? pw.Image(logo, width: f(58), height: f(58), fit: pw.BoxFit.contain)
-        : pw.SvgImage(svg: svg, width: f(58), height: f(58));
-    return pw.Row(
-      crossAxisAlignment: pw.CrossAxisAlignment.center,
+        ? pw.Image(logo, height: f(76), fit: pw.BoxFit.contain)
+        : pw.SvgImage(svg: svg, width: f(62), height: f(62));
+    final noms = lignesNom(co.nom);
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
       children: [
-        icone,
-        pw.SizedBox(width: f(8)),
-        pw.Expanded(
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.SizedBox(
-                width: double.infinity,
-                child: pw.FittedBox(
-                  fit: pw.BoxFit.scaleDown,
-                  alignment: pw.Alignment.centerLeft,
-                  child: texte(co.nom.toUpperCase(), 36),
-                ),
-              ),
-              texte(activite, 9.5),
-              if (co.slogan.isNotEmpty) texte(co.slogan, 8.5, italique: true),
-            ],
+        pw.Center(child: icone),
+        pw.SizedBox(height: v(4)),
+        for (final n in noms)
+          pw.SizedBox(
+            width: double.infinity,
+            height: f(noms.length > 1 ? 40 : 50),
+            child: pw.FittedBox(fit: pw.BoxFit.contain, child: texte(n, 44)),
           ),
-        ),
+        texte(activite, 9.5, align: pw.TextAlign.center),
+        if (co.slogan.isNotEmpty)
+          texte(co.slogan, 8.5, italique: true, align: pw.TextAlign.center),
       ],
     );
   }
@@ -121,27 +134,40 @@ class _Modele {
       centreAjuste(s, 25),
       pw.SizedBox(height: v(2)),
       centreAjuste('N° : $numero', 14),
-      if (note != null) texte(note, 6.5, gras: false, align: pw.TextAlign.center),
+      if (note != null)
+        texte(note, 6.5, gras: false, align: pw.TextAlign.center),
     ],
   );
 
   /// Une ligne « pictogramme  LIBELLÉ : valeur ».
-  pw.Widget ligne(String svg, String libelle, String valeur, {double taille = 11}) => pw.Padding(
+  pw.Widget ligne(
+    String svg,
+    String libelle,
+    String valeur, {
+    double taille = 11,
+  }) => pw.Padding(
     padding: pw.EdgeInsets.symmetric(vertical: v(2.2)),
     child: pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.SizedBox(width: f(15), child: pw.SvgImage(svg: svg, width: f(13), height: f(13))),
+        pw.SizedBox(
+          width: f(15),
+          child: pw.SvgImage(svg: svg, width: f(13), height: f(13)),
+        ),
         pw.SizedBox(width: f(5)),
         // Libellé long (DESTINATAIRE…) : police réduite pour tenir sur une ligne, sans changer l'alignement.
-        pw.SizedBox(width: f(76), child: texte(libelle, libelle.length >= 11 ? taille * .8 : taille)),
+        pw.SizedBox(
+          width: f(76),
+          child: texte(libelle, libelle.length >= 11 ? taille * .8 : taille),
+        ),
         pw.SizedBox(width: f(6), child: texte(':', taille)),
         pw.Expanded(child: texte(valeur, taille)),
       ],
     ),
   );
 
-  pw.Widget gratuit() => pw.Center(child: texte('VOYAGE GRATUIT — MERCI DE VOTRE FIDÉLITÉ', 14));
+  pw.Widget gratuit() =>
+      pw.Center(child: texte('VOYAGE GRATUIT — MERCI DE VOTRE FIDÉLITÉ', 14));
 
   pw.Widget prix(double montant) => pw.Row(
     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -163,7 +189,8 @@ class _Modele {
 
   pw.Widget pied(String message, {String? consigne}) => pw.Column(
     children: [
-      if (consigne != null) texte(consigne, 8.5, gras: true, align: pw.TextAlign.center),
+      if (consigne != null)
+        texte(consigne, 8.5, gras: true, align: pw.TextAlign.center),
       trait(),
       centreAjuste(message, 15),
     ],
@@ -203,8 +230,15 @@ pw.Widget ticketVoyage(
         m.ligne(_svgHorloge, 'HEURE', t.heureDepart!.replaceFirst(':', 'H')),
       if ((t.siege ?? '').isNotEmpty) m.ligne(_svgSiege, 'SIÈGE', t.siege!),
       m.ligne(_svgPersonne, 'PASSAGER', t.clientNom.toUpperCase()),
-      if ((t.vendeurNom ?? '').isNotEmpty) m.ligne(_svgPersonne, 'AGENT', t.vendeurNom!.toUpperCase()),
-      m.ligne(_svgPersonne, 'PAIEMENT', t.gratuit ? 'GRATUIT (FIDÉLITÉ)' : libelleModePaiement(t.modePaiement).toUpperCase()),
+      if ((t.vendeurNom ?? '').isNotEmpty)
+        m.ligne(_svgPersonne, 'AGENT', t.vendeurNom!.toUpperCase()),
+      m.ligne(
+        _svgPersonne,
+        'PAIEMENT',
+        t.gratuit
+            ? 'GRATUIT (FIDÉLITÉ)'
+            : libelleModePaiement(t.modePaiement).toUpperCase(),
+      ),
       m.pointilles(),
       if (t.gratuit) m.gratuit() else m.prix(t.prix),
       m.pointilles(),
@@ -252,12 +286,34 @@ pw.Widget ticketColisClient(
       m.ligne(_svgCalendrier, 'DATE', dateFr(c.dateEnvoi)),
       m.ligne(_svgLieu, 'DÉPART', (c.gareDepartNom ?? '—').toUpperCase()),
       m.ligne(_svgLieu, 'ARRIVÉE', (c.gareArriveeNom ?? '—').toUpperCase()),
-      m.ligne(_svgPersonne, 'EXPÉDITEUR', '${c.expediteurNom.toUpperCase()}\n${c.expediteurTelephone}'),
-      m.ligne(_svgPersonne, 'DESTINATAIRE', '${c.destinataireNom.toUpperCase()}\n${c.destinataireTelephone}'),
-      m.ligne(_svgColis, 'COLIS', '${c.nombre} × ${c.description}${c.poids != null ? ' (${c.poids} kg)' : ''}'),
-      if (c.valeur != null) m.ligne(_svgColis, 'VALEUR', fcfa(c.valeur!).replaceAll('FCFA', 'F CFA')),
-      if ((c.agentNom ?? '').isNotEmpty) m.ligne(_svgPersonne, 'AGENT', c.agentNom!.toUpperCase()),
-      m.ligne(_svgPersonne, 'PAIEMENT', libelleModePaiement(c.modePaiement).toUpperCase()),
+      m.ligne(
+        _svgPersonne,
+        'EXPÉDITEUR',
+        '${c.expediteurNom.toUpperCase()}\n${c.expediteurTelephone}',
+      ),
+      m.ligne(
+        _svgPersonne,
+        'DESTINATAIRE',
+        '${c.destinataireNom.toUpperCase()}\n${c.destinataireTelephone}',
+      ),
+      m.ligne(
+        _svgColis,
+        'COLIS',
+        '${c.nombre} × ${c.description}${c.poids != null ? ' (${c.poids} kg)' : ''}',
+      ),
+      if (c.valeur != null)
+        m.ligne(
+          _svgColis,
+          'VALEUR',
+          fcfa(c.valeur!).replaceAll('FCFA', 'F CFA'),
+        ),
+      if ((c.agentNom ?? '').isNotEmpty)
+        m.ligne(_svgPersonne, 'AGENT', c.agentNom!.toUpperCase()),
+      m.ligne(
+        _svgPersonne,
+        'PAIEMENT',
+        libelleModePaiement(c.modePaiement).toUpperCase(),
+      ),
       m.pointilles(),
       m.prix(c.prix),
       m.pointilles(),
@@ -295,10 +351,22 @@ pw.Widget etiquetteColis(
       m.trait(),
       m.texte('DESTINATION', 9, align: pw.TextAlign.center),
       m.centreAjuste((c.gareArriveeNom ?? '—').toUpperCase(), 30),
-      m.texte('DE : ${(c.gareDepartNom ?? '—').toUpperCase()}', 10, align: pw.TextAlign.center),
+      m.texte(
+        'DE : ${(c.gareDepartNom ?? '—').toUpperCase()}',
+        10,
+        align: pw.TextAlign.center,
+      ),
       m.trait(epaisseur: 1),
-      m.ligne(_svgPersonne, 'DESTINATAIRE', '${c.destinataireNom.toUpperCase()}\n${c.destinataireTelephone}'),
-      m.ligne(_svgPersonne, 'EXPÉDITEUR', '${c.expediteurNom.toUpperCase()}\n${c.expediteurTelephone}'),
+      m.ligne(
+        _svgPersonne,
+        'DESTINATAIRE',
+        '${c.destinataireNom.toUpperCase()}\n${c.destinataireTelephone}',
+      ),
+      m.ligne(
+        _svgPersonne,
+        'EXPÉDITEUR',
+        '${c.expediteurNom.toUpperCase()}\n${c.expediteurTelephone}',
+      ),
       m.ligne(_svgColis, 'COLIS', '${c.nombre} × ${c.description}'),
       m.ligne(_svgCalendrier, 'DATE', dateFr(c.dateEnvoi)),
       m.pointilles(),

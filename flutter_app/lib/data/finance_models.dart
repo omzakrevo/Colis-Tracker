@@ -2,7 +2,8 @@
 
 double _n(Object? v) => v is num ? v.toDouble() : double.tryParse('$v') ?? 0;
 DateTime? _d(Object? v) => v == null ? null : DateTime.parse('$v');
-String _iso(DateTime d) => '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+String _iso(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
 const categoriesDepenses = [
   'Carburant',
@@ -26,7 +27,8 @@ class LigneMontant {
   final String libelle;
   final double montant;
 
-  factory LigneMontant.fromJson(Map<String, dynamic> j) => LigneMontant('${j['libelle'] ?? ''}', _n(j['montant']));
+  factory LigneMontant.fromJson(Map<String, dynamic> j) =>
+      LigneMontant('${j['libelle'] ?? ''}', _n(j['montant']));
   Map<String, dynamic> toJson() => {'libelle': libelle, 'montant': montant};
 }
 
@@ -54,7 +56,16 @@ class Employe {
   });
 
   final int? id, gareId;
-  final String matricule, nom, poste, telephone, adresse, pieceIdentite, typeContrat, numeroCnss, compteBancaire, notes;
+  final String matricule,
+      nom,
+      poste,
+      telephone,
+      adresse,
+      pieceIdentite,
+      typeContrat,
+      numeroCnss,
+      compteBancaire,
+      notes;
   final DateTime? dateNaissance, dateEmbauche, dateFinContrat;
   final double salaireBase, indemniteTransport, indemniteLogement;
   final bool actif;
@@ -183,8 +194,14 @@ class Bulletin {
     employeId: (j['employe_id'] as num).toInt(),
     mois: DateTime.parse('${j['mois']}'),
     salaireBase: _n(j['salaire_base']),
-    primes: [for (final l in (j['primes'] as List? ?? const [])) LigneMontant.fromJson(Map<String, dynamic>.from(l as Map))],
-    retenues: [for (final l in (j['retenues'] as List? ?? const [])) LigneMontant.fromJson(Map<String, dynamic>.from(l as Map))],
+    primes: [
+      for (final l in (j['primes'] as List? ?? const []))
+        LigneMontant.fromJson(Map<String, dynamic>.from(l as Map)),
+    ],
+    retenues: [
+      for (final l in (j['retenues'] as List? ?? const []))
+        LigneMontant.fromJson(Map<String, dynamic>.from(l as Map)),
+    ],
     statut: '${j['statut'] ?? 'brouillon'}',
     datePaiement: _d(j['date_paiement']),
     modePaiement: '${j['mode_paiement'] ?? 'Espèces'}',
@@ -230,8 +247,10 @@ class Bulletin {
   /// Bulletin proposé pour un employé : salaire de base, indemnités fixes et cotisation CNSS salariale (si un taux est réglé).
   static Bulletin pour(Employe e, DateTime mois, {double cnssTaux = 0}) {
     final primes = [
-      if (e.indemniteTransport > 0) LigneMontant('Indemnité de transport', e.indemniteTransport),
-      if (e.indemniteLogement > 0) LigneMontant('Indemnité de logement', e.indemniteLogement),
+      if (e.indemniteTransport > 0)
+        LigneMontant('Indemnité de transport', e.indemniteTransport),
+      if (e.indemniteLogement > 0)
+        LigneMontant('Indemnité de logement', e.indemniteLogement),
     ];
     final brut = e.salaireBase + primes.fold(0.0, (a, l) => a + l.montant);
     final cnss = (brut * cnssTaux / 100).roundToDouble();
@@ -240,7 +259,13 @@ class Bulletin {
       mois: DateTime(mois.year, mois.month),
       salaireBase: e.salaireBase,
       primes: primes,
-      retenues: [if (cnss > 0) LigneMontant('Cotisation CNSS (${cnssTaux.toString().replaceAll(RegExp(r'\.0$'), '')} %)', cnss)],
+      retenues: [
+        if (cnss > 0)
+          LigneMontant(
+            'Cotisation CNSS (${cnssTaux.toString().replaceAll(RegExp(r'\.0$'), '')} %)',
+            cnss,
+          ),
+      ],
     );
   }
 }
@@ -254,7 +279,8 @@ enum TypeDoc {
   const TypeDoc(this.code, this.libelle, this.pluriel);
   final String code, libelle, pluriel;
 
-  static TypeDoc of(String c) => values.firstWhere((t) => t.code == c, orElse: () => decharge);
+  static TypeDoc of(String c) =>
+      values.firstWhere((t) => t.code == c, orElse: () => decharge);
 }
 
 /// Document comptable enregistré ; `data` contient tous ses champs (modifiables).
@@ -310,8 +336,16 @@ class LigneFacture {
   final double quantite, prixUnitaire;
   double get total => quantite * prixUnitaire;
 
-  factory LigneFacture.fromJson(Map<String, dynamic> j) => LigneFacture('${j['designation'] ?? ''}', _n(j['quantite']), _n(j['prix_unitaire']));
-  Map<String, dynamic> toJson() => {'designation': designation, 'quantite': quantite, 'prix_unitaire': prixUnitaire};
+  factory LigneFacture.fromJson(Map<String, dynamic> j) => LigneFacture(
+    '${j['designation'] ?? ''}',
+    _n(j['quantite']),
+    _n(j['prix_unitaire']),
+  );
+  Map<String, dynamic> toJson() => {
+    'designation': designation,
+    'quantite': quantite,
+    'prix_unitaire': prixUnitaire,
+  };
 }
 
 /// Identité légale utilisée sur les documents officiels (issue des paramètres de l'entreprise).
@@ -328,7 +362,13 @@ class IdentiteLegale {
     this.cnssTaux = 5.5,
   });
 
-  final String ifu, rccm, regimeFiscal, compteBancaire, numeroCnss, representantNom, representantFonction;
+  final String ifu,
+      rccm,
+      regimeFiscal,
+      compteBancaire,
+      numeroCnss,
+      representantNom,
+      representantFonction;
   final double tvaTaux, cnssTaux;
 
   factory IdentiteLegale.fromJson(Map<String, dynamic> j) => IdentiteLegale(
@@ -338,7 +378,8 @@ class IdentiteLegale {
     compteBancaire: '${j['compte_bancaire'] ?? ''}',
     numeroCnss: '${j['numero_cnss'] ?? ''}',
     representantNom: '${j['representant_nom'] ?? ''}',
-    representantFonction: '${j['representant_fonction'] ?? 'Directeur général'}',
+    representantFonction:
+        '${j['representant_fonction'] ?? 'Directeur général'}',
     tvaTaux: _n(j['tva_taux']),
     cnssTaux: j['cnss_taux'] == null ? 5.5 : _n(j['cnss_taux']),
   );

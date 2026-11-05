@@ -30,14 +30,19 @@ Future<bool> changerMotDePasseDialog(BuildContext context) async {
                   labelText: 'Nouveau mot de passe',
                   helperText: '6 caractères minimum',
                   suffixIcon: IconButton(
-                    icon: Icon(cache ? Icons.visibility_rounded : Icons.visibility_off_rounded),
+                    icon: Icon(
+                      cache
+                          ? Icons.visibility_rounded
+                          : Icons.visibility_off_rounded,
+                    ),
                     onPressed: () => setS(() => cache = !cache),
                   ),
                 ),
                 validator: (v) {
                   final t = v ?? '';
                   if (t.length < 6) return 'Au moins 6 caractères';
-                  if (t == '123456') return 'Choisissez un autre mot de passe que le mot de passe provisoire';
+                  if (t == '123456')
+                    return 'Choisissez un autre mot de passe que le mot de passe provisoire';
                   return null;
                 },
               ),
@@ -45,14 +50,21 @@ Future<bool> changerMotDePasseDialog(BuildContext context) async {
               TextFormField(
                 controller: confirme,
                 obscureText: cache,
-                decoration: const InputDecoration(labelText: 'Confirmer le mot de passe'),
-                validator: (v) => v != nouveau.text ? 'Les deux mots de passe sont différents' : null,
+                decoration: const InputDecoration(
+                  labelText: 'Confirmer le mot de passe',
+                ),
+                validator: (v) => v != nouveau.text
+                    ? 'Les deux mots de passe sont différents'
+                    : null,
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: envoi ? null : () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          TextButton(
+            onPressed: envoi ? null : () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
           FilledButton(
             onPressed: envoi
                 ? null

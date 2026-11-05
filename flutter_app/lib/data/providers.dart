@@ -433,7 +433,9 @@ final trajetsProvider = FutureProvider<List<Trajet>>((ref) {
 
 final smsConfigProvider = FutureProvider<SmsConfig?>((ref) => Repo.smsConfig());
 final smsGlobalProvider = FutureProvider<SmsGlobal>((ref) => Repo.smsGlobal());
-final smsEntreprisesProvider = FutureProvider<List<SmsEntreprise>>((ref) => Repo.smsEntreprises());
+final smsEntreprisesProvider = FutureProvider<List<SmsEntreprise>>(
+  (ref) => Repo.smsEntreprises(),
+);
 
 final garesProvider = FutureProvider<List<Gare>>((ref) => Repo.gares());
 final profilsProvider = FutureProvider<List<Profil>>((ref) => Repo.profils());
@@ -500,7 +502,10 @@ final statutsProvider = FutureProvider<Map<String, int>>((ref) {
 
 /// Revérifie toutes les 20 minutes si une nouvelle version est en ligne (sans attendre un redémarrage).
 final verifMiseAJourProvider = Provider<void>((ref) {
-  final t = Timer.periodic(const Duration(minutes: 20), (_) => ref.invalidate(miseAJourProvider));
+  final t = Timer.periodic(
+    const Duration(minutes: 20),
+    (_) => ref.invalidate(miseAJourProvider),
+  );
   ref.onDispose(t.cancel);
 });
 

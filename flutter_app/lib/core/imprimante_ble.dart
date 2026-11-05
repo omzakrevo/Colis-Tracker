@@ -13,7 +13,11 @@ class AppareilBle {
   /// Les mini-imprimantes « chat » (MXW01…) s'annoncent avec ce genre de nom.
   bool get probableImprimante {
     final n = nom.toUpperCase();
-    return n.startsWith('MXW') || n.startsWith('MX') || n.contains('PRINT') || n.contains('POS') || n.contains('CAT');
+    return n.startsWith('MXW') ||
+        n.startsWith('MX') ||
+        n.contains('PRINT') ||
+        n.contains('POS') ||
+        n.contains('CAT');
   }
 }
 
@@ -24,7 +28,8 @@ class StatutChat {
   final bool ok;
   final String detail;
 
-  String get resume => ok ? 'Prête · batterie $batterie %' : '$detail · batterie $batterie %';
+  String get resume =>
+      ok ? 'Prête · batterie $batterie %' : '$detail · batterie $batterie %';
 }
 
 /// Impression en Bluetooth basse consommation, directement depuis l'application (sans passer par les réglages
@@ -73,9 +78,15 @@ class ImprimanteBle {
 
   /// Trame : 22 21 · commande · 00 · taille (2 octets, petit-boutiste) · données · CRC8 des données · FF.
   static Uint8List commande(int id, List<int> donnees) => Uint8List.fromList([
-    0x22, 0x21, id, 0x00, donnees.length & 0xFF, (donnees.length >> 8) & 0xFF,
+    0x22,
+    0x21,
+    id,
+    0x00,
+    donnees.length & 0xFF,
+    (donnees.length >> 8) & 0xFF,
     ...donnees,
-    crc8(donnees), 0xFF,
+    crc8(donnees),
+    0xFF,
   ]);
 
   /// Image noir et blanc de 384 points de large → lignes de 48 octets (bit de poids faible = point de gauche, 1 = noir).
@@ -95,8 +106,11 @@ class ImprimanteBle {
   // ── Recherche et connexion ──
 
   /// Cherche les appareils BLE à proximité (quelques secondes).
-  static Future<List<AppareilBle>> chercher({Duration duree = const Duration(seconds: 8)}) async {
-    if (!await FlutterBluePlus.isSupported) throw 'Ce téléphone ne gère pas le Bluetooth basse consommation.';
+  static Future<List<AppareilBle>> chercher({
+    Duration duree = const Duration(seconds: 8),
+  }) async {
+    if (!await FlutterBluePlus.isSupported)
+      throw 'Ce téléphone ne gère pas le Bluetooth basse consommation.';
     if (FlutterBluePlus.adapterStateNow != BluetoothAdapterState.on) {
       try {
         await FlutterBluePlus.turnOn();
@@ -107,9 +121,15 @@ class ImprimanteBle {
     final trouves = <String, AppareilBle>{};
     final abo = FlutterBluePlus.scanResults.listen((liste) {
       for (final r in liste) {
-        final nom = r.advertisementData.advName.isNotEmpty ? r.advertisementData.advName : r.device.platformName;
+        final nom = r.advertisementData.advName.isNotEmpty
+            ? r.advertisementData.advName
+            : r.device.platformName;
         if (nom.isEmpty) continue;
-        trouves[r.device.remoteId.str] = AppareilBle(r.device.remoteId.str, nom, r.rssi);
+        trouves[r.device.remoteId.str] = AppareilBle(
+          r.device.remoteId.str,
+          nom,
+          r.rssi,
+        );
       }
     });
     try {
@@ -120,7 +140,8 @@ class ImprimanteBle {
     }
     final l = trouves.values.toList()
       ..sort((a, b) {
-        if (a.probableImprimante != b.probableImprimante) return a.probableImprimante ? -1 : 1;
+        if (a.probableImprimante != b.probableImprimante)
+          return a.probableImprimante ? -1 : 1;
         return b.signal.compareTo(a.signal);
       });
     return l;
@@ -130,7 +151,10 @@ class ImprimanteBle {
 
   /// Se connecte (ou réutilise la connexion) et renvoie la famille de l'imprimante : « chat » ou « escpos ».
   static Future<String> connecter(String id) async {
-    if (_appareil != null && _appareil!.remoteId.str == id && _appareil!.isConnected && _protocole.isNotEmpty) {
+    if (_appareil != null &&
+        _appareil!.remoteId.str == id &&
+        _appareil!.isConnected &&
+        _protocole.isNotEmpty) {
       return _protocole;
     }
     await deconnecter();
@@ -160,11 +184,15 @@ class ImprimanteBle {
       } else {
         BluetoothCharacteristic? choix;
         for (final s in services) {
-          if (_servicesSansEcriture.contains(s.serviceUuid.str.toUpperCase())) continue;
+          if (_servicesSansEcriture.contains(s.serviceUuid.str.toUpperCase()))
+            continue;
           for (final c in s.characteristics) {
             if (c.properties.writeWithoutResponse || c.properties.write) {
               // On préfère l'écriture sans réponse (plus rapide).
-              if (choix == null || (c.properties.writeWithoutResponse && !choix.properties.writeWithoutResponse)) choix = c;
+              if (choix == null ||
+                  (c.properties.writeWithoutResponse &&
+                      !choix.properties.writeWithoutResponse))
+                choix = c;
             }
           }
         }
@@ -192,7 +220,8 @@ class ImprimanteBle {
     _commande = _donnees = _ecriture = null;
     _protocole = '';
     for (final a in _attentes.values) {
-      if (!a.isCompleted) a.completeError('Connexion perdue avec l\'imprimante.');
+      if (!a.isCompleted)
+        a.completeError('Connexion perdue avec l\'imprimante.');
     }
     _attentes.clear();
   }
@@ -217,14 +246,21 @@ class ImprimanteBle {
     await _commande!.write(commande(id, donnees), withoutResponse: true);
   }
 
-  static Future<List<int>> _demander(int id, List<int> donnees, {Duration delai = const Duration(seconds: 10)}) async {
+  static Future<List<int>> _demander(
+    int id,
+    List<int> donnees, {
+    Duration delai = const Duration(seconds: 10),
+  }) async {
     final c = Completer<List<int>>();
     _attentes[id] = c;
     await _envoyer(id, donnees);
-    return c.future.timeout(delai, onTimeout: () {
-      _attentes.remove(id);
-      throw 'L\'imprimante ne répond pas. Éteignez-la, rallumez-la et réessayez.';
-    });
+    return c.future.timeout(
+      delai,
+      onTimeout: () {
+        _attentes.remove(id);
+        throw 'L\'imprimante ne répond pas. Éteignez-la, rallumez-la et réessayez.';
+      },
+    );
   }
 
   /// Batterie, température, papier…
@@ -240,15 +276,25 @@ class ImprimanteBle {
         _ => 'Erreur',
       };
     }
-    return StatutChat(v.length > 9 ? v[9] : 0, v.length > 10 ? v[10] : 0, ok, detail);
+    return StatutChat(
+      v.length > 9 ? v[9] : 0,
+      v.length > 10 ? v[10] : 0,
+      ok,
+      detail,
+    );
   }
 
   /// Imprime une image noir et blanc de 384 points de large.
   /// [intensite] 0 à 100 (noirceur) ; [pauseMs] pause entre deux lignes (0 = le plus rapide).
-  static Future<void> imprimerChat(img.Image image, {int intensite = 80, int pauseMs = 0}) async {
+  static Future<void> imprimerChat(
+    img.Image image, {
+    int intensite = 80,
+    int pauseMs = 0,
+  }) async {
     final l = lignes(image);
     if (l.isEmpty) return;
-    if (l.length > 60000) throw 'L\'étiquette est trop longue pour l\'imprimante.';
+    if (l.length > 60000)
+      throw 'L\'étiquette est trop longue pour l\'imprimante.';
     final s = await statut();
     if (!s.ok) throw 'Imprimante : ${s.detail.toLowerCase()}.';
 
@@ -273,10 +319,13 @@ class ImprimanteBle {
       }
     }
     await _envoyer(0xAD, [0]);
-    await fin.future.timeout(Duration(seconds: 20 + n ~/ 20), onTimeout: () {
-      _attentes.remove(0xAA);
-      throw 'L\'impression ne se termine pas. Vérifiez le papier et réessayez.';
-    });
+    await fin.future.timeout(
+      Duration(seconds: 20 + n ~/ 20),
+      onTimeout: () {
+        _attentes.remove(0xAA);
+        throw 'L\'impression ne se termine pas. Vérifiez le papier et réessayez.';
+      },
+    );
   }
 
   // ── Imprimantes BLE ESC/POS ──
@@ -290,7 +339,8 @@ class ImprimanteBle {
     for (var i = 0; i < octets.length; i += taille) {
       final f = i + taille > octets.length ? octets.length : i + taille;
       await c.write(octets.sublist(i, f), withoutResponse: sans);
-      if (pauseMs > 0) await Future<void>.delayed(Duration(milliseconds: pauseMs));
+      if (pauseMs > 0)
+        await Future<void>.delayed(Duration(milliseconds: pauseMs));
     }
   }
 }

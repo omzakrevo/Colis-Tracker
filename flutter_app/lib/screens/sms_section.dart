@@ -35,12 +35,26 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
   bool _rapportActif = false;
   String _rapportHeure = '22:00';
   final _rapportNums = TextEditingController();
-  bool _actif = false, _envoi = true, _arrive = true, _retire = true, _billet = true;
+  bool _actif = false,
+      _envoi = true,
+      _arrive = true,
+      _retire = true,
+      _billet = true;
   bool _loaded = false, _saving = false;
 
   @override
   void dispose() {
-    for (final c in [_user, _pass, _sender, _port, _terminal, _indicatif, _tests, _rapportNums, ..._tpl.values]) {
+    for (final c in [
+      _user,
+      _pass,
+      _sender,
+      _port,
+      _terminal,
+      _indicatif,
+      _tests,
+      _rapportNums,
+      ..._tpl.values,
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -114,10 +128,11 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
       // Enregistre d'abord l'identifiant Terminal Web saisi.
       await Repo.enregistrerSms({'terminal_id': _terminal.text.trim()});
       final r = await Repo.soldeSms();
-      if (mounted) setState(() {
-        _solde = r.solde;
-        _soldeLe = r.le;
-      });
+      if (mounted)
+        setState(() {
+          _solde = r.solde;
+          _soldeLe = r.le;
+        });
     } catch (e) {
       if (mounted) toast(context, errMsg(e), error: true);
     } finally {
@@ -129,11 +144,17 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
     final p = _rapportHeure.split(':');
     final t = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay(hour: int.tryParse(p.first) ?? 22, minute: int.tryParse(p.last) ?? 0),
+      initialTime: TimeOfDay(
+        hour: int.tryParse(p.first) ?? 22,
+        minute: int.tryParse(p.last) ?? 0,
+      ),
       helpText: 'Heure d\'envoi du rapport',
     );
     if (t != null) {
-      setState(() => _rapportHeure = '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}');
+      setState(
+        () => _rapportHeure =
+            '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
+      );
     }
   }
 
@@ -141,7 +162,11 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
     try {
       await _save(silencieux: true);
       final n = await Repo.testerRapportSms();
-      if (mounted) toast(context, 'Rapport envoyé à $n numéro${n > 1 ? 's' : ''} — voyez le journal');
+      if (mounted)
+        toast(
+          context,
+          'Rapport envoyé à $n numéro${n > 1 ? 's' : ''} — voyez le journal',
+        );
     } catch (e) {
       if (mounted) toast(context, errMsg(e), error: true);
     }
@@ -211,16 +236,25 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     value: _actif,
-                    onChanged: (c?.bloque ?? false) ? null : (v) => setState(() => _actif = v),
+                    onChanged: (c?.bloque ?? false)
+                        ? null
+                        : (v) => setState(() => _actif = v),
                     title: const Text('Envoyer les SMS automatiquement'),
                   ),
                   SegmentedButton<String>(
                     segments: const [
-                      ButtonSegment(value: 'global', label: Text('Compte de la plateforme')),
-                      ButtonSegment(value: 'propre', label: Text('Mon compte SMSBUS')),
+                      ButtonSegment(
+                        value: 'global',
+                        label: Text('Compte de la plateforme'),
+                      ),
+                      ButtonSegment(
+                        value: 'propre',
+                        label: Text('Mon compte SMSBUS'),
+                      ),
                     ],
                     selected: {_source},
-                    onSelectionChanged: (v) => setState(() => _source = v.first),
+                    onSelectionChanged: (v) =>
+                        setState(() => _source = v.first),
                   ),
                   const SizedBox(height: 8),
                   if (_source == 'global')
@@ -233,102 +267,114 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
                       ),
                     ),
                   if (_source == 'propre') ...[
-                  TextField(
-                    controller: _user,
-                    decoration: const InputDecoration(labelText: 'Identifiant (username)'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _pass,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      labelText: 'Mot de passe / clé API SMSBUS',
-                      helperText: (c?.username ?? '').isEmpty
-                          ? null
-                          : 'Laissez vide pour conserver le mot de passe actuel',
+                    TextField(
+                      controller: _user,
+                      decoration: const InputDecoration(
+                        labelText: 'Identifiant (username)',
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: TextField(
-                          controller: _sender,
-                          maxLength: 18,
-                          decoration: const InputDecoration(
-                            labelText: 'Nom d\'expéditeur (Sender ID)',
-                            counterText: '',
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _pass,
+                      obscureText: true,
+                      decoration: InputDecoration(
+                        labelText: 'Mot de passe / clé API SMSBUS',
+                        helperText: (c?.username ?? '').isEmpty ? null : 'Laissez vide pour conserver le mot de passe actuel',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            controller: _sender,
+                            maxLength: 18,
+                            decoration: const InputDecoration(
+                              labelText: 'Nom d\'expéditeur (Sender ID)',
+                              counterText: '',
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _indicatif,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(labelText: 'Indicatif pays'),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: _indicatif,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Indicatif pays',
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _port,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(labelText: 'Port'),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: _port,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Port',
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
                   ],
                 ],
               ),
             ),
             const SizedBox(height: 14),
             if (_source == 'propre')
-            SectionCard(
-              title: 'Solde SMS',
-              icon: Icons.account_balance_wallet_rounded,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    controller: _terminal,
-                    decoration: const InputDecoration(
-                      labelText: 'Identifiant Terminal Web SMSBUS',
-                      helperText: 'Indiqué dans votre compte SMSBUS (« Terminal Web »)',
+              SectionCard(
+                title: 'Solde SMS',
+                icon: Icons.account_balance_wallet_rounded,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: _terminal,
+                      decoration: const InputDecoration(
+                        labelText: 'Identifiant Terminal Web SMSBUS',
+                        helperText: 'Indiqué dans votre compte SMSBUS (« Terminal Web »)',
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _solde == null ? 'Solde inconnu' : _solde!,
-                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _solde == null ? 'Solde inconnu' : _solde!,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: _soldeEnCours ? null : _actualiserSolde,
+                          icon: _soldeEnCours
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.refresh_rounded),
+                          label: const Text('Actualiser le solde'),
+                        ),
+                      ],
+                    ),
+                    if (_soldeLe != null)
+                      Text(
+                        'Mis à jour le ${dateHeureFr(_soldeLe!)}',
+                        style: const TextStyle(
+                          color: Brand.muted,
+                          fontSize: 12.5,
                         ),
                       ),
-                      OutlinedButton.icon(
-                        onPressed: _soldeEnCours ? null : _actualiserSolde,
-                        icon: _soldeEnCours
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.refresh_rounded),
-                        label: const Text('Actualiser le solde'),
-                      ),
-                    ],
-                  ),
-                  if (_soldeLe != null)
-                    Text(
-                      'Mis à jour le ${dateHeureFr(_soldeLe!)}',
-                      style: const TextStyle(color: Brand.muted, fontSize: 12.5),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            ),
             if (_source == 'propre') const SizedBox(height: 14),
             SectionCard(
               title: 'Quand envoyer un SMS ?',
@@ -340,21 +386,27 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
                     value: _envoi,
                     onChanged: (v) => setState(() => _envoi = v),
                     title: const Text('Envoi d\'un colis'),
-                    subtitle: const Text('Expéditeur et destinataire sont prévenus'),
+                    subtitle: const Text(
+                      'Expéditeur et destinataire sont prévenus',
+                    ),
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     value: _arrive,
                     onChanged: (v) => setState(() => _arrive = v),
                     title: const Text('Arrivée du colis'),
-                    subtitle: const Text('Le destinataire est prévenu qu\'il peut le retirer'),
+                    subtitle: const Text(
+                      'Le destinataire est prévenu qu\'il peut le retirer',
+                    ),
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     value: _retire,
                     onChanged: (v) => setState(() => _retire = v),
                     title: const Text('Retrait du colis'),
-                    subtitle: const Text('L\'expéditeur est prévenu que le colis a été remis'),
+                    subtitle: const Text(
+                      'L\'expéditeur est prévenu que le colis a été remis',
+                    ),
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
@@ -378,7 +430,9 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
                     value: _rapportActif,
                     onChanged: (v) => setState(() => _rapportActif = v),
                     title: const Text('Envoyer un SMS de recettes chaque jour'),
-                    subtitle: const Text('Recette de chaque gare, total, et comparaison avec la veille'),
+                    subtitle: const Text(
+                      'Recette de chaque gare, total, et comparaison avec la veille',
+                    ),
                   ),
                   const SizedBox(height: 4),
                   OutlinedButton.icon(
@@ -456,11 +510,16 @@ class _SmsSectionState extends ConsumerState<SmsSection> {
                   child: TextField(
                     controller: _tests,
                     keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(labelText: 'Numéro pour un SMS de test'),
+                    decoration: const InputDecoration(
+                      labelText: 'Numéro pour un SMS de test',
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
-                OutlinedButton(onPressed: _tester, child: const Text('Envoyer un test')),
+                OutlinedButton(
+                  onPressed: _tester,
+                  child: const Text('Envoyer un test'),
+                ),
               ],
             ),
           ],
@@ -484,7 +543,10 @@ class _JournalSmsState extends State<_JournalSms> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Journal des SMS', style: TextStyle(fontWeight: FontWeight.w800)),
+    title: const Text(
+      'Journal des SMS',
+      style: TextStyle(fontWeight: FontWeight.w800),
+    ),
     content: SizedBox(
       width: 520,
       height: 440,
@@ -496,14 +558,18 @@ class _JournalSmsState extends State<_JournalSms> {
           }
           if (snap.hasError) return Text(errMsg(snap.error!));
           final l = snap.data!;
-          if (l.isEmpty) return const Center(child: Text('Aucun SMS pour le moment.'));
+          if (l.isEmpty)
+            return const Center(child: Text('Aucun SMS pour le moment.'));
           return ListView.separated(
             itemCount: l.length,
             separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (_, i) {
               final s = l[i];
               final (icone, couleur) = switch (s.statut) {
-                'envoye' => (Icons.check_circle_rounded, const Color(0xFF16A34A)),
+                'envoye' => (
+                  Icons.check_circle_rounded,
+                  const Color(0xFF16A34A),
+                ),
                 'echec' => (Icons.error_rounded, Colors.red),
                 _ => (Icons.schedule_rounded, const Color(0xFFB45309)),
               };
@@ -535,7 +601,10 @@ class _JournalSmsState extends State<_JournalSms> {
     ),
     actions: [
       TextButton(onPressed: _recharger, child: const Text('Actualiser')),
-      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Fermer'),
+      ),
     ],
   );
 }

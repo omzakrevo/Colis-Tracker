@@ -15,7 +15,12 @@ import '../widgets/common.dart';
 import 'finance_pdf.dart';
 import 'finance_ui.dart';
 
-Future<Uint8List> construireDocument(FinanceDoc d, CompanySettings co, IdentiteLegale id, {Employe? employe}) => switch (d.type) {
+Future<Uint8List> construireDocument(
+  FinanceDoc d,
+  CompanySettings co,
+  IdentiteLegale id, {
+  Employe? employe,
+}) => switch (d.type) {
   TypeDoc.decharge => dechargePdf(d, co, id),
   TypeDoc.facture => facturePdf(d, co, id),
   TypeDoc.recu => recuPaiementPdf(d, co, id),
@@ -68,8 +73,17 @@ class _DocumentsState extends ConsumerState<FinanceDocumentsScreen> {
       children: [
         Row(
           children: [
-            IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back_rounded)),
-            const Expanded(child: PageHeader('Documents', subtitle: 'Décharges, factures, reçus : créez, modifiez, imprimez.')),
+            IconButton(
+              onPressed: () => context.pop(),
+              icon: const Icon(Icons.arrow_back_rounded),
+            ),
+            const Expanded(
+              child: PageHeader(
+                'Documents',
+                subtitle:
+                    'Décharges, factures, reçus : créez, modifiez, imprimez.',
+              ),
+            ),
           ],
         ),
         Wrap(
@@ -77,9 +91,21 @@ class _DocumentsState extends ConsumerState<FinanceDocumentsScreen> {
           spacing: 10,
           runSpacing: 10,
           children: [
-            FilledButton.icon(onPressed: () => _ouvrir(TypeDoc.decharge), icon: const Icon(Icons.add_rounded), label: const Text('Décharge')),
-            FilledButton.icon(onPressed: () => _ouvrir(TypeDoc.facture), icon: const Icon(Icons.add_rounded), label: const Text('Facture')),
-            FilledButton.icon(onPressed: () => _ouvrir(TypeDoc.recu), icon: const Icon(Icons.add_rounded), label: const Text('Reçu de paiement')),
+            FilledButton.icon(
+              onPressed: () => _ouvrir(TypeDoc.decharge),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Décharge'),
+            ),
+            FilledButton.icon(
+              onPressed: () => _ouvrir(TypeDoc.facture),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Facture'),
+            ),
+            FilledButton.icon(
+              onPressed: () => _ouvrir(TypeDoc.recu),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Reçu de paiement'),
+            ),
           ],
         ),
         const SizedBox(height: 14),
@@ -87,23 +113,40 @@ class _DocumentsState extends ConsumerState<FinanceDocumentsScreen> {
           alignment: WrapAlignment.center,
           spacing: 8,
           children: [
-            ChoiceChip(label: const Text('Tous'), selected: _type == null, onSelected: (_) => setState(() {
-              _type = null;
-              _liste = null;
-              _recharger();
-            })),
-            for (final t in TypeDoc.values)
-              ChoiceChip(label: Text(t.pluriel), selected: _type == t, onSelected: (_) => setState(() {
-                _type = t;
+            ChoiceChip(
+              label: const Text('Tous'),
+              selected: _type == null,
+              onSelected: (_) => setState(() {
+                _type = null;
                 _liste = null;
                 _recharger();
-              })),
+              }),
+            ),
+            for (final t in TypeDoc.values)
+              ChoiceChip(
+                label: Text(t.pluriel),
+                selected: _type == t,
+                onSelected: (_) => setState(() {
+                  _type = t;
+                  _liste = null;
+                  _recharger();
+                }),
+              ),
           ],
         ),
         const SizedBox(height: 14),
-        if (_erreur != null) Text(_erreur!, style: const TextStyle(color: Colors.red)),
-        if (l == null && _erreur == null) const SkeletonList(count: 4, height: 64),
-        if (l != null && l.isEmpty) const Padding(padding: EdgeInsets.all(24), child: EmptyState(icon: Icons.description_rounded, text: 'Aucun document pour le moment.')),
+        if (_erreur != null)
+          Text(_erreur!, style: const TextStyle(color: Colors.red)),
+        if (l == null && _erreur == null)
+          const SkeletonList(count: 4, height: 64),
+        if (l != null && l.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: EmptyState(
+              icon: Icons.description_rounded,
+              text: 'Aucun document pour le moment.',
+            ),
+          ),
         if (l != null)
           for (final d in l)
             Card(
@@ -116,9 +159,27 @@ class _DocumentsState extends ConsumerState<FinanceDocumentsScreen> {
                   TypeDoc.recu => Icons.payments_rounded,
                   TypeDoc.contrat => Icons.badge_rounded,
                 }, color: Brand.orange),
-                title: Text('${d.numero} · ${d.titre.isEmpty ? d.type.libelle : d.titre}', style: const TextStyle(fontWeight: FontWeight.w800)),
-                subtitle: Text('${d.type.libelle} · ${dateFr(d.date)}${d.type == TypeDoc.facture ? ' · ${d.statut == 'payee' ? 'payée' : d.statut == 'annulee' ? 'annulée' : 'à payer'}' : ''}'),
-                trailing: d.montant > 0 ? Text(fcfa(d.type == TypeDoc.facture ? totauxFacture(d).ttc : d.montant), style: const TextStyle(fontWeight: FontWeight.w800)) : null,
+                title: Text(
+                  '${d.numero} · ${d.titre.isEmpty ? d.type.libelle : d.titre}',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: Text(
+                  '${d.type.libelle} · ${dateFr(d.date)}${d.type == TypeDoc.facture ? ' · ${d.statut == 'payee'
+                            ? 'payée'
+                            : d.statut == 'annulee'
+                            ? 'annulée'
+                            : 'à payer'}' : ''}',
+                ),
+                trailing: d.montant > 0
+                    ? Text(
+                        fcfa(
+                          d.type == TypeDoc.facture
+                              ? totauxFacture(d).ttc
+                              : d.montant,
+                        ),
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      )
+                    : null,
               ),
             ),
       ],
@@ -127,7 +188,13 @@ class _DocumentsState extends ConsumerState<FinanceDocumentsScreen> {
 }
 
 /// Ouvre l'éditeur d'un document (nouveau ou existant). Pour un contrat, `employe` pré-remplit les champs.
-Future<void> ouvrirEditeurDocument(BuildContext context, WidgetRef ref, {required TypeDoc type, FinanceDoc? doc, Employe? employe}) async {
+Future<void> ouvrirEditeurDocument(
+  BuildContext context,
+  WidgetRef ref, {
+  required TypeDoc type,
+  FinanceDoc? doc,
+  Employe? employe,
+}) async {
   final co = await ref.read(settingsProvider.future);
   final id = await ref.read(identiteProvider.future);
   final me = ref.read(profilProvider).value;
@@ -135,22 +202,42 @@ Future<void> ouvrirEditeurDocument(BuildContext context, WidgetRef ref, {require
   if (!context.mounted) return;
   await ouvrirEditeur<void>(
     context,
-    titre: doc == null ? 'Nouveau : ${type.libelle.toLowerCase()}' : '${type.libelle} ${doc.numero}',
-    contenu: (ctx) => _EditeurDoc(type: type, doc: doc, employe: employe, co: co, identite: id, moi: me?.nom ?? '', gares: gares),
+    titre: doc == null
+        ? 'Nouveau : ${type.libelle.toLowerCase()}'
+        : '${type.libelle} ${doc.numero}',
+    contenu: (ctx) => _EditeurDoc(
+      type: type,
+      doc: doc,
+      employe: employe,
+      co: co,
+      identite: id,
+      moi: me?.nom ?? '',
+      gares: gares,
+    ),
   );
 }
 
 class _LigneEdit {
   _LigneEdit(String d, String q, String p)
-      : designation = TextEditingController(text: d),
-        quantite = TextEditingController(text: q),
-        prix = TextEditingController(text: p);
+    : designation = TextEditingController(text: d),
+      quantite = TextEditingController(text: q),
+      prix = TextEditingController(text: p);
   final TextEditingController designation, quantite, prix;
-  double get total => (double.tryParse(quantite.text.replaceAll(',', '.')) ?? 0) * lireMontant(prix);
+  double get total =>
+      (double.tryParse(quantite.text.replaceAll(',', '.')) ?? 0) *
+      lireMontant(prix);
 }
 
 class _EditeurDoc extends StatefulWidget {
-  const _EditeurDoc({required this.type, required this.doc, required this.employe, required this.co, required this.identite, required this.moi, required this.gares});
+  const _EditeurDoc({
+    required this.type,
+    required this.doc,
+    required this.employe,
+    required this.co,
+    required this.identite,
+    required this.moi,
+    required this.gares,
+  });
   final TypeDoc type;
   final FinanceDoc? doc;
   final Employe? employe;
@@ -169,12 +256,19 @@ class _EditeurDocState extends State<_EditeurDoc> {
   final _lignes = <_LigneEdit>[];
   late DateTime _date = widget.doc?.date ?? DateTime.now();
   late String _statut = widget.doc?.statut ?? 'emis';
-  late String _mode = widget.doc?.s('mode').isNotEmpty == true ? widget.doc!.s('mode') : (widget.doc?.s('mode_paiement').isNotEmpty == true ? widget.doc!.s('mode_paiement') : 'Espèces');
-  late String _typeContrat = widget.doc?.s('type').isNotEmpty == true ? widget.doc!.s('type') : (widget.employe?.typeContrat ?? 'CDI');
+  late String _mode = widget.doc?.s('mode').isNotEmpty == true
+      ? widget.doc!.s('mode')
+      : (widget.doc?.s('mode_paiement').isNotEmpty == true
+            ? widget.doc!.s('mode_paiement')
+            : 'Espèces');
+  late String _typeContrat = widget.doc?.s('type').isNotEmpty == true
+      ? widget.doc!.s('type')
+      : (widget.employe?.typeContrat ?? 'CDI');
   FinanceDoc? _enregistre;
   bool _saving = false;
 
-  TextEditingController c(String k) => _c.putIfAbsent(k, () => TextEditingController(text: _initial(k)));
+  TextEditingController c(String k) =>
+      _c.putIfAbsent(k, () => TextEditingController(text: _initial(k)));
 
   String _initial(String k) {
     final d = widget.doc;
@@ -187,11 +281,21 @@ class _EditeurDocState extends State<_EditeurDoc> {
       case 'responsable':
         return id.representantNom;
       case 'lieu':
-        return widget.type == TypeDoc.contrat ? (e?.gareId == null ? '' : (widget.gares.where((g) => g.id == e!.gareId).firstOrNull?.nom ?? '')) : widget.co.ville;
+        return widget.type == TypeDoc.contrat
+            ? (e?.gareId == null
+                  ? ''
+                  : (widget.gares
+                            .where((g) => g.id == e!.gareId)
+                            .firstOrNull
+                            ?.nom ??
+                        ''))
+            : widget.co.ville;
       case 'lieu_signature':
         return widget.co.ville;
       case 'tva_taux':
-        return id.tvaTaux == 0 ? '0' : '${id.tvaTaux}'.replaceAll(RegExp(r'\.0$'), '');
+        return id.tvaTaux == 0
+            ? '0'
+            : '${id.tvaTaux}'.replaceAll(RegExp(r'\.0$'), '');
       case 'employe_nom':
         return e?.nom ?? '';
       case 'naissance':
@@ -212,8 +316,10 @@ class _EditeurDocState extends State<_EditeurDoc> {
         return e?.dateFinContrat == null ? '' : dateFr(e!.dateFinContrat!);
       case 'avantages':
         return [
-          if ((e?.indemniteTransport ?? 0) > 0) 'indemnité de transport ${nombre(e!.indemniteTransport)} F',
-          if ((e?.indemniteLogement ?? 0) > 0) 'indemnité de logement ${nombre(e!.indemniteLogement)} F',
+          if ((e?.indemniteTransport ?? 0) > 0)
+            'indemnité de transport ${nombre(e!.indemniteTransport)} F',
+          if ((e?.indemniteLogement ?? 0) > 0)
+            'indemnité de logement ${nombre(e!.indemniteLogement)} F',
         ].join(', ');
       case 'heures':
         return '40';
@@ -234,7 +340,15 @@ class _EditeurDocState extends State<_EditeurDoc> {
       final l = widget.doc?.data['lignes'] as List? ?? const [];
       for (final x in l) {
         final f = LigneFacture.fromJson(Map<String, dynamic>.from(x as Map));
-        _lignes.add(_LigneEdit(f.designation, f.quantite == f.quantite.roundToDouble() ? '${f.quantite.round()}' : '${f.quantite}', '${f.prixUnitaire.round()}'));
+        _lignes.add(
+          _LigneEdit(
+            f.designation,
+            f.quantite == f.quantite.roundToDouble()
+                ? '${f.quantite.round()}'
+                : '${f.quantite}',
+            '${f.prixUnitaire.round()}',
+          ),
+        );
       }
       if (_lignes.isEmpty) _lignes.add(_LigneEdit('', '1', ''));
     }
@@ -257,7 +371,9 @@ class _EditeurDocState extends State<_EditeurDoc> {
   }
 
   FinanceDoc _compose() {
-    final data = <String, dynamic>{for (final e in _c.entries) e.key: e.value.text.trim()};
+    final data = <String, dynamic>{
+      for (final e in _c.entries) e.key: e.value.text.trim(),
+    };
     var montant = 0.0;
     var titre = '';
     switch (widget.type) {
@@ -272,10 +388,19 @@ class _EditeurDocState extends State<_EditeurDoc> {
         data['mode'] = _mode;
         titre = c('payeur').text.trim();
       case TypeDoc.facture:
-        data['lignes'] = [for (final l in _lignes) if (l.designation.text.trim().isNotEmpty) LigneFacture(l.designation.text.trim(), double.tryParse(l.quantite.text.replaceAll(',', '.')) ?? 0, lireMontant(l.prix)).toJson()];
+        data['lignes'] = [
+          for (final l in _lignes)
+            if (l.designation.text.trim().isNotEmpty)
+              LigneFacture(
+                l.designation.text.trim(),
+                double.tryParse(l.quantite.text.replaceAll(',', '.')) ?? 0,
+                lireMontant(l.prix),
+              ).toJson(),
+        ];
         data['mode_paiement'] = _mode;
         data['remise'] = lireMontant(c('remise'));
-        data['tva_taux'] = double.tryParse(c('tva_taux').text.replaceAll(',', '.')) ?? 0;
+        data['tva_taux'] =
+            double.tryParse(c('tva_taux').text.replaceAll(',', '.')) ?? 0;
         titre = c('client_nom').text.trim();
       case TypeDoc.contrat:
         data['type'] = _typeContrat;
@@ -293,13 +418,26 @@ class _EditeurDocState extends State<_EditeurDoc> {
       data: data,
       employeId: widget.employe?.id ?? widget.doc?.employeId,
     );
-    final m = widget.type == TypeDoc.facture ? totauxFacture(base).ttc : montant;
-    return FinanceDoc(id: base.id, type: base.type, numero: base.numero, date: base.date, titre: base.titre, montant: m, statut: base.statut, data: base.data, employeId: base.employeId);
+    final m = widget.type == TypeDoc.facture
+        ? totauxFacture(base).ttc
+        : montant;
+    return FinanceDoc(
+      id: base.id,
+      type: base.type,
+      numero: base.numero,
+      date: base.date,
+      titre: base.titre,
+      montant: m,
+      statut: base.statut,
+      data: base.data,
+      employeId: base.employeId,
+    );
   }
 
   Future<void> _enregistrer() async {
     if (!_form.currentState!.validate()) return;
-    if (widget.type == TypeDoc.facture && _lignes.every((l) => l.designation.text.trim().isEmpty)) {
+    if (widget.type == TypeDoc.facture &&
+        _lignes.every((l) => l.designation.text.trim().isEmpty)) {
       toast(context, 'Ajoutez au moins une ligne à la facture', error: true);
       return;
     }
@@ -322,7 +460,16 @@ class _EditeurDocState extends State<_EditeurDoc> {
       context: context,
       builder: (c) => AlertDialog(
         title: const Text('Supprimer ce document ?'),
-        actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Non')), FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Supprimer'))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Non'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
       ),
     );
     if (ok != true) return;
@@ -334,11 +481,15 @@ class _EditeurDocState extends State<_EditeurDoc> {
     }
   }
 
-  Widget _modeDropdown([String libelle = 'Mode de paiement']) => DropdownButtonFormField<String>(
+  Widget _modeDropdown([
+    String libelle = 'Mode de paiement',
+  ]) => DropdownButtonFormField<String>(
     initialValue: modesPaiement.contains(_mode) ? _mode : modesPaiement.first,
     isExpanded: true,
     decoration: InputDecoration(labelText: libelle),
-    items: [for (final m in modesPaiement) DropdownMenuItem(value: m, child: Text(m))],
+    items: [
+      for (final m in modesPaiement) DropdownMenuItem(value: m, child: Text(m)),
+    ],
     onChanged: (v) => setState(() => _mode = v ?? _mode),
   );
 
@@ -353,8 +504,23 @@ class _EditeurDocState extends State<_EditeurDoc> {
           esp,
           champTexte(c('telephone'), 'Téléphone', clavier: TextInputType.phone),
           esp,
-          champMontant(c('montant'), 'Montant remis', requis: true, onChanged: (_) => setState(() {})),
-          if (lireMontant(c('montant')) > 0) Padding(padding: const EdgeInsets.only(top: 4), child: Text(montantEnLettres(lireMontant(c('montant'))), style: const TextStyle(color: Brand.muted, fontStyle: FontStyle.italic))),
+          champMontant(
+            c('montant'),
+            'Montant remis',
+            requis: true,
+            onChanged: (_) => setState(() {}),
+          ),
+          if (lireMontant(c('montant')) > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                montantEnLettres(lireMontant(c('montant'))),
+                style: const TextStyle(
+                  color: Brand.muted,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
           esp,
           champTexte(c('motif'), 'Motif de la remise', requis: true, lignes: 2),
           esp,
@@ -364,9 +530,16 @@ class _EditeurDocState extends State<_EditeurDoc> {
           esp,
           champTexte(c('lieu'), 'Fait à'),
           esp,
-          ChampDate(libelle: 'Date', valeur: _date, onChanged: (d) => setState(() => _date = d ?? _date)),
+          ChampDate(
+            libelle: 'Date',
+            valeur: _date,
+            onChanged: (d) => setState(() => _date = d ?? _date),
+          ),
           esp,
-          const Text('Signataires', style: TextStyle(fontWeight: FontWeight.w800)),
+          const Text(
+            'Signataires',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
           esp,
           champTexte(c('comptable'), 'Comptable'),
           esp,
@@ -380,8 +553,23 @@ class _EditeurDocState extends State<_EditeurDoc> {
         return [
           champTexte(c('payeur'), 'Reçu de (nom du payeur)', requis: true),
           esp,
-          champMontant(c('montant'), 'Montant reçu', requis: true, onChanged: (_) => setState(() {})),
-          if (lireMontant(c('montant')) > 0) Padding(padding: const EdgeInsets.only(top: 4), child: Text(montantEnLettres(lireMontant(c('montant'))), style: const TextStyle(color: Brand.muted, fontStyle: FontStyle.italic))),
+          champMontant(
+            c('montant'),
+            'Montant reçu',
+            requis: true,
+            onChanged: (_) => setState(() {}),
+          ),
+          if (lireMontant(c('montant')) > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                montantEnLettres(lireMontant(c('montant'))),
+                style: const TextStyle(
+                  color: Brand.muted,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
           esp,
           champTexte(c('objet'), 'Objet du paiement', requis: true, lignes: 2),
           esp,
@@ -391,7 +579,11 @@ class _EditeurDocState extends State<_EditeurDoc> {
           esp,
           champTexte(c('reference'), 'Référence'),
           esp,
-          ChampDate(libelle: 'Date', valeur: _date, onChanged: (d) => setState(() => _date = d ?? _date)),
+          ChampDate(
+            libelle: 'Date',
+            valeur: _date,
+            onChanged: (d) => setState(() => _date = d ?? _date),
+          ),
           esp,
           champTexte(c('comptable'), 'Établi par (comptable)'),
           esp,
@@ -404,48 +596,149 @@ class _EditeurDocState extends State<_EditeurDoc> {
           esp,
           champTexte(c('client_adresse'), 'Adresse du client'),
           esp,
-          champTexte(c('client_tel'), 'Téléphone du client', clavier: TextInputType.phone),
+          champTexte(
+            c('client_tel'),
+            'Téléphone du client',
+            clavier: TextInputType.phone,
+          ),
           esp,
           champTexte(c('client_ifu'), 'IFU du client'),
           esp,
-          ChampDate(libelle: 'Date de la facture', valeur: _date, onChanged: (d) => setState(() => _date = d ?? _date)),
+          ChampDate(
+            libelle: 'Date de la facture',
+            valeur: _date,
+            onChanged: (d) => setState(() => _date = d ?? _date),
+          ),
           esp,
           champTexte(c('echeance'), 'Échéance (ex. 30 jours, ou une date)'),
           esp,
-          const Text('Lignes de la facture', style: TextStyle(fontWeight: FontWeight.w800)),
+          const Text(
+            'Lignes de la facture',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
           const SizedBox(height: 8),
           for (var i = 0; i < _lignes.length; i++) ...[
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(flex: 5, child: TextFormField(controller: _lignes[i].designation, decoration: const InputDecoration(labelText: 'Désignation'), onChanged: (_) => setState(() {}))),
+                Expanded(
+                  flex: 5,
+                  child: TextFormField(
+                    controller: _lignes[i].designation,
+                    decoration: const InputDecoration(labelText: 'Désignation'),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
                 const SizedBox(width: 8),
-                SizedBox(width: 64, child: TextFormField(controller: _lignes[i].quantite, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Qté'), onChanged: (_) => setState(() {}))),
+                SizedBox(
+                  width: 64,
+                  child: TextFormField(
+                    controller: _lignes[i].quantite,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(labelText: 'Qté'),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
                 const SizedBox(width: 8),
-                Expanded(flex: 3, child: TextFormField(controller: _lignes[i].prix, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Prix unit.'), onChanged: (_) => setState(() {}))),
-                IconButton(onPressed: _lignes.length == 1 ? null : () => setState(() => _lignes.removeAt(i)), icon: const Icon(Icons.remove_circle_outline_rounded)),
+                Expanded(
+                  flex: 3,
+                  child: TextFormField(
+                    controller: _lignes[i].prix,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(labelText: 'Prix unit.'),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                IconButton(
+                  onPressed: _lignes.length == 1
+                      ? null
+                      : () => setState(() => _lignes.removeAt(i)),
+                  icon: const Icon(Icons.remove_circle_outline_rounded),
+                ),
               ],
             ),
             const SizedBox(height: 8),
           ],
-          Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: () => setState(() => _lignes.add(_LigneEdit('', '1', ''))), icon: const Icon(Icons.add_rounded), label: const Text('Ajouter une ligne'))),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () =>
+                  setState(() => _lignes.add(_LigneEdit('', '1', ''))),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Ajouter une ligne'),
+            ),
+          ),
           esp,
           Row(
             children: [
-              Expanded(child: champMontant(c('remise'), 'Remise', onChanged: (_) => setState(() {}))),
+              Expanded(
+                child: champMontant(
+                  c('remise'),
+                  'Remise',
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
               const SizedBox(width: 10),
-              Expanded(child: champTexte(c('tva_taux'), 'TVA (%)', clavier: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setState(() {}))),
+              Expanded(
+                child: champTexte(
+                  c('tva_taux'),
+                  'TVA (%)',
+                  clavier: const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Brand.orangeSoft, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(
+              color: Brand.orangeSoft,
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Column(
               children: [
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Total HT'), Text(fcfa(tot.ht), style: const TextStyle(fontWeight: FontWeight.w700))]),
-                if (tot.tva > 0) Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('TVA'), Text(fcfa(tot.tva), style: const TextStyle(fontWeight: FontWeight.w700))]),
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Total à payer', style: TextStyle(fontWeight: FontWeight.w800)), Text(fcfa(tot.ttc), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))]),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Total HT'),
+                    Text(
+                      fcfa(tot.ht),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+                if (tot.tva > 0)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('TVA'),
+                      Text(
+                        fcfa(tot.tva),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Total à payer',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    Text(
+                      fcfa(tot.ttc),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -473,7 +766,10 @@ class _EditeurDocState extends State<_EditeurDoc> {
         return [
           const Padding(
             padding: EdgeInsets.only(bottom: 10),
-            child: Text('Modèle standard : faites-le valider par votre conseil juridique ou l\'inspection du travail avant signature. Tous les champs sont modifiables.', style: TextStyle(color: Brand.muted, fontSize: 12.5)),
+            child: Text(
+              'Modèle standard : faites-le valider par votre conseil juridique ou l\'inspection du travail avant signature. Tous les champs sont modifiables.',
+              style: TextStyle(color: Brand.muted, fontSize: 12.5),
+            ),
           ),
           champTexte(c('employe_nom'), 'Nom du salarié', requis: true),
           esp,
@@ -492,21 +788,32 @@ class _EditeurDocState extends State<_EditeurDoc> {
           champTexte(c('lieu'), 'Lieu de travail'),
           esp,
           DropdownButtonFormField<String>(
-            initialValue: typesContrat.contains(_typeContrat) ? _typeContrat : 'CDI',
+            initialValue: typesContrat.contains(_typeContrat)
+                ? _typeContrat
+                : 'CDI',
             decoration: const InputDecoration(labelText: 'Type de contrat'),
-            items: [for (final t in typesContrat) DropdownMenuItem(value: t, child: Text(t))],
+            items: [
+              for (final t in typesContrat)
+                DropdownMenuItem(value: t, child: Text(t)),
+            ],
             onChanged: (v) => setState(() => _typeContrat = v ?? _typeContrat),
           ),
           esp,
           Row(
             children: [
-              Expanded(child: champTexte(c('date_debut'), 'Début (jj/mm/aaaa)')),
+              Expanded(
+                child: champTexte(c('date_debut'), 'Début (jj/mm/aaaa)'),
+              ),
               const SizedBox(width: 10),
               Expanded(child: champTexte(c('date_fin'), 'Fin (si CDD)')),
             ],
           ),
           esp,
-          champTexte(c('essai_mois'), 'Période d\'essai (mois, 0 = aucune)', clavier: TextInputType.number),
+          champTexte(
+            c('essai_mois'),
+            'Période d\'essai (mois, 0 = aucune)',
+            clavier: TextInputType.number,
+          ),
           esp,
           champMontant(c('salaire'), 'Salaire mensuel brut', requis: true),
           esp,
@@ -516,7 +823,13 @@ class _EditeurDocState extends State<_EditeurDoc> {
           esp,
           Row(
             children: [
-              Expanded(child: champTexte(c('heures'), 'Heures / semaine', clavier: TextInputType.number)),
+              Expanded(
+                child: champTexte(
+                  c('heures'),
+                  'Heures / semaine',
+                  clavier: TextInputType.number,
+                ),
+              ),
               const SizedBox(width: 10),
               Expanded(child: champTexte(c('conges'), 'Congés (jours / mois)')),
             ],
@@ -524,11 +837,19 @@ class _EditeurDocState extends State<_EditeurDoc> {
           esp,
           champTexte(c('preavis'), 'Préavis'),
           esp,
-          champTexte(c('clauses'), 'Clauses particulières (facultatif)', lignes: 3),
+          champTexte(
+            c('clauses'),
+            'Clauses particulières (facultatif)',
+            lignes: 3,
+          ),
           esp,
           champTexte(c('lieu_signature'), 'Fait à'),
           esp,
-          ChampDate(libelle: 'Date du contrat', valeur: _date, onChanged: (d) => setState(() => _date = d ?? _date)),
+          ChampDate(
+            libelle: 'Date du contrat',
+            valeur: _date,
+            onChanged: (d) => setState(() => _date = d ?? _date),
+          ),
         ];
     }
   }
@@ -543,7 +864,17 @@ class _EditeurDocState extends State<_EditeurDoc> {
         padding: const EdgeInsets.all(16),
         children: [
           if (numero.isNotEmpty)
-            Padding(padding: const EdgeInsets.only(bottom: 12), child: Text('N° $numero', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Brand.orange))),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                'N° $numero',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                  color: Brand.orange,
+                ),
+              ),
+            ),
           ..._champs(),
           const SizedBox(height: 18),
           Wrap(
@@ -551,18 +882,41 @@ class _EditeurDocState extends State<_EditeurDoc> {
             runSpacing: 10,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              FilledButton.icon(onPressed: _saving ? null : _enregistrer, icon: const Icon(Icons.check_rounded), label: Text(enregistre ? 'Enregistrer les modifications' : 'Enregistrer')),
+              FilledButton.icon(
+                onPressed: _saving ? null : _enregistrer,
+                icon: const Icon(Icons.check_rounded),
+                label: Text(
+                  enregistre ? 'Enregistrer les modifications' : 'Enregistrer',
+                ),
+              ),
               if (enregistre)
                 BoutonsPdf(
-                  construire: () => construireDocument(_compose(), widget.co, widget.identite),
+                  construire: () => construireDocument(
+                    _compose(),
+                    widget.co,
+                    widget.identite,
+                  ),
                   nom: '${widget.type.code}-$numero',
                 ),
               if (enregistre)
-                TextButton.icon(onPressed: _supprimer, icon: const Icon(Icons.delete_rounded, color: Colors.red), label: const Text('Supprimer', style: TextStyle(color: Colors.red))),
+                TextButton.icon(
+                  onPressed: _supprimer,
+                  icon: const Icon(Icons.delete_rounded, color: Colors.red),
+                  label: const Text(
+                    'Supprimer',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
             ],
           ),
           if (!enregistre)
-            const Padding(padding: EdgeInsets.only(top: 8), child: Text('Enregistrez d\'abord : le numéro est attribué automatiquement, puis vous pourrez imprimer.', style: TextStyle(color: Brand.muted, fontSize: 12.5))),
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                'Enregistrez d\'abord : le numéro est attribué automatiquement, puis vous pourrez imprimer.',
+                style: TextStyle(color: Brand.muted, fontSize: 12.5),
+              ),
+            ),
         ],
       ),
     );

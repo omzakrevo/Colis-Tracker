@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,18 +12,28 @@ import '../widgets/common.dart';
 
 // Éléments communs aux écrans de la comptabilité.
 
-final identiteProvider = FutureProvider.autoDispose<IdentiteLegale>((ref) => FinanceRepo.identite());
-final employesProvider = FutureProvider.autoDispose<List<Employe>>((ref) => FinanceRepo.employes());
+final identiteProvider = FutureProvider.autoDispose<IdentiteLegale>(
+  (ref) => FinanceRepo.identite(),
+);
+final employesProvider = FutureProvider.autoDispose<List<Employe>>(
+  (ref) => FinanceRepo.employes(),
+);
 
 /// Le module Comptabilité est-il ouvert pour l'entreprise de l'utilisateur connecté ?
 bool moduleFinanceOuvert(WidgetRef ref) {
   final auth = ref.watch(authProvider).value;
   final p = auth?.profil;
-  return p != null && (p.isAdmin || p.isComptable) && (auth?.company?.moduleFinance ?? false);
+  return p != null &&
+      (p.isAdmin || p.isComptable) &&
+      (auth?.company?.moduleFinance ?? false);
 }
 
 /// Ouvre la boîte d'impression, ou enregistre / partage le PDF.
-Future<void> imprimerPdf(BuildContext context, Future<Uint8List> Function() construire, String nom) async {
+Future<void> imprimerPdf(
+  BuildContext context,
+  Future<Uint8List> Function() construire,
+  String nom,
+) async {
   try {
     final bytes = await construire();
     await Printing.layoutPdf(onLayout: (_) async => bytes, name: nom);
@@ -33,7 +42,11 @@ Future<void> imprimerPdf(BuildContext context, Future<Uint8List> Function() cons
   }
 }
 
-Future<void> partagerPdf(BuildContext context, Future<Uint8List> Function() construire, String nom) async {
+Future<void> partagerPdf(
+  BuildContext context,
+  Future<Uint8List> Function() construire,
+  String nom,
+) async {
   try {
     final bytes = await construire();
     await Printing.sharePdf(bytes: bytes, filename: '$nom.pdf');
@@ -69,7 +82,13 @@ class BoutonsPdf extends StatelessWidget {
 
 /// Champ date (sélecteur de calendrier).
 class ChampDate extends StatelessWidget {
-  const ChampDate({super.key, required this.libelle, required this.valeur, required this.onChanged, this.facultatif = false});
+  const ChampDate({
+    super.key,
+    required this.libelle,
+    required this.valeur,
+    required this.onChanged,
+    this.facultatif = false,
+  });
   final String libelle;
   final DateTime? valeur;
   final ValueChanged<DateTime?> onChanged;
@@ -91,7 +110,10 @@ class ChampDate extends StatelessWidget {
       decoration: InputDecoration(
         labelText: libelle,
         suffixIcon: facultatif && valeur != null
-            ? IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => onChanged(null))
+            ? IconButton(
+                icon: const Icon(Icons.close_rounded),
+                onPressed: () => onChanged(null),
+              )
             : const Icon(Icons.event_rounded),
       ),
       child: Text(valeur == null ? '—' : dateFr(valeur!)),
@@ -100,25 +122,46 @@ class ChampDate extends StatelessWidget {
 }
 
 /// Champ texte avec un libellé (raccourci).
-Widget champTexte(TextEditingController c, String libelle, {bool requis = false, TextInputType? clavier, int lignes = 1, String? aide, List<TextInputFormatter>? formats, ValueChanged<String>? onChanged}) =>
-    TextFormField(
-      controller: c,
-      keyboardType: clavier,
-      maxLines: lignes,
-      inputFormatters: formats,
-      onChanged: onChanged,
-      textInputAction: lignes > 1 ? null : TextInputAction.next,
-      decoration: InputDecoration(labelText: requis ? '$libelle *' : libelle, helperText: aide),
-      validator: requis ? (v) => (v ?? '').trim().isEmpty ? 'Champ obligatoire' : null : null,
-    );
+Widget champTexte(
+  TextEditingController c,
+  String libelle, {
+  bool requis = false,
+  TextInputType? clavier,
+  int lignes = 1,
+  String? aide,
+  List<TextInputFormatter>? formats,
+  ValueChanged<String>? onChanged,
+}) => TextFormField(
+  controller: c,
+  keyboardType: clavier,
+  maxLines: lignes,
+  inputFormatters: formats,
+  onChanged: onChanged,
+  textInputAction: lignes > 1 ? null : TextInputAction.next,
+  decoration: InputDecoration(
+    labelText: requis ? '$libelle *' : libelle,
+    helperText: aide,
+  ),
+  validator: requis
+      ? (v) => (v ?? '').trim().isEmpty ? 'Champ obligatoire' : null
+      : null,
+);
 
-Widget champMontant(TextEditingController c, String libelle, {bool requis = false, ValueChanged<String>? onChanged}) => TextFormField(
+Widget champMontant(
+  TextEditingController c,
+  String libelle, {
+  bool requis = false,
+  ValueChanged<String>? onChanged,
+}) => TextFormField(
   controller: c,
   keyboardType: const TextInputType.numberWithOptions(decimal: true),
   inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
   onChanged: onChanged,
   textInputAction: TextInputAction.next,
-  decoration: InputDecoration(labelText: requis ? '$libelle *' : libelle, suffixText: 'F CFA'),
+  decoration: InputDecoration(
+    labelText: requis ? '$libelle *' : libelle,
+    suffixText: 'F CFA',
+  ),
   validator: requis
       ? (v) {
           final n = double.tryParse((v ?? '').replaceAll(',', '.'));
@@ -127,25 +170,47 @@ Widget champMontant(TextEditingController c, String libelle, {bool requis = fals
       : null,
 );
 
-double lireMontant(TextEditingController c) => double.tryParse(c.text.replaceAll(',', '.').replaceAll(' ', '')) ?? 0;
+double lireMontant(TextEditingController c) =>
+    double.tryParse(c.text.replaceAll(',', '.').replaceAll(' ', '')) ?? 0;
 
 /// Fenêtre de saisie : plein écran sur téléphone, boîte centrée sur ordinateur. Renvoie `true` si enregistré.
-Future<T?> ouvrirEditeur<T>(BuildContext context, {required String titre, required Widget Function(BuildContext) contenu, List<Widget> actions = const []}) {
+Future<T?> ouvrirEditeur<T>(
+  BuildContext context, {
+  required String titre,
+  required Widget Function(BuildContext) contenu,
+  List<Widget> actions = const [],
+}) {
   final large = MediaQuery.sizeOf(context).width >= 760;
   return showDialog<T>(
     context: context,
     useSafeArea: true,
     builder: (ctx) => Dialog(
-      insetPadding: large ? const EdgeInsets.symmetric(horizontal: 80, vertical: 30) : EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(large ? 20 : 0)),
+      insetPadding: large
+          ? const EdgeInsets.symmetric(horizontal: 80, vertical: 30)
+          : EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(large ? 20 : 0),
+      ),
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 720, maxHeight: large ? 780 : double.infinity),
+        constraints: BoxConstraints(
+          maxWidth: 720,
+          maxHeight: large ? 780 : double.infinity,
+        ),
         child: Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
             automaticallyImplyLeading: false,
-            title: Text(titre, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-            actions: [...actions, IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close_rounded))],
+            title: Text(
+              titre,
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+            ),
+            actions: [
+              ...actions,
+              IconButton(
+                onPressed: () => Navigator.pop(ctx),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ],
           ),
           body: contenu(ctx),
         ),
@@ -156,14 +221,24 @@ Future<T?> ouvrirEditeur<T>(BuildContext context, {required String titre, requir
 
 /// Période (début, fin) avec raccourcis, pour les listes comptables.
 class SelecteurPeriode extends StatelessWidget {
-  const SelecteurPeriode({super.key, required this.debut, required this.fin, required this.onChanged});
+  const SelecteurPeriode({
+    super.key,
+    required this.debut,
+    required this.fin,
+    required this.onChanged,
+  });
   final DateTime debut, fin;
   final void Function(DateTime debut, DateTime fin) onChanged;
 
   @override
   Widget build(BuildContext context) {
     Future<void> choisir(bool d) async {
-      final x = await showDatePicker(context: context, initialDate: d ? debut : fin, firstDate: DateTime(2020), lastDate: DateTime.now().add(const Duration(days: 365)));
+      final x = await showDatePicker(
+        context: context,
+        initialDate: d ? debut : fin,
+        firstDate: DateTime(2020),
+        lastDate: DateTime.now().add(const Duration(days: 365)),
+      );
       if (x != null) onChanged(d ? x : debut, d ? fin : x);
     }
 
@@ -174,12 +249,36 @@ class SelecteurPeriode extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: [
-        OutlinedButton.icon(onPressed: () => choisir(true), icon: const Icon(Icons.event_rounded, size: 18), label: Text('Du ${dateFr(debut)}')),
-        OutlinedButton.icon(onPressed: () => choisir(false), icon: const Icon(Icons.event_rounded, size: 18), label: Text('Au ${dateFr(fin)}')),
-        ActionChip(label: const Text('Aujourd\'hui'), onPressed: () => onChanged(DateTime(auj.year, auj.month, auj.day), auj)),
-        ActionChip(label: const Text('Ce mois'), onPressed: () => onChanged(DateTime(auj.year, auj.month), auj)),
-        ActionChip(label: const Text('Mois dernier'), onPressed: () => onChanged(DateTime(auj.year, auj.month - 1), DateTime(auj.year, auj.month, 0))),
-        ActionChip(label: const Text('Cette année'), onPressed: () => onChanged(DateTime(auj.year), auj)),
+        OutlinedButton.icon(
+          onPressed: () => choisir(true),
+          icon: const Icon(Icons.event_rounded, size: 18),
+          label: Text('Du ${dateFr(debut)}'),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => choisir(false),
+          icon: const Icon(Icons.event_rounded, size: 18),
+          label: Text('Au ${dateFr(fin)}'),
+        ),
+        ActionChip(
+          label: const Text('Aujourd\'hui'),
+          onPressed: () =>
+              onChanged(DateTime(auj.year, auj.month, auj.day), auj),
+        ),
+        ActionChip(
+          label: const Text('Ce mois'),
+          onPressed: () => onChanged(DateTime(auj.year, auj.month), auj),
+        ),
+        ActionChip(
+          label: const Text('Mois dernier'),
+          onPressed: () => onChanged(
+            DateTime(auj.year, auj.month - 1),
+            DateTime(auj.year, auj.month, 0),
+          ),
+        ),
+        ActionChip(
+          label: const Text('Cette année'),
+          onPressed: () => onChanged(DateTime(auj.year), auj),
+        ),
       ],
     );
   }
@@ -187,7 +286,14 @@ class SelecteurPeriode extends StatelessWidget {
 
 /// Tuile d'accueil d'une rubrique.
 class TuileFinance extends StatelessWidget {
-  const TuileFinance({super.key, required this.icone, required this.titre, required this.detail, required this.onTap, this.couleur = Brand.orange});
+  const TuileFinance({
+    super.key,
+    required this.icone,
+    required this.titre,
+    required this.detail,
+    required this.onTap,
+    this.couleur = Brand.orange,
+  });
   final IconData icone;
   final String titre, detail;
   final VoidCallback onTap;
@@ -206,7 +312,10 @@ class TuileFinance extends StatelessWidget {
             children: [
               Container(
                 padding: const EdgeInsets.all(11),
-                decoration: BoxDecoration(color: couleur.withValues(alpha: .12), borderRadius: BorderRadius.circular(14)),
+                decoration: BoxDecoration(
+                  color: couleur.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
                 child: Icon(icone, color: couleur),
               ),
               const SizedBox(width: 14),
@@ -214,9 +323,21 @@ class TuileFinance extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(titre, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5)),
+                    Text(
+                      titre,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15.5,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(detail, style: const TextStyle(color: Brand.muted, fontSize: 12.5)),
+                    Text(
+                      detail,
+                      style: const TextStyle(
+                        color: Brand.muted,
+                        fontSize: 12.5,
+                      ),
+                    ),
                   ],
                 ),
               ),

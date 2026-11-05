@@ -47,7 +47,14 @@ class LocalStore {
       final pre = _k('');
       for (final k in p.getKeys().where((k) => k.startsWith(pre)).toList()) {
         final nom = k.substring(pre.length);
-        const garde = ['gares', 'trajets', 'profils', 'settings', 'session', 'profil'];
+        const garde = [
+          'gares',
+          'trajets',
+          'profils',
+          'settings',
+          'session',
+          'profil',
+        ];
         if (garde.any((g) => nom == g || nom.startsWith('${g}_'))) continue;
         await p.remove(k);
       }

@@ -39,7 +39,11 @@ class _DepensesState extends ConsumerState<FinanceDepensesScreen> {
       _erreur = null;
     });
     try {
-      final l = await FinanceRepo.depenses(debut: _debut, fin: _fin, categorie: _categorie);
+      final l = await FinanceRepo.depenses(
+        debut: _debut,
+        fin: _fin,
+        categorie: _categorie,
+      );
       if (mounted) setState(() => _liste = l);
     } catch (e) {
       if (mounted) setState(() => _erreur = errMsg(e));
@@ -66,15 +70,24 @@ class _DepensesState extends ConsumerState<FinanceDepensesScreen> {
     for (final d in l) {
       parCat[d.categorie] = (parCat[d.categorie] ?? 0) + d.montant;
     }
-    final cats = parCat.keys.toList()..sort((a, b) => parCat[b]!.compareTo(parCat[a]!));
+    final cats = parCat.keys.toList()
+      ..sort((a, b) => parCat[b]!.compareTo(parCat[a]!));
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 100),
       children: [
         Row(
           children: [
-            IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back_rounded)),
-            const Expanded(child: PageHeader('Dépenses', subtitle: 'Toutes les sorties d\'argent de l\'entreprise.')),
+            IconButton(
+              onPressed: () => context.pop(),
+              icon: const Icon(Icons.arrow_back_rounded),
+            ),
+            const Expanded(
+              child: PageHeader(
+                'Dépenses',
+                subtitle: 'Toutes les sorties d\'argent de l\'entreprise.',
+              ),
+            ),
           ],
         ),
         SelecteurPeriode(
@@ -101,8 +114,12 @@ class _DepensesState extends ConsumerState<FinanceDepensesScreen> {
                 isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Catégorie'),
                 items: [
-                  const DropdownMenuItem<String?>(value: null, child: Text('Toutes les catégories')),
-                  for (final c in categoriesDepenses) DropdownMenuItem<String?>(value: c, child: Text(c)),
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('Toutes les catégories'),
+                  ),
+                  for (final c in categoriesDepenses)
+                    DropdownMenuItem<String?>(value: c, child: Text(c)),
                 ],
                 onChanged: (v) {
                   setState(() => _categorie = v);
@@ -110,16 +127,22 @@ class _DepensesState extends ConsumerState<FinanceDepensesScreen> {
                 },
               ),
             ),
-            FilledButton.icon(onPressed: () => _editer(), icon: const Icon(Icons.add_rounded), label: const Text('Nouvelle dépense')),
+            FilledButton.icon(
+              onPressed: () => _editer(),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Nouvelle dépense'),
+            ),
             OutlinedButton.icon(
-              onPressed: () => context.push('/rapports/detail', extra: 'depenses'),
+              onPressed: () =>
+                  context.push('/rapports/detail', extra: 'depenses'),
               icon: const Icon(Icons.table_chart_rounded),
               label: const Text('Rapport des dépenses (PDF / Excel)'),
             ),
           ],
         ),
         const SizedBox(height: 16),
-        if (_erreur != null) Text(_erreur!, style: const TextStyle(color: Colors.red)),
+        if (_erreur != null)
+          Text(_erreur!, style: const TextStyle(color: Colors.red)),
         if (_charge && _liste == null) const SkeletonList(count: 4, height: 64),
         if (_liste != null) ...[
           SectionCard(
@@ -127,7 +150,10 @@ class _DepensesState extends ConsumerState<FinanceDepensesScreen> {
             icon: Icons.payments_rounded,
             accent: const Color(0xFFDC2626),
             child: cats.isEmpty
-                ? const Text('Aucune dépense sur cette période.', style: TextStyle(color: Brand.muted))
+                ? const Text(
+                    'Aucune dépense sur cette période.',
+                    style: TextStyle(color: Brand.muted),
+                  )
                 : Column(
                     children: [
                       for (final c in cats)
@@ -136,7 +162,12 @@ class _DepensesState extends ConsumerState<FinanceDepensesScreen> {
                           child: Row(
                             children: [
                               Expanded(child: Text(c)),
-                              Text(fcfa(parCat[c]!), style: const TextStyle(fontWeight: FontWeight.w800)),
+                              Text(
+                                fcfa(parCat[c]!),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -149,10 +180,21 @@ class _DepensesState extends ConsumerState<FinanceDepensesScreen> {
               margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
                 onTap: () => _editer(d),
-                leading: const Icon(Icons.north_east_rounded, color: Color(0xFFDC2626)),
-                title: Text(d.libelle, style: const TextStyle(fontWeight: FontWeight.w800)),
-                subtitle: Text('${dateFr(d.date)} · ${d.categorie}${d.beneficiaire.isEmpty ? '' : ' · ${d.beneficiaire}'} · ${d.modePaiement}'),
-                trailing: Text(fcfa(d.montant), style: const TextStyle(fontWeight: FontWeight.w800)),
+                leading: const Icon(
+                  Icons.north_east_rounded,
+                  color: Color(0xFFDC2626),
+                ),
+                title: Text(
+                  d.libelle,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: Text(
+                  '${dateFr(d.date)} · ${d.categorie}${d.beneficiaire.isEmpty ? '' : ' · ${d.beneficiaire}'} · ${d.modePaiement}',
+                ),
+                trailing: Text(
+                  fcfa(d.montant),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
               ),
             ),
         ],
@@ -172,10 +214,18 @@ class _EditeurDepense extends StatefulWidget {
 
 class _EditeurDepenseState extends State<_EditeurDepense> {
   final _form = GlobalKey<FormState>();
-  late final _libelle = TextEditingController(text: widget.depense?.libelle ?? '');
-  late final _montant = TextEditingController(text: widget.depense == null ? '' : '${widget.depense!.montant.round()}');
-  late final _benef = TextEditingController(text: widget.depense?.beneficiaire ?? '');
-  late final _ref = TextEditingController(text: widget.depense?.reference ?? '');
+  late final _libelle = TextEditingController(
+    text: widget.depense?.libelle ?? '',
+  );
+  late final _montant = TextEditingController(
+    text: widget.depense == null ? '' : '${widget.depense!.montant.round()}',
+  );
+  late final _benef = TextEditingController(
+    text: widget.depense?.beneficiaire ?? '',
+  );
+  late final _ref = TextEditingController(
+    text: widget.depense?.reference ?? '',
+  );
   late final _notes = TextEditingController(text: widget.depense?.notes ?? '');
   late DateTime _date = widget.depense?.date ?? DateTime.now();
   late String _cat = widget.depense?.categorie ?? 'Autres';
@@ -213,7 +263,16 @@ class _EditeurDepenseState extends State<_EditeurDepense> {
       context: context,
       builder: (c) => AlertDialog(
         title: const Text('Supprimer cette dépense ?'),
-        actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Non')), FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Supprimer'))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Non'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
       ),
     );
     if (ok != true) return;
@@ -239,11 +298,18 @@ class _EditeurDepenseState extends State<_EditeurDepense> {
           initialValue: _cat,
           isExpanded: true,
           decoration: const InputDecoration(labelText: 'Catégorie'),
-          items: [for (final c in categoriesDepenses) DropdownMenuItem(value: c, child: Text(c))],
+          items: [
+            for (final c in categoriesDepenses)
+              DropdownMenuItem(value: c, child: Text(c)),
+          ],
           onChanged: (v) => setState(() => _cat = v ?? _cat),
         ),
         const SizedBox(height: 12),
-        ChampDate(libelle: 'Date', valeur: _date, onChanged: (d) => setState(() => _date = d ?? _date)),
+        ChampDate(
+          libelle: 'Date',
+          valeur: _date,
+          onChanged: (d) => setState(() => _date = d ?? _date),
+        ),
         const SizedBox(height: 12),
         champTexte(_benef, 'Bénéficiaire / fournisseur'),
         const SizedBox(height: 12),
@@ -251,7 +317,10 @@ class _EditeurDepenseState extends State<_EditeurDepense> {
           initialValue: _mode,
           isExpanded: true,
           decoration: const InputDecoration(labelText: 'Mode de paiement'),
-          items: [for (final m in modesPaiement) DropdownMenuItem(value: m, child: Text(m))],
+          items: [
+            for (final m in modesPaiement)
+              DropdownMenuItem(value: m, child: Text(m)),
+          ],
           onChanged: (v) => setState(() => _mode = v ?? _mode),
         ),
         const SizedBox(height: 12),
@@ -262,7 +331,14 @@ class _EditeurDepenseState extends State<_EditeurDepense> {
             initialValue: _gare,
             isExpanded: true,
             decoration: const InputDecoration(labelText: 'Gare concernée'),
-            items: [const DropdownMenuItem<int?>(value: null, child: Text('— Toute l\'entreprise —')), for (final g in widget.gares) DropdownMenuItem<int?>(value: g.id, child: Text(g.nom))],
+            items: [
+              const DropdownMenuItem<int?>(
+                value: null,
+                child: Text('— Toute l\'entreprise —'),
+              ),
+              for (final g in widget.gares)
+                DropdownMenuItem<int?>(value: g.id, child: Text(g.nom)),
+            ],
             onChanged: (v) => setState(() => _gare = v),
           ),
         ],
@@ -272,9 +348,20 @@ class _EditeurDepenseState extends State<_EditeurDepense> {
         Row(
           children: [
             if (widget.depense != null)
-              TextButton.icon(onPressed: _supprimer, icon: const Icon(Icons.delete_rounded, color: Colors.red), label: const Text('Supprimer', style: TextStyle(color: Colors.red))),
+              TextButton.icon(
+                onPressed: _supprimer,
+                icon: const Icon(Icons.delete_rounded, color: Colors.red),
+                label: const Text(
+                  'Supprimer',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
             const Spacer(),
-            FilledButton.icon(onPressed: _saving ? null : _enregistrer, icon: const Icon(Icons.check_rounded), label: const Text('Enregistrer')),
+            FilledButton.icon(
+              onPressed: _saving ? null : _enregistrer,
+              icon: const Icon(Icons.check_rounded),
+              label: const Text('Enregistrer'),
+            ),
           ],
         ),
       ],

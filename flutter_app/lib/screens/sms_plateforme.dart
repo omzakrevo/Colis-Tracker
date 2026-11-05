@@ -31,7 +31,15 @@ class _SmsPlateformeState extends ConsumerState<SmsPlateformeScreen> {
 
   @override
   void dispose() {
-    for (final c in [_user, _pass, _sender, _port, _indicatif, _terminal, _test]) {
+    for (final c in [
+      _user,
+      _pass,
+      _sender,
+      _port,
+      _indicatif,
+      _terminal,
+      _test,
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -78,7 +86,10 @@ class _SmsPlateformeState extends ConsumerState<SmsPlateformeScreen> {
   Future<void> _actualiserSolde() async {
     setState(() => _soldeEnCours = true);
     try {
-      await Repo.enregistrerSmsGlobal({'terminal_id': _terminal.text.trim(), 'port': int.tryParse(_port.text.trim()) ?? 7170});
+      await Repo.enregistrerSmsGlobal({
+        'terminal_id': _terminal.text.trim(),
+        'port': int.tryParse(_port.text.trim()) ?? 7170,
+      });
       final r = await Repo.soldeSmsGlobal();
       if (mounted) {
         setState(() {
@@ -110,7 +121,11 @@ class _SmsPlateformeState extends ConsumerState<SmsPlateformeScreen> {
 
   Future<void> _regler(SmsEntreprise e, {bool? bloque, String? source}) async {
     try {
-      await Repo.reglerSmsEntreprise(e.companyId, bloque: bloque, source: source);
+      await Repo.reglerSmsEntreprise(
+        e.companyId,
+        bloque: bloque,
+        source: source,
+      );
       ref.invalidate(smsEntreprisesProvider);
     } catch (err) {
       if (mounted) toast(context, errMsg(err), error: true);
@@ -150,16 +165,25 @@ class _SmsPlateformeState extends ConsumerState<SmsPlateformeScreen> {
                     value: _actif,
                     onChanged: (v) => setState(() => _actif = v),
                     title: const Text('SMS de la plateforme actifs'),
-                    subtitle: const Text('Désactivé : aucune entreprise utilisant ce compte n\'envoie de SMS'),
+                    subtitle: const Text(
+                      'Désactivé : aucune entreprise utilisant ce compte n\'envoie de SMS',
+                    ),
                   ),
-                  TextField(controller: _user, decoration: const InputDecoration(labelText: 'Identifiant (username)')),
+                  TextField(
+                    controller: _user,
+                    decoration: const InputDecoration(
+                      labelText: 'Identifiant (username)',
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _pass,
                     obscureText: true,
                     decoration: InputDecoration(
                       labelText: 'Mot de passe / clé API SMSBUS',
-                      helperText: cfg.motDePasseDefini ? 'Laissez vide pour conserver le mot de passe actuel' : null,
+                      helperText: cfg.motDePasseDefini
+                          ? 'Laissez vide pour conserver le mot de passe actuel'
+                          : null,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -170,7 +194,10 @@ class _SmsPlateformeState extends ConsumerState<SmsPlateformeScreen> {
                         child: TextField(
                           controller: _sender,
                           maxLength: 18,
-                          decoration: const InputDecoration(labelText: 'Nom d\'expéditeur (Sender ID)', counterText: ''),
+                          decoration: const InputDecoration(
+                            labelText: 'Nom d\'expéditeur (Sender ID)',
+                            counterText: '',
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -178,7 +205,9 @@ class _SmsPlateformeState extends ConsumerState<SmsPlateformeScreen> {
                         child: TextField(
                           controller: _indicatif,
                           keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(labelText: 'Indicatif pays'),
+                          decoration: const InputDecoration(
+                            labelText: 'Indicatif pays',
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -204,13 +233,22 @@ class _SmsPlateformeState extends ConsumerState<SmsPlateformeScreen> {
                       Expanded(
                         child: Text(
                           _solde ?? 'Solde inconnu',
-                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                       OutlinedButton.icon(
                         onPressed: _soldeEnCours ? null : _actualiserSolde,
                         icon: _soldeEnCours
-                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
                             : const Icon(Icons.refresh_rounded),
                         label: const Text('Actualiser le solde'),
                       ),
@@ -219,7 +257,10 @@ class _SmsPlateformeState extends ConsumerState<SmsPlateformeScreen> {
                   if (_soldeLe != null)
                     Text(
                       'Mis à jour le ${dateHeureFr(_soldeLe!)}',
-                      style: const TextStyle(color: Brand.muted, fontSize: 12.5),
+                      style: const TextStyle(
+                        color: Brand.muted,
+                        fontSize: 12.5,
+                      ),
                     ),
                   const SizedBox(height: 12),
                   Row(
@@ -228,7 +269,9 @@ class _SmsPlateformeState extends ConsumerState<SmsPlateformeScreen> {
                         child: TextField(
                           controller: _test,
                           keyboardType: TextInputType.phone,
-                          decoration: const InputDecoration(labelText: 'Numéro pour un SMS de test'),
+                          decoration: const InputDecoration(
+                            labelText: 'Numéro pour un SMS de test',
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -255,14 +298,20 @@ class _SmsPlateformeState extends ConsumerState<SmsPlateformeScreen> {
           title: 'Entreprises',
           icon: Icons.business_rounded,
           child: ent.when(
-            loading: () => const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator()),
+            loading: () => const Padding(
+              padding: EdgeInsets.all(16),
+              child: LinearProgressIndicator(),
+            ),
             error: (e, _) => Text(errMsg(e)),
             data: (l) => Column(
               children: [
                 for (final e in l)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text(e.nom, style: const TextStyle(fontWeight: FontWeight.w700)),
+                    title: Text(
+                      e.nom,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                     subtitle: Text(
                       '${e.source == 'propre' ? 'Compte propre' : 'Compte de la plateforme'} · '
                       '${e.envoyes} envoyé(s) · ${e.echecs} échec(s)'

@@ -205,7 +205,9 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
               icon: Icons.receipt_long_rounded,
               child: SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Montrer les montants aux guichets et agents'),
+                title: const Text(
+                  'Montrer les montants aux guichets et agents',
+                ),
                 subtitle: const Text(
                   'Activé : le rapport imprimé en fin de journée affiche les prix, les totaux en espèces et en Orange Money (chiffre d\'affaires concret). '
                   'Désactivé : seulement le nombre de billets et de colis.',
@@ -226,7 +228,8 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
             const SizedBox(height: 28),
             _FideliteCarte(settings: settings),
             const SizedBox(height: 28),
-            if (ref.watch(authProvider).value?.company?.moduleFinance ?? false) ...[
+            if (ref.watch(authProvider).value?.company?.moduleFinance ??
+                false) ...[
               const IdentiteLegaleCard(),
               const SizedBox(height: 28),
             ],
@@ -240,7 +243,6 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
   }
 }
 
-
 /// Récompense de fidélité : voyage gratuit après N voyages payés par la même personne (N choisi par l'administrateur).
 class _FideliteCarte extends ConsumerStatefulWidget {
   const _FideliteCarte({required this.settings});
@@ -251,7 +253,9 @@ class _FideliteCarte extends ConsumerStatefulWidget {
 }
 
 class _FideliteCarteState extends ConsumerState<_FideliteCarte> {
-  late final TextEditingController _seuil = TextEditingController(text: '${widget.settings.fideliteSeuil}');
+  late final TextEditingController _seuil = TextEditingController(
+    text: '${widget.settings.fideliteSeuil}',
+  );
   late bool _actif = widget.settings.fideliteActif;
   bool _saving = false;
 
@@ -264,14 +268,21 @@ class _FideliteCarteState extends ConsumerState<_FideliteCarte> {
   Future<void> _enregistrer() async {
     final n = int.tryParse(_seuil.text.trim());
     if (n == null || n < 2 || n > 500) {
-      toast(context, 'Le nombre de voyages doit être compris entre 2 et 500', error: true);
+      toast(
+        context,
+        'Le nombre de voyages doit être compris entre 2 et 500',
+        error: true,
+      );
       return;
     }
     setState(() => _saving = true);
     try {
       final cid = ref.read(profilProvider).value?.companyId;
       if (cid == null) throw 'Entreprise introuvable';
-      await Repo.saveSettings(cid, {'fidelite_actif': _actif, 'fidelite_seuil': n});
+      await Repo.saveSettings(cid, {
+        'fidelite_actif': _actif,
+        'fidelite_seuil': n,
+      });
       ref.invalidate(settingsProvider);
       if (mounted) toast(context, 'Fidélité enregistrée');
     } catch (e) {
@@ -293,7 +304,9 @@ class _FideliteCarteState extends ConsumerState<_FideliteCarte> {
           value: _actif,
           onChanged: (v) => setState(() => _actif = v),
           title: const Text('Offrir un voyage gratuit aux clients fidèles'),
-          subtitle: const Text('Le client est reconnu par son numéro de téléphone, dans toutes vos gares.'),
+          subtitle: const Text(
+            'Le client est reconnu par son numéro de téléphone, dans toutes vos gares.',
+          ),
         ),
         const SizedBox(height: 6),
         SizedBox(
@@ -312,7 +325,14 @@ class _FideliteCarteState extends ConsumerState<_FideliteCarte> {
         FilledButton.icon(
           onPressed: _saving ? null : _enregistrer,
           icon: _saving
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
               : const Icon(Icons.save_rounded),
           label: const Text('Enregistrer'),
         ),

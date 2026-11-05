@@ -37,9 +37,12 @@ class Reseau {
         _verifier();
       }
     });
-    Connectivity().checkConnectivity().then((r) {
-      if (r.contains(ConnectivityResult.none) || r.isEmpty) echec();
-    }).catchError((_) {});
+    Connectivity()
+        .checkConnectivity()
+        .then((r) {
+          if (r.contains(ConnectivityResult.none) || r.isEmpty) echec();
+        })
+        .catchError((_) {});
   }
 
   /// Un appel au serveur a réussi.
@@ -72,7 +75,10 @@ class Reseau {
     try {
       // N'importe quelle réponse HTTP (même un refus) prouve que le serveur est joignable.
       await http
-          .get(Uri.parse('${AppConfig.supabaseUrl}/auth/v1/health'), headers: {'apikey': AppConfig.supabaseAnonKey})
+          .get(
+            Uri.parse('${AppConfig.supabaseUrl}/auth/v1/health'),
+            headers: {'apikey': AppConfig.supabaseAnonKey},
+          )
           .timeout(const Duration(seconds: 4));
       succes();
     } catch (_) {

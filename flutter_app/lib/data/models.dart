@@ -731,8 +731,20 @@ class SmsConfig {
     this.soldeLe,
   });
 
-  final bool actif, colisEnvoi, colisArrive, colisRetire, billet, bloque, rapportActif;
-  final String username, sender, indicatif, terminalId, source, rapportHeure, rapportNumeros;
+  final bool actif,
+      colisEnvoi,
+      colisArrive,
+      colisRetire,
+      billet,
+      bloque,
+      rapportActif;
+  final String username,
+      sender,
+      indicatif,
+      terminalId,
+      source,
+      rapportHeure,
+      rapportNumeros;
 
   /// Compte SMSBUS propre à l'entreprise (sinon : celui de la plateforme).
   bool get comptePropre => source == 'propre';
@@ -1004,15 +1016,21 @@ class VerifResultat {
   final String? message;
 }
 
-
 /// Modes de paiement acceptés au guichet.
-const modesPaiementGuichet = {'especes': 'Espèces', 'orange_money': 'Orange Money'};
+const modesPaiementGuichet = {
+  'especes': 'Espèces',
+  'orange_money': 'Orange Money',
+};
 String libelleModePaiement(String? m) => modesPaiementGuichet[m] ?? 'Espèces';
-
 
 /// Situation d'un client dans le programme de fidélité.
 class FideliteStatut {
-  FideliteStatut({required this.actif, required this.seuil, required this.voyages, required this.gratuit});
+  FideliteStatut({
+    required this.actif,
+    required this.seuil,
+    required this.voyages,
+    required this.gratuit,
+  });
   final bool actif, gratuit;
   final int seuil, voyages;
 

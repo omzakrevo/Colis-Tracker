@@ -18,7 +18,8 @@ class TrajetsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final trajets = ref.watch(trajetsProvider);
     final gares = ref.watch(garesProvider).value ?? const <Gare>[];
-    String nom(int id) => gares.where((g) => g.id == id).firstOrNull?.nom ?? '—';
+    String nom(int id) =>
+        gares.where((g) => g.id == id).firstOrNull?.nom ?? '—';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,10 +46,13 @@ class TrajetsScreen extends ConsumerWidget {
                   text: 'Aucun trajet. Ajoutez le premier pour fixer un prix.',
                 );
               }
-              final tri = [...l]..sort(
-                (a, b) => '${nom(a.gareDepartId)}${nom(a.gareArriveeId)}'
-                    .compareTo('${nom(b.gareDepartId)}${nom(b.gareArriveeId)}'),
-              );
+              final tri = [...l]
+                ..sort(
+                  (a, b) =>
+                      '${nom(a.gareDepartId)}${nom(a.gareArriveeId)}'.compareTo(
+                        '${nom(b.gareDepartId)}${nom(b.gareArriveeId)}',
+                      ),
+                );
               return ListView.separated(
                 padding: const EdgeInsets.only(bottom: 100),
                 itemCount: tri.length,
@@ -58,7 +62,10 @@ class TrajetsScreen extends ConsumerWidget {
                   return Card(
                     child: ListTile(
                       onTap: () => _editer(context, ref, t, gares),
-                      leading: const Icon(Icons.route_rounded, color: Brand.orange),
+                      leading: const Icon(
+                        Icons.route_rounded,
+                        color: Brand.orange,
+                      ),
                       title: Text(
                         '${nom(t.gareDepartId)} → ${nom(t.gareArriveeId)}',
                         style: const TextStyle(fontWeight: FontWeight.w800),
@@ -68,7 +75,10 @@ class TrajetsScreen extends ConsumerWidget {
                       ),
                       trailing: Text(
                         fcfa(t.prix),
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                        ),
                       ),
                     ),
                   );
@@ -88,7 +98,9 @@ class TrajetsScreen extends ConsumerWidget {
     List<Gare> gares,
   ) async {
     int? depart = t?.gareDepartId, arrivee = t?.gareArriveeId;
-    final prix = TextEditingController(text: t == null ? '' : '${t.prix.round()}');
+    final prix = TextEditingController(
+      text: t == null ? '' : '${t.prix.round()}',
+    );
     final capacite = TextEditingController(text: '${t?.capacite ?? 50}');
     final heures = [...?t?.horaires];
     final heure = TextEditingController();
@@ -100,7 +112,12 @@ class TrajetsScreen extends ConsumerWidget {
       final m = RegExp(r'^([01]?\d|2[0-3]):([0-5]\d)$').firstMatch(h);
       if (m == null) return;
       final ok = '${m.group(1)!.padLeft(2, '0')}:${m.group(2)}';
-      if (!heures.contains(ok)) setS(() => heures..add(ok)..sort());
+      if (!heures.contains(ok))
+        setS(
+          () => heures
+            ..add(ok)
+            ..sort(),
+        );
       heure.clear();
     }
 
@@ -122,23 +139,32 @@ class TrajetsScreen extends ConsumerWidget {
                   children: [
                     DropdownButtonFormField<int>(
                       initialValue: depart,
-                      decoration: const InputDecoration(labelText: 'Gare de départ *'),
+                      decoration: const InputDecoration(
+                        labelText: 'Gare de départ *',
+                      ),
                       items: [
                         for (final g in gares)
                           DropdownMenuItem(value: g.id, child: Text(g.nom)),
                       ],
-                      onChanged: t == null ? (v) => setS(() => depart = v) : null,
-                      validator: (v) => v == null ? 'Choisissez une gare' : null,
+                      onChanged: t == null
+                          ? (v) => setS(() => depart = v)
+                          : null,
+                      validator: (v) =>
+                          v == null ? 'Choisissez une gare' : null,
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<int>(
                       initialValue: arrivee,
-                      decoration: const InputDecoration(labelText: 'Gare d\'arrivée *'),
+                      decoration: const InputDecoration(
+                        labelText: 'Gare d\'arrivée *',
+                      ),
                       items: [
                         for (final g in gares)
                           DropdownMenuItem(value: g.id, child: Text(g.nom)),
                       ],
-                      onChanged: t == null ? (v) => setS(() => arrivee = v) : null,
+                      onChanged: t == null
+                          ? (v) => setS(() => arrivee = v)
+                          : null,
                       validator: (v) => v == null
                           ? 'Choisissez une gare'
                           : (v == depart ? 'Doit différer du départ' : null),
@@ -148,8 +174,11 @@ class TrajetsScreen extends ConsumerWidget {
                       controller: prix,
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: const InputDecoration(labelText: 'Prix du billet (FCFA) *'),
-                      validator: (v) => (v == null || v.isEmpty) ? 'Prix requis' : null,
+                      decoration: const InputDecoration(
+                        labelText: 'Prix du billet (FCFA) *',
+                      ),
+                      validator: (v) =>
+                          (v == null || v.isEmpty) ? 'Prix requis' : null,
                     ),
                     const SizedBox(height: 10),
                     TextFormField(
@@ -162,7 +191,9 @@ class TrajetsScreen extends ConsumerWidget {
                       ),
                       validator: (v) {
                         final n = int.tryParse(v ?? '');
-                        return n == null || n < 1 || n > 200 ? 'Entre 1 et 200' : null;
+                        return n == null || n < 1 || n > 200
+                            ? 'Entre 1 et 200'
+                            : null;
                       },
                     ),
                     const SizedBox(height: 14),
@@ -206,7 +237,9 @@ class TrajetsScreen extends ConsumerWidget {
                         contentPadding: EdgeInsets.zero,
                         value: retour,
                         onChanged: (v) => setS(() => retour = v ?? false),
-                        title: const Text('Créer aussi le trajet retour (même prix)'),
+                        title: const Text(
+                          'Créer aussi le trajet retour (même prix)',
+                        ),
                       ),
                   ],
                 ),
@@ -222,8 +255,14 @@ class TrajetsScreen extends ConsumerWidget {
                     builder: (c2) => AlertDialog(
                       title: const Text('Supprimer ce trajet ?'),
                       actions: [
-                        TextButton(onPressed: () => Navigator.pop(c2, false), child: const Text('Non')),
-                        FilledButton(onPressed: () => Navigator.pop(c2, true), child: const Text('Supprimer')),
+                        TextButton(
+                          onPressed: () => Navigator.pop(c2, false),
+                          child: const Text('Non'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(c2, true),
+                          child: const Text('Supprimer'),
+                        ),
                       ],
                     ),
                   );
@@ -236,9 +275,15 @@ class TrajetsScreen extends ConsumerWidget {
                     }
                   }
                 },
-                child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+                child: const Text(
+                  'Supprimer',
+                  style: TextStyle(color: Colors.red),
+                ),
               ),
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler'),
+            ),
             FilledButton(
               onPressed: () async {
                 if (!form.currentState!.validate()) return;
@@ -250,7 +295,8 @@ class TrajetsScreen extends ConsumerWidget {
                   'prix': double.parse(prix.text),
                   'horaires': heures,
                   // Envoyé seulement s'il sort de la valeur par défaut (serveur pas encore à jour : pas d'erreur).
-                  if (places != 50 || (t?.capacite ?? 50) != 50) 'capacite': places,
+                  if (places != 50 || (t?.capacite ?? 50) != 50)
+                    'capacite': places,
                 };
                 try {
                   await Repo.enregistrerTrajet(t?.id, data);
@@ -265,7 +311,11 @@ class TrajetsScreen extends ConsumerWidget {
                 } catch (e) {
                   final dup = e is PostgrestException && e.code == '23505';
                   if (ctx.mounted) {
-                    toast(ctx, dup ? 'Ce trajet existe déjà' : errMsg(e), error: true);
+                    toast(
+                      ctx,
+                      dup ? 'Ce trajet existe déjà' : errMsg(e),
+                      error: true,
+                    );
                   }
                 }
               },

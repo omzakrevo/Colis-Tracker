@@ -33,6 +33,7 @@ class ImprimanteConfig {
     this.mode = 2,
     this.protocole = '',
     this.intensite = 80,
+    this.noirceur = 2,
   });
 
   final String type, nom, adresse;
@@ -42,6 +43,22 @@ class ImprimanteConfig {
 
   /// Noirceur de l'impression (0 à 100) pour les imprimantes « chat ».
   final int intensite;
+
+  /// Qualité d'impression : 0 légère, 1 normale, 2 très noire (écritures bien noires).
+  final int noirceur;
+
+  /// Seuil de noir des images : plus il est haut, plus les écritures sont épaisses et noires.
+  int get seuil => const [140, 168, 205][noirceur.clamp(0, 2)];
+
+  /// Noirceur envoyée aux mini-imprimantes « chat » (MXW01…), selon la qualité choisie.
+  int get intensiteChat => const [55, 80, 95][noirceur.clamp(0, 2)];
+
+  /// Réglage de chauffe ESC/POS (ESC 7) et double frappe (ESC G) selon la qualité : plus noir = chauffe plus longue.
+  List<int> get commandesNoirceur => switch (noirceur.clamp(0, 2)) {
+    0 => [0x1B, 0x37, 7, 60, 2, 0x1B, 0x47, 0],
+    1 => [0x1B, 0x47, 0],
+    _ => [0x1B, 0x37, 9, 160, 2, 0x1B, 0x47, 1],
+  };
 
   /// Largeur du papier : 58 ou 80 mm.
   final int largeurMm;
@@ -64,7 +81,14 @@ class ImprimanteConfig {
 
   bool get configuree => type != 'aucune' && adresse.isNotEmpty;
 
-  ImprimanteConfig avec({int? largeurMm, bool? auto, int? vitesse, int? mode, int? intensite}) => ImprimanteConfig(
+  ImprimanteConfig avec({
+    int? largeurMm,
+    bool? auto,
+    int? vitesse,
+    int? mode,
+    int? intensite,
+    int? noirceur,
+  }) => ImprimanteConfig(
     type: type,
     nom: nom,
     adresse: adresse,
@@ -74,21 +98,27 @@ class ImprimanteConfig {
     mode: mode ?? this.mode,
     protocole: protocole,
     intensite: intensite ?? this.intensite,
+    noirceur: noirceur ?? this.noirceur,
   );
 
   /// Même réglages (papier, cadence, mode…) pour une autre imprimante.
-  ImprimanteConfig pour({required String type, required String nom, required String adresse, String protocole = ''}) =>
-      ImprimanteConfig(
-        type: type,
-        nom: nom,
-        adresse: adresse,
-        largeurMm: largeurMm,
-        auto: auto,
-        vitesse: vitesse,
-        mode: mode,
-        protocole: protocole,
-        intensite: intensite,
-      );
+  ImprimanteConfig pour({
+    required String type,
+    required String nom,
+    required String adresse,
+    String protocole = '',
+  }) => ImprimanteConfig(
+    type: type,
+    nom: nom,
+    adresse: adresse,
+    largeurMm: largeurMm,
+    auto: auto,
+    vitesse: vitesse,
+    mode: mode,
+    protocole: protocole,
+    intensite: intensite,
+    noirceur: noirceur,
+  );
 
   Map<String, dynamic> toJson() => {
     'type': type,
@@ -100,6 +130,7 @@ class ImprimanteConfig {
     'format': mode,
     'protocole': protocole,
     'intensite': intensite,
+    'noirceur': noirceur,
   };
 
   factory ImprimanteConfig.fromJson(Map<String, dynamic> j) => ImprimanteConfig(
@@ -112,6 +143,7 @@ class ImprimanteConfig {
     mode: (j['format'] as num?)?.toInt() ?? 2,
     protocole: j['protocole'] as String? ?? '',
     intensite: (j['intensite'] as num?)?.toInt() ?? 80,
+    noirceur: ((j['noirceur'] as num?)?.toInt() ?? 2).clamp(0, 2),
   );
 }
 
@@ -119,17 +151,44 @@ class ImprimanteConfig {
 /// Les pixels transparents sont posés sur du blanc : sans cela, ils étaient lus comme du noir et toute la
 /// feuille sortait noire.
 img.Image versNoirEtBlanc(img.Image source, {int seuil = 165}) {
-  final sortie = img.Image(width: source.width, height: source.height, numChannels: 3);
+  final sortie = img.Image(
+    width: source.width,
+    height: source.height,
+    numChannels: 3,
+  );
   img.fill(sortie, color: img.ColorRgb8(255, 255, 255));
   final noir = img.ColorRgb8(0, 0, 0);
   for (final p in source) {
     final max = p.maxChannelValue;
     final a = source.hasAlpha ? p.a / max : 1.0;
-    final lum = (0.299 * p.r + 0.587 * p.g + 0.114 * p.b) / max; // 0 noir … 1 blanc
+    final lum =
+        (0.299 * p.r + 0.587 * p.g + 0.114 * p.b) / max; // 0 noir … 1 blanc
     final v = lum * a + (1 - a); // pose sur fond blanc
     if (v * 255 < seuil) sortie.setPixel(p.x, p.y, noir);
   }
   return sortie;
+}
+
+/// Prépare le logo de l'entreprise (image `data:`) pour l'imprimante : noir et blanc, centré, large mais pas trop haut.
+img.Image? logoVersImage(String? dataUrl, int points, int seuil) {
+  if (dataUrl == null || !dataUrl.contains(',')) return null;
+  try {
+    final source = img.decodeImage(base64Decode(dataUrl.split(',').last));
+    if (source == null) return null;
+    // Largeur : 75 % du papier ; hauteur : au plus 40 % de la largeur du papier.
+    var largeur = (points * .75).round();
+    if (largeur / source.width * source.height > points * .4) {
+      largeur = (points * .4 / source.height * source.width).round();
+    }
+    final reduit = img.copyResize(
+      source,
+      width: largeur < 16 ? 16 : largeur,
+      interpolation: img.Interpolation.average,
+    );
+    return versNoirEtBlanc(reduit, seuil: seuil);
+  } catch (_) {
+    return null;
+  }
 }
 
 class Imprimante {
@@ -140,20 +199,30 @@ class Imprimante {
     try {
       final p = await SharedPreferences.getInstance();
       // Ancienne version : une seule imprimante, reprise comme imprimante « clients ».
-      final raw = p.getString(_cle(role)) ?? (role == RoleImprimante.client ? p.getString('tchi_imprimante') : null);
+      final raw =
+          p.getString(_cle(role)) ??
+          (role == RoleImprimante.client
+              ? p.getString('tchi_imprimante')
+              : null);
       if (raw == null) return const ImprimanteConfig();
-      return ImprimanteConfig.fromJson(Map<String, dynamic>.from(jsonDecode(raw) as Map));
+      return ImprimanteConfig.fromJson(
+        Map<String, dynamic>.from(jsonDecode(raw) as Map),
+      );
     } catch (_) {
       return const ImprimanteConfig();
     }
   }
 
-  static Future<void> enregistrer(RoleImprimante role, ImprimanteConfig c) async {
+  static Future<void> enregistrer(
+    RoleImprimante role,
+    ImprimanteConfig c,
+  ) async {
     final p = await SharedPreferences.getInstance();
     await p.setString(_cle(role), jsonEncode(c.toJson()));
   }
 
-  static bool get bluetoothPossible => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  static bool get bluetoothPossible =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   static bool get systemePossible =>
       !kIsWeb &&
@@ -185,7 +254,8 @@ class Imprimante {
     }
     if (c.type == 'ble') {
       final p = await ImprimanteBle.connecter(c.adresse);
-      if (p == 'chat') return 'Imprimante connectée · ${(await ImprimanteBle.statut()).resume}';
+      if (p == 'chat')
+        return 'Imprimante connectée · ${(await ImprimanteBle.statut()).resume}';
       return 'Imprimante connectée';
     }
     await _connecter(c);
@@ -206,6 +276,7 @@ class Imprimante {
     String nom,
     Future<Uint8List> Function(PdfPageFormat format) pdf, {
     List<int> Function(Generator g, int colonnes)? texte,
+    String? logo,
   }) async {
     final c = await lire(role);
     if (!c.configuree) return false;
@@ -220,12 +291,12 @@ class Imprimante {
       return true;
     }
     if (c.type == 'ble' && bluetoothPossible) {
-      await _imprimerBle(c, pdf, texte);
+      await _imprimerBle(c, pdf, texte, logo);
       return true;
     }
     if (c.type == 'bluetooth' && bluetoothPossible) {
       if (c.mode == 2 && texte != null) {
-        await _imprimerTexte(c, texte);
+        await _imprimerTexte(c, texte, logo: logo);
       } else {
         await _imprimerBluetooth(c, await pdf(_format(c)));
       }
@@ -238,13 +309,17 @@ class Imprimante {
   static String? _macConnectee;
 
   static Future<void> _connecter(ImprimanteConfig c) async {
-    if (_macConnectee == c.adresse && await PrintBluetoothThermal.connectionStatus) return;
+    if (_macConnectee == c.adresse &&
+        await PrintBluetoothThermal.connectionStatus)
+      return;
     // Autre imprimante (ou liaison perdue) : on ferme la liaison actuelle avant d'ouvrir la bonne.
     try {
       await PrintBluetoothThermal.disconnect;
     } catch (_) {}
     _macConnectee = null;
-    final ok = await PrintBluetoothThermal.connect(macPrinterAddress: c.adresse);
+    final ok = await PrintBluetoothThermal.connect(
+      macPrinterAddress: c.adresse,
+    );
     if (!ok) {
       throw 'Impossible de se connecter à « ${c.nom} ». Vérifiez qu\'elle est allumée, appairée et à portée.';
     }
@@ -256,12 +331,21 @@ class Imprimante {
     ImprimanteConfig c,
     List<int> Function(Generator g, int colonnes) texte, {
     Future<void> Function(List<int> octets)? ecrire,
+    String? logo,
   }) async {
     final gen = Generator(
       c.largeurMm >= 80 ? PaperSize.mm80 : PaperSize.mm58,
       await CapabilityProfile.load(),
     );
-    final octets = <int>[...gen.reset(), ...texte(gen, c.largeurMm >= 80 ? 48 : 32)];
+    final points = c.largeurMm >= 80 ? 576 : 384;
+    final image = logoVersImage(logo, points, c.seuil);
+    final octets = <int>[
+      ...gen.reset(),
+      ...c.commandesNoirceur,
+      // Logo en tête du ticket (petite image : quelques Ko seulement, contrairement à un ticket entier).
+      if (image != null) ...gen.imageRaster(image, align: PosAlign.center),
+      ...texte(gen, c.largeurMm >= 80 ? 48 : 32),
+    ];
     if (ecrire != null) {
       await ecrire(octets);
       return;
@@ -281,14 +365,26 @@ class Imprimante {
   }
 
   /// Rend la première page du PDF en image noir et blanc pure, redimensionnée à [points] de large.
-  static Future<img.Image> pageVersImage(Uint8List pdf, int points) async {
+  static Future<img.Image> pageVersImage(
+    Uint8List pdf,
+    int points, {
+    int seuil = 165,
+  }) async {
     img.Image? page;
     await for (final r in Printing.raster(pdf, pages: [0], dpi: 300)) {
       page = img.decodePng(await r.toPng());
       break;
     }
-    if (page == null) throw 'Le document n\'a pas pu être préparé pour l\'impression.';
-    return versNoirEtBlanc(img.copyResize(page, width: points, interpolation: img.Interpolation.average));
+    if (page == null)
+      throw 'Le document n\'a pas pu être préparé pour l\'impression.';
+    return versNoirEtBlanc(
+      img.copyResize(
+        page,
+        width: points,
+        interpolation: img.Interpolation.average,
+      ),
+      seuil: seuil,
+    );
   }
 
   /// Impression par Bluetooth basse consommation (connexion directe, sans passer par les réglages du téléphone).
@@ -296,18 +392,28 @@ class Imprimante {
     ImprimanteConfig c,
     Future<Uint8List> Function(PdfPageFormat format) pdf,
     List<int> Function(Generator g, int colonnes)? texte,
+    String? logo,
   ) async {
     final protocole = await ImprimanteBle.connecter(c.adresse);
     // Pause entre deux envois selon la cadence choisie (rapide / normale / lente).
     final pause = const [0, 6, 14][c.vitesse.clamp(0, 2)];
     if (protocole == 'chat') {
-      final image = await pageVersImage(await pdf(_format(c)), ImprimanteBle.pointsParLigne);
-      await ImprimanteBle.imprimerChat(image, intensite: c.intensite, pauseMs: pause);
+      final image = await pageVersImage(
+        await pdf(_format(c)),
+        ImprimanteBle.pointsParLigne,
+        seuil: c.seuil,
+      );
+      await ImprimanteBle.imprimerChat(
+        image,
+        intensite: c.intensiteChat,
+        pauseMs: pause,
+      );
       return;
     }
-    Future<void> ecrire(List<int> o) => ImprimanteBle.ecrire(o, pauseMs: pause * 2);
+    Future<void> ecrire(List<int> o) =>
+        ImprimanteBle.ecrire(o, pauseMs: pause * 2);
     if (c.mode == 2 && texte != null) {
-      await _imprimerTexte(c, texte, ecrire: ecrire);
+      await _imprimerTexte(c, texte, ecrire: ecrire, logo: logo);
     } else {
       await _imprimerBluetooth(c, await pdf(_format(c)), ecrire: ecrire);
     }
@@ -320,7 +426,7 @@ class Imprimante {
     Future<void> Function(List<int> octets)? ecrire,
   }) async {
     final points = c.largeurMm >= 80 ? 576 : 384;
-    final image = await pageVersImage(pdf, points);
+    final image = await pageVersImage(pdf, points, seuil: c.seuil);
 
     final gen = Generator(
       c.largeurMm >= 80 ? PaperSize.mm80 : PaperSize.mm58,
@@ -337,7 +443,7 @@ class Imprimante {
       }
     }
 
-    await envoyer(gen.reset());
+    await envoyer([...gen.reset(), ...c.commandesNoirceur]);
     // Mode « colonnes » (ESC *) : lignes de 24 points ; mode « raster » (GS v 0) : blocs de 96 lignes.
     // Chaque commande part d'un seul coup (une commande coupée en morceaux espacés est abandonnée par ces
     // imprimantes), et on regroupe ~96 lignes par envoi puis on attend le temps de les imprimer.
@@ -349,16 +455,29 @@ class Imprimante {
       if (groupe.isEmpty) return;
       final debut = DateTime.now();
       await envoyer(groupe);
-      final attente = (lignesGroupe * c.msParLigne).round() - DateTime.now().difference(debut).inMilliseconds;
-      if (attente > 0) await Future<void>.delayed(Duration(milliseconds: attente));
+      final attente =
+          (lignesGroupe * c.msParLigne).round() -
+          DateTime.now().difference(debut).inMilliseconds;
+      if (attente > 0)
+        await Future<void>.delayed(Duration(milliseconds: attente));
       groupe = <int>[];
       lignesGroupe = 0;
     }
 
     for (var y = 0; y < image.height; y += tranche) {
       final h = (y + tranche > image.height) ? image.height - y : tranche;
-      final part = img.copyCrop(image, x: 0, y: y, width: image.width, height: h);
-      groupe.addAll(colonnes ? gen.image(part, align: PosAlign.left) : gen.imageRaster(part, align: PosAlign.left));
+      final part = img.copyCrop(
+        image,
+        x: 0,
+        y: y,
+        width: image.width,
+        height: h,
+      );
+      groupe.addAll(
+        colonnes
+            ? gen.image(part, align: PosAlign.left)
+            : gen.imageRaster(part, align: PosAlign.left),
+      );
       lignesGroupe += h;
       if (lignesGroupe >= 96) await vider();
     }

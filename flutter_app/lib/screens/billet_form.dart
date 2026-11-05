@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -78,11 +79,12 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
     _telFid = chiffres;
     _attenteFid?.cancel();
     if (chiffres.length < 8) {
-      if (_fid != null || _gratuit) setState(() {
-        _fid = null;
-        _gratuit = false;
-        _appliquerTrajet();
-      });
+      if (_fid != null || _gratuit)
+        setState(() {
+          _fid = null;
+          _gratuit = false;
+          _appliquerTrajet();
+        });
       return;
     }
     _attenteFid = Timer(const Duration(milliseconds: 500), () async {
@@ -110,7 +112,12 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
       return;
     }
     final jeton = ++_jetonPlaces;
-    final p = await Repo.placesVoyage(depart: d, arrivee: a, date: date, heure: heure.text);
+    final p = await Repo.placesVoyage(
+      depart: d,
+      arrivee: a,
+      date: date,
+      heure: heure.text,
+    );
     if (!mounted || jeton != _jetonPlaces) return;
     setState(() {
       _places = p;
@@ -126,7 +133,10 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
     final n = await showDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Choisir la place (${p.libres} libres sur ${p.capacite})', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+        title: Text(
+          'Choisir la place (${p.libres} libres sur ${p.capacite})',
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+        ),
         content: SizedBox(
           width: 340,
           child: SingleChildScrollView(
@@ -141,13 +151,32 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                     child: p.prises.contains(i)
                         ? Container(
                             alignment: Alignment.center,
-                            decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
-                            child: Text('$i', style: TextStyle(color: Colors.grey.shade600, decoration: TextDecoration.lineThrough)),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade300,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '$i',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
                           )
                         : OutlinedButton(
-                            style: OutlinedButton.styleFrom(padding: EdgeInsets.zero, backgroundColor: siege.text.trim() == '$i' ? Brand.orangeSoft : null),
+                            style: OutlinedButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              backgroundColor: siege.text.trim() == '$i'
+                                  ? Brand.orangeSoft
+                                  : null,
+                            ),
                             onPressed: () => Navigator.pop(ctx, i),
-                            child: Text('$i', style: const TextStyle(fontWeight: FontWeight.w800)),
+                            child: Text(
+                              '$i',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                           ),
                   ),
               ],
@@ -155,8 +184,14 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, -1), child: const Text('Automatique')),
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, -1),
+            child: const Text('Automatique'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Fermer'),
+          ),
         ],
       ),
     );
@@ -183,19 +218,24 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
     final me = ref.read(profilProvider).value;
     setState(() => _saving = true);
     try {
-      final t = await Repo.creerTicket({
-        'client_nom': nom.text.trim(),
-        'client_telephone': tel.text.trim(),
-        'gare_depart_id': depart,
-        'gare_arrivee_id': arrivee,
-        'date_voyage':
-            '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
-        'heure_depart': heure.text.trim().isEmpty ? null : heure.text.trim(),
-        'siege': siege.text.trim().isEmpty ? null : siege.text.trim(),
-        'prix': _gratuit ? 0 : double.parse(prix.text.replaceAll(',', '.')),
-        if (_gratuit) 'gratuit': true,
-        if (!_gratuit && _modePaiement != 'especes') 'mode_paiement': _modePaiement,
-      }, vendeurNom: me?.nom, siegeSecours: _places?.suivante);
+      final t = await Repo.creerTicket(
+        {
+          'client_nom': nom.text.trim(),
+          'client_telephone': tel.text.trim(),
+          'gare_depart_id': depart,
+          'gare_arrivee_id': arrivee,
+          'date_voyage':
+              '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
+          'heure_depart': heure.text.trim().isEmpty ? null : heure.text.trim(),
+          'siege': siege.text.trim().isEmpty ? null : siege.text.trim(),
+          'prix': _gratuit ? 0 : double.parse(prix.text.replaceAll(',', '.')),
+          if (_gratuit) 'gratuit': true,
+          if (!_gratuit && _modePaiement != 'especes')
+            'mode_paiement': _modePaiement,
+        },
+        vendeurNom: me?.nom,
+        siegeSecours: _places?.suivante,
+      );
       ref.read(tickProvider.notifier).bump();
       if (!mounted) return;
       toast(
@@ -456,7 +496,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                         children: [
                           Expanded(
                             child: TextFormField(
- textInputAction: TextInputAction.next,
+                              textInputAction: TextInputAction.next,
                               controller: heure,
                               decoration: const InputDecoration(
                                 labelText: 'Heure',
@@ -477,14 +517,19 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                                       : IconButton(
                                           tooltip: 'Place automatique',
                                           icon: const Icon(Icons.close_rounded),
-                                          onPressed: () => setState(() => siege.clear()),
+                                          onPressed: () =>
+                                              setState(() => siege.clear()),
                                         ),
                                 ),
                                 child: Text(
                                   siege.text.isNotEmpty
                                       ? 'N° ${siege.text}'
-                                      : (_places?.suivante != null ? 'Auto : n° ${_places!.suivante}' : 'Automatique'),
-                                  style: const TextStyle(fontWeight: FontWeight.w800),
+                                      : (_places?.suivante != null
+                                            ? 'Auto : n° ${_places!.suivante}'
+                                            : 'Automatique'),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
                               ),
                             ),
@@ -494,15 +539,29 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                       if (_places != null) ...[
                         const SizedBox(height: 10),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 9,
+                          ),
                           decoration: BoxDecoration(
-                            color: (_places!.plein ? const Color(0xFFDC2626) : const Color(0xFF16A34A)).withValues(alpha: .1),
+                            color:
+                                (_places!.plein
+                                        ? const Color(0xFFDC2626)
+                                        : const Color(0xFF16A34A))
+                                    .withValues(alpha: .1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
                             children: [
-                              Icon(_places!.plein ? Icons.block_rounded : Icons.event_seat_rounded,
-                                  color: _places!.plein ? const Color(0xFFDC2626) : const Color(0xFF16A34A), size: 20),
+                              Icon(
+                                _places!.plein
+                                    ? Icons.block_rounded
+                                    : Icons.event_seat_rounded,
+                                color: _places!.plein
+                                    ? const Color(0xFFDC2626)
+                                    : const Color(0xFF16A34A),
+                                size: 20,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -512,7 +571,9 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                                   style: TextStyle(
                                     fontWeight: FontWeight.w800,
                                     fontSize: 13,
-                                    color: _places!.plein ? const Color(0xFFDC2626) : const Color(0xFF15803D),
+                                    color: _places!.plein
+                                        ? const Color(0xFFDC2626)
+                                        : const Color(0xFF15803D),
                                   ),
                                 ),
                               ),
@@ -522,7 +583,7 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                       ],
                       const SizedBox(height: 12),
                       TextFormField(
- textInputAction: TextInputAction.next,
+                        textInputAction: TextInputAction.next,
                         controller: prix,
                         readOnly: _gratuit,
                         onChanged: (_) => _prixManuel = true,
@@ -546,13 +607,19 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                         },
                       ),
                       const SizedBox(height: 12),
-                      if (!_gratuit) ModePaiementChoix(valeur: _modePaiement, onChanged: (v) => setState(() => _modePaiement = v)),
+                      if (!_gratuit)
+                        ModePaiementChoix(
+                          valeur: _modePaiement,
+                          onChanged: (v) => setState(() => _modePaiement = v),
+                        ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 20),
                 FilledButton.icon(
-                  onPressed: (_saving || (_places?.plein ?? false)) ? null : _enregistrer,
+                  onPressed: (_saving || (_places?.plein ?? false))
+                      ? null
+                      : _enregistrer,
                   icon: _saving
                       ? const SizedBox(
                           width: 18,
@@ -563,7 +630,11 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
                           ),
                         )
                       : const Icon(Icons.check_rounded),
-                  label: Text((_places?.plein ?? false) ? 'Trajet plein' : 'Enregistrer le billet'),
+                  label: Text(
+                    (_places?.plein ?? false)
+                        ? 'Trajet plein'
+                        : 'Enregistrer le billet',
+                  ),
                 ),
               ],
             ),
@@ -574,10 +645,13 @@ class _BilletFormScreenState extends ConsumerState<BilletFormScreen> {
   }
 }
 
-
 /// Récompense de fidélité : progression du client et, si le seuil est atteint, voyage gratuit à offrir.
 class _CarteFidelite extends StatelessWidget {
-  const _CarteFidelite({required this.statut, required this.gratuit, required this.onChanged});
+  const _CarteFidelite({
+    required this.statut,
+    required this.gratuit,
+    required this.onChanged,
+  });
   final FideliteStatut statut;
   final bool gratuit;
   final ValueChanged<bool> onChanged;
@@ -591,16 +665,30 @@ class _CarteFidelite extends StatelessWidget {
         child: SwitchListTile(
           value: gratuit,
           onChanged: onChanged,
-          secondary: const Icon(Icons.card_giftcard_rounded, color: Color(0xFF16A34A)),
-          title: const Text('Voyage gratuit offert !', style: TextStyle(fontWeight: FontWeight.w800)),
-          subtitle: Text('Ce client a déjà payé ${s.voyages} voyages (récompense à partir de ${s.seuil}).'),
+          secondary: const Icon(
+            Icons.card_giftcard_rounded,
+            color: Color(0xFF16A34A),
+          ),
+          title: const Text(
+            'Voyage gratuit offert !',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          subtitle: Text(
+            'Ce client a déjà payé ${s.voyages} voyages (récompense à partir de ${s.seuil}).',
+          ),
         ),
       );
     }
     return Card(
       child: ListTile(
-        leading: const Icon(Icons.card_giftcard_rounded, color: Color(0xFFEE801E)),
-        title: Text('Fidélité : ${s.voyages} / ${s.seuil} voyages', style: const TextStyle(fontWeight: FontWeight.w700)),
+        leading: const Icon(
+          Icons.card_giftcard_rounded,
+          color: Color(0xFFEE801E),
+        ),
+        title: Text(
+          'Fidélité : ${s.voyages} / ${s.seuil} voyages',
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
         subtitle: Text(
           s.restant == 1
               ? 'Encore 1 voyage payé et le suivant sera gratuit.'

@@ -39,7 +39,8 @@ class TchiApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: Brand.theme(),
       routerConfig: ref.watch(routerProvider),
-      builder: (context, child) => _Adaptatif(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) =>
+          _Adaptatif(child: child ?? const SizedBox.shrink()),
       locale: const Locale('fr', 'FR'),
       supportedLocales: const [Locale('fr', 'FR')],
       localizationsDelegates: const [
@@ -72,7 +73,10 @@ class _Adaptatif extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
                 inputDecorationTheme: theme.inputDecorationTheme.copyWith(
                   isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 9,
+                  ),
                 ),
               ),
               child: child,

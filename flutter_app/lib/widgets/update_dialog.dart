@@ -54,40 +54,37 @@ class _UpdateDialogState extends State<_UpdateDialog> {
     try {
       _sub = OtaUpdate()
           .execute(v.apkUrl, destinationFilename: 'tchi-${v.buildNumber}.apk')
-          .listen(
-            (e) {
-              if (!mounted) return;
-              switch (e.status) {
-                case OtaStatus.DOWNLOADING:
-                  setState(() => _pct = int.tryParse(e.value ?? '') ?? _pct);
-                case OtaStatus.INSTALLING:
-                  setState(() {
-                    _enCours = false;
-                    _message =
-                        'Téléchargé. Appuyez sur « Installer » dans la fenêtre Android qui s\'ouvre.';
-                  });
-                case OtaStatus.PERMISSION_NOT_GRANTED_ERROR:
-                  setState(() {
-                    _enCours = false;
-                    _message =
-                        'Autorisez Tchi à installer des applications (Paramètres Android), puis réessayez.';
-                  });
-                case OtaStatus.INSTALLATION_ERROR:
-                  setState(() {
-                    _enCours = false;
-                    _message =
-                        'Installation refusée : l\'ancienne version a été installée avec une autre signature. '
-                        'Désinstallez Tchi une fois (envoyez d\'abord les opérations en attente), puis installez cette version : '
-                        'les mises à jour suivantes seront automatiques.';
-                  });
-                case OtaStatus.INSTALLATION_DONE:
-                  break;
-                default:
-                  _echec('${e.status.name}${e.value == null ? '' : ' : ${e.value}'}');
-              }
-            },
-            onError: (Object err) => _echec('$err'),
-          );
+          .listen((e) {
+            if (!mounted) return;
+            switch (e.status) {
+              case OtaStatus.DOWNLOADING:
+                setState(() => _pct = int.tryParse(e.value ?? '') ?? _pct);
+              case OtaStatus.INSTALLING:
+                setState(() {
+                  _enCours = false;
+                  _message = 'Téléchargé. Appuyez sur « Installer » dans la fenêtre Android qui s\'ouvre.';
+                });
+              case OtaStatus.PERMISSION_NOT_GRANTED_ERROR:
+                setState(() {
+                  _enCours = false;
+                  _message = 'Autorisez Tchi à installer des applications (Paramètres Android), puis réessayez.';
+                });
+              case OtaStatus.INSTALLATION_ERROR:
+                setState(() {
+                  _enCours = false;
+                  _message =
+                      'Installation refusée : l\'ancienne version a été installée avec une autre signature. '
+                      'Désinstallez Tchi une fois (envoyez d\'abord les opérations en attente), puis installez cette version : '
+                      'les mises à jour suivantes seront automatiques.';
+                });
+              case OtaStatus.INSTALLATION_DONE:
+                break;
+              default:
+                _echec(
+                  '${e.status.name}${e.value == null ? '' : ' : ${e.value}'}',
+                );
+            }
+          }, onError: (Object err) => _echec('$err'));
     } catch (err) {
       _echec('$err');
     }
@@ -98,7 +95,8 @@ class _UpdateDialogState extends State<_UpdateDialog> {
     if (!mounted) return;
     setState(() {
       _enCours = false;
-      _message = 'Téléchargement impossible ($detail). Ouverture du lien dans le navigateur…';
+      _message =
+          'Téléchargement impossible ($detail). Ouverture du lien dans le navigateur…';
     });
     await launchUrl(Uri.parse(v.apkUrl), mode: LaunchMode.externalApplication);
   }
@@ -142,7 +140,10 @@ class _UpdateDialogState extends State<_UpdateDialog> {
           const SizedBox(height: 14),
           LinearProgressIndicator(value: _pct > 0 ? _pct / 100 : null),
           const SizedBox(height: 6),
-          Text(_pct > 0 ? 'Téléchargement… $_pct %' : 'Téléchargement…', style: const TextStyle(fontSize: 13)),
+          Text(
+            _pct > 0 ? 'Téléchargement… $_pct %' : 'Téléchargement…',
+            style: const TextStyle(fontSize: 13),
+          ),
         ],
         if (_message != null) ...[
           const SizedBox(height: 12),

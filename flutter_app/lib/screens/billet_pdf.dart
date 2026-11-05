@@ -21,6 +21,7 @@ Future<void> imprimerBillet(
         'Billet-${t.numero}',
         (format) => billetPdf(t, co, format),
         texte: (g, cols) => ticketVoyageTexte(g, cols, t, co),
+        logo: co.logo,
       )) {
     return;
   }

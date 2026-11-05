@@ -40,10 +40,18 @@ class JournalTotaux {
     : billets = l.where((x) => x.type == 'billet').length,
       colisEnvoyes = l.where((x) => x.type == 'colis_envoye').length,
       colisRecus = l.where((x) => x.type == 'colis_recu').length,
-      especes = l.where((x) => x.encaisse && x.modePaiement != 'orange_money').fold(0.0, (a, x) => a + x.montant!),
-      orangeMoney = l.where((x) => x.encaisse && x.modePaiement == 'orange_money').fold(0.0, (a, x) => a + x.montant!),
-      montantBillets = l.where((x) => x.type == 'billet').fold(0.0, (a, x) => a + (x.montant ?? 0)),
-      montantColis = l.where((x) => x.type == 'colis_envoye').fold(0.0, (a, x) => a + (x.montant ?? 0));
+      especes = l
+          .where((x) => x.encaisse && x.modePaiement != 'orange_money')
+          .fold(0.0, (a, x) => a + x.montant!),
+      orangeMoney = l
+          .where((x) => x.encaisse && x.modePaiement == 'orange_money')
+          .fold(0.0, (a, x) => a + x.montant!),
+      montantBillets = l
+          .where((x) => x.type == 'billet')
+          .fold(0.0, (a, x) => a + (x.montant ?? 0)),
+      montantColis = l
+          .where((x) => x.type == 'colis_envoye')
+          .fold(0.0, (a, x) => a + (x.montant ?? 0));
 
   final int billets, colisEnvoyes, colisRecus;
   final double especes, orangeMoney, montantBillets, montantColis;

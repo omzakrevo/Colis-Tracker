@@ -133,7 +133,8 @@ class Repo {
 
   /// Téléverse l'APK dans le stockage public « app-releases » et renvoie son lien (réservé au super administrateur).
   static Future<String> televerserApk(Uint8List octets, int buildNumber) async {
-    final chemin = 'tchi-$buildNumber-${DateTime.now().millisecondsSinceEpoch}.apk';
+    final chemin =
+        'tchi-$buildNumber-${DateTime.now().millisecondsSinceEpoch}.apk';
     await _db.storage
         .from('app-releases')
         .uploadBinary(
@@ -188,8 +189,10 @@ class Repo {
       Map<String, dynamic>.from(await _db.rpc('sa_stats') as Map);
 
   /// Le super administrateur ouvre ou ferme le module Comptabilité d'une entreprise.
-  static Future<void> definirModuleFinance(int id, bool actif) =>
-      _db.rpc('entreprise_module_finance', params: {'p_company': id, 'p_actif': actif});
+  static Future<void> definirModuleFinance(int id, bool actif) => _db.rpc(
+    'entreprise_module_finance',
+    params: {'p_company': id, 'p_actif': actif},
+  );
 
   static Future<void> definirAbonnement(
     int id,
@@ -571,7 +574,10 @@ class Repo {
       final copie = (await LocalStore.read('tickets_list'));
       final t = copie == null
           ? null
-          : _maps(copie).map(Ticket.fromJson).where((t) => t.id == id).firstOrNull;
+          : _maps(copie)
+                .map(Ticket.fromJson)
+                .where((t) => t.id == id)
+                .firstOrNull;
       if (t == null) rethrow;
       return t;
     }
@@ -598,7 +604,8 @@ class Repo {
     // Hors ligne : le serveur ne peut pas attribuer la place, on garde celle proposée sur le téléphone.
     final op = await Outbox.ajouter('ticket', {
       ...payload,
-      if (payload['siege'] == null && siegeSecours != null) 'siege': '$siegeSecours',
+      if (payload['siege'] == null && siegeSecours != null)
+        'siege': '$siegeSecours',
       '_vendeur_nom': vendeurNom,
     });
     return Outbox.ticketLocal(
@@ -642,35 +649,45 @@ class Repo {
     try {
       Reseau.exiger();
       final rows = await _db
-          .rpc('places_prises', params: {
-            'p_depart': depart,
-            'p_arrivee': arrivee,
-            'p_date': _iso(date),
-            'p_heure': h.isEmpty ? null : h,
-          })
+          .rpc(
+            'places_prises',
+            params: {
+              'p_depart': depart,
+              'p_arrivee': arrivee,
+              'p_date': _iso(date),
+              'p_heure': h.isEmpty ? null : h,
+            },
+          )
           .reseau(const Duration(seconds: 6));
       final l = _maps(rows);
       if (l.isNotEmpty) {
-        return PlacesVoyage(
-          (l.first['capacite'] as num?)?.toInt() ?? 50,
-          {for (final p in (l.first['prises'] as List? ?? const [])) (p as num).toInt()},
-        );
+        return PlacesVoyage((l.first['capacite'] as num?)?.toInt() ?? 50, {
+          for (final p in (l.first['prises'] as List? ?? const []))
+            (p as num).toInt(),
+        });
       }
     } catch (_) {
       // repli ci-dessous
     }
     var capacite = 50;
     try {
-      capacite = (await trajets())
-          .where((t) => t.gareDepartId == depart && t.gareArriveeId == arrivee)
-          .map((t) => t.capacite)
-          .firstOrNull ?? 50;
+      capacite =
+          (await trajets())
+              .where(
+                (t) => t.gareDepartId == depart && t.gareArriveeId == arrivee,
+              )
+              .map((t) => t.capacite)
+              .firstOrNull ??
+          50;
     } catch (_) {}
     final prises = <int>{};
     try {
       for (final t in await listTickets()) {
-        if (t.annule || t.gareDepartId != depart || t.gareArriveeId != arrivee) continue;
-        if (_iso(t.dateVoyage) != _iso(date) || (t.heureDepart ?? '').trim() != h) continue;
+        if (t.annule || t.gareDepartId != depart || t.gareArriveeId != arrivee)
+          continue;
+        if (_iso(t.dateVoyage) != _iso(date) ||
+            (t.heureDepart ?? '').trim() != h)
+          continue;
         final n = int.tryParse((t.siege ?? '').trim());
         if (n != null) prises.add(n);
       }
@@ -683,7 +700,9 @@ class Repo {
   static Future<FideliteStatut?> fideliteStatut(String telephone) async {
     try {
       Reseau.exiger();
-      final r = await _db.rpc('fidelite_statut', params: {'p_telephone': telephone}).reseau(const Duration(seconds: 5));
+      final r = await _db
+          .rpc('fidelite_statut', params: {'p_telephone': telephone})
+          .reseau(const Duration(seconds: 5));
       return FideliteStatut.fromJson(Map<String, dynamic>.from(r as Map));
     } catch (_) {
       return null;
@@ -695,9 +714,7 @@ class Repo {
 
   /// Clients déjà connus dont le nom ou le téléphone commence par ce qui est tapé (colis et billets).
   /// Sans internet : recherche dans les colis et billets gardés sur l'appareil.
-  static Future<List<ClientSuggestion>> clientsSuggestions(
-    String terme,
-  ) async {
+  static Future<List<ClientSuggestion>> clientsSuggestions(String terme) async {
     final t = terme.trim();
     if (t.length < 2) return [];
     try {
@@ -839,10 +856,7 @@ class Repo {
     final ref = Outbox.nouvelleRef();
     try {
       final rows = await _db
-          .rpc(
-            'verifier_billet',
-            params: {'p_numero': num, 'p_ref': ref},
-          )
+          .rpc('verifier_billet', params: {'p_numero': num, 'p_ref': ref})
           .reseau(const Duration(seconds: 8));
       final l = _maps(rows);
       if (l.isEmpty) {
@@ -864,15 +878,17 @@ class Repo {
         .firstOrNull;
     if (local == null) {
       return VerifResultat(
-        message:
-            'Billet introuvable dans la mémoire du téléphone. Sans internet, seuls les billets déjà synchronisés peuvent être vérifiés.',
+        message: 'Billet introuvable dans la mémoire du téléphone. Sans internet, seuls les billets déjà synchronisés peuvent être vérifiés.',
         horsLigne: true,
       );
     }
     return _verifLocale(local, num);
   }
 
-  static Future<VerifResultat> _verifLocale(BilletVerif local, String num) async {
+  static Future<VerifResultat> _verifLocale(
+    BilletVerif local,
+    String num,
+  ) async {
     await Outbox.ajouter('verif', {
       'numero': num,
       'ref': Outbox.nouvelleRef(),
@@ -902,7 +918,9 @@ class Repo {
         'solde_le, source, bloque';
     List<Map<String, dynamic>> rows;
     try {
-      rows = await _db.from('sms_settings').select('$base, rapport_actif, rapport_heure, rapport_numeros');
+      rows = await _db
+          .from('sms_settings')
+          .select('$base, rapport_actif, rapport_heure, rapport_numeros');
     } on PostgrestException catch (e) {
       // Colonnes du rapport quotidien absentes : serveur pas encore à jour (migration 26).
       if (!(e.code == '42703' || e.message.contains('rapport_'))) rethrow;
@@ -969,16 +987,25 @@ class Repo {
       await Future<void>.delayed(const Duration(milliseconds: 1500));
       final g = await smsGlobal();
       final le = g.soldeLe;
-      if (le != null && DateTime.now().difference(le).inSeconds < 20) return (solde: g.soldeTexte, le: le);
+      if (le != null && DateTime.now().difference(le).inSeconds < 20)
+        return (solde: g.soldeTexte, le: le);
     }
     throw 'SMSBUS n\'a pas répondu. Vérifiez l\'identifiant Terminal Web et le port.';
   }
 
   static Future<List<SmsEntreprise>> smsEntreprises() async =>
-      _maps(await _db.rpc('sms_entreprises')).map(SmsEntreprise.fromJson).toList();
+      _maps(await _db.rpc('sms_entreprises'))
+          .map(SmsEntreprise.fromJson)
+          .toList();
 
-  static Future<void> reglerSmsEntreprise(int companyId, {bool? bloque, String? source}) =>
-      _db.rpc('sms_entreprise_regler', params: {'p_company': companyId, 'p_bloque': bloque, 'p_source': source});
+  static Future<void> reglerSmsEntreprise(
+    int companyId, {
+    bool? bloque,
+    String? source,
+  }) => _db.rpc(
+    'sms_entreprise_regler',
+    params: {'p_company': companyId, 'p_bloque': bloque, 'p_source': source},
+  );
 
   static Future<void> renvoyerSms(int id) =>
       _db.rpc('sms_renvoyer', params: {'p_id': id});
@@ -1169,11 +1196,7 @@ class Repo {
       case 'verif':
         final rows = await _db.rpc(
           'verifier_billet',
-          params: {
-            'p_numero': p['numero'],
-            'p_ref': p['ref'],
-            'p_at': p['at'],
-          },
+          params: {'p_numero': p['numero'], 'p_ref': p['ref'], 'p_at': p['at']},
         );
         if (_maps(rows).isEmpty) throw 'Billet ${p['numero']} introuvable';
       case 'statut':
@@ -1295,24 +1318,37 @@ class Repo {
   // ── Activité personnelle / fin de journée ─────────────
   static (DateTime, DateTime) _bornesJour(DateTime jour) {
     final d = DateTime(jour.year, jour.month, jour.day);
-    return (d.toUtc().subtract(Duration.zero), d.add(const Duration(days: 1)).toUtc());
+    return (
+      d.toUtc().subtract(Duration.zero),
+      d.add(const Duration(days: 1)).toUtc(),
+    );
   }
 
   /// Compteurs du jour de l'utilisateur connecté : colis envoyés, colis réceptionnés, billets vendus.
   static Future<Map<String, int>> monActivite([DateTime? jour]) async {
     final (a, b) = _bornesJour(jour ?? DateTime.now());
     final r = Map<String, dynamic>.from(
-      await _db.rpc('mon_activite', params: {'p_debut': a.toIso8601String(), 'p_fin': b.toIso8601String()}) as Map,
+      await _db.rpc(
+        'mon_activite',
+        params: {'p_debut': a.toIso8601String(), 'p_fin': b.toIso8601String()},
+      ) as Map,
     );
     return {for (final e in r.entries) e.key: (e.value as num).toInt()};
   }
 
   /// Rapport chronologique d'une journée. `agentId` : réservé à l'administrateur (sinon, le sien).
-  static Future<List<JournalLigne>> journalActivite(DateTime jour, {String? agentId}) async {
+  static Future<List<JournalLigne>> journalActivite(
+    DateTime jour, {
+    String? agentId,
+  }) async {
     final (a, b) = _bornesJour(jour);
     final rows = await _db.rpc(
       'journal_activite',
-      params: {'p_agent': agentId, 'p_debut': a.toIso8601String(), 'p_fin': b.toIso8601String()},
+      params: {
+        'p_agent': agentId,
+        'p_debut': a.toIso8601String(),
+        'p_fin': b.toIso8601String(),
+      },
     );
     return _maps(rows).map(JournalLigne.fromJson).toList();
   }
@@ -1416,14 +1452,17 @@ class Repo {
       final out = <Colis>[];
       for (var from = 0; from < 20000; from += 1000) {
         final rows = await _db
-            .rpc('rapport_colis', params: {
-              'p_debut': debut == null ? null : _iso(debut),
-              'p_fin': fin == null ? null : _iso(fin),
-              'p_agent': soi ? null : agentId,
-              'p_gare_depart': gareDepartId,
-              'p_statut': statut,
-              'p_traites': inclureTraites,
-            })
+            .rpc(
+              'rapport_colis',
+              params: {
+                'p_debut': debut == null ? null : _iso(debut),
+                'p_fin': fin == null ? null : _iso(fin),
+                'p_agent': soi ? null : agentId,
+                'p_gare_depart': gareDepartId,
+                'p_statut': statut,
+                'p_traites': inclureTraites,
+              },
+            )
             .select(cols)
             .order('created_at', ascending: false)
             .range(from, from + 999);
@@ -1443,7 +1482,12 @@ class Repo {
             .select('colis_id')
             .eq('agent_id', moi)
             .gte('date_changement', debut == null ? '2000-01-01' : _iso(debut))
-            .lt('date_changement', fin == null ? '2100-01-01' : _iso(fin.add(const Duration(days: 1))))
+            .lt(
+              'date_changement',
+              fin == null
+                  ? '2100-01-01'
+                  : _iso(fin.add(const Duration(days: 1))),
+            )
             .limit(2000);
         ids = {for (final r in h) (r['colis_id'] as num).toInt()}.toList();
       }
@@ -1452,19 +1496,31 @@ class Repo {
         var q = _db.from('colis_detail').select(cols);
         if (debut != null) q = q.gte('date_envoi', _iso(debut));
         if (fin != null) q = q.lte('date_envoi', _iso(fin));
-        if (moi != null) q = ids.isEmpty ? q.eq('agent_id', moi) : q.or('agent_id.eq.$moi,id.in.(${ids.join(',')})');
+        if (moi != null)
+          q = ids.isEmpty
+              ? q.eq('agent_id', moi)
+              : q.or('agent_id.eq.$moi,id.in.(${ids.join(',')})');
         if (gareDepartId != null) q = q.eq('gare_depart_id', gareDepartId);
         if (statut != null) q = q.eq('statut', statut);
-        final rows = await q.order('created_at', ascending: false).range(from, from + 999);
+        final rows = await q
+            .order('created_at', ascending: false)
+            .range(from, from + 999);
         out.addAll(rows.map(Colis.fromJson));
         if (rows.length < 1000) break;
       }
       return out;
     }
 
-    bool colonneAbsente(PostgrestException e) => e.code == '42703' || e.message.contains('billet_numero') || e.message.contains('mode_paiement');
+    bool colonneAbsente(PostgrestException e) =>
+        e.code == '42703' ||
+        e.message.contains('billet_numero') ||
+        e.message.contains('mode_paiement');
     // billet_numero (migration 24) et mode_paiement (migration 29) n'existent qu'après leur migration.
-    final choix = ['$_colisRapportCols, billet_numero, mode_paiement', '$_colisRapportCols, billet_numero', _colisRapportCols];
+    final choix = [
+      '$_colisRapportCols, billet_numero, mode_paiement',
+      '$_colisRapportCols, billet_numero',
+      _colisRapportCols,
+    ];
     try {
       for (final cols in choix) {
         try {
@@ -1475,7 +1531,10 @@ class Repo {
       }
       return await viaServeur(_colisRapportCols);
     } on PostgrestException catch (e) {
-      if (e.code != 'PGRST202' && e.code != '42883' && !e.message.contains('rapport_colis')) rethrow;
+      if (e.code != 'PGRST202' &&
+          e.code != '42883' &&
+          !e.message.contains('rapport_colis'))
+        rethrow;
     }
     for (final cols in choix) {
       try {
@@ -1496,25 +1555,45 @@ class Repo {
     int? gareDepartId,
     bool soi = false,
   }) async {
-    final d = debut == null ? null : DateTime(debut.year, debut.month, debut.day).toUtc().toIso8601String();
-    final f = fin == null ? null : DateTime(fin.year, fin.month, fin.day).add(const Duration(days: 1)).toUtc().toIso8601String();
+    final d = debut == null
+        ? null
+        : DateTime(
+            debut.year,
+            debut.month,
+            debut.day,
+          ).toUtc().toIso8601String();
+    final f = fin == null
+        ? null
+        : DateTime(
+            fin.year,
+            fin.month,
+            fin.day,
+          ).add(const Duration(days: 1)).toUtc().toIso8601String();
     final out = <Ticket>[];
     var serveurAJour = true;
     for (var from = 0; from < 20000; from += 1000) {
       List<Map<String, dynamic>> rows;
       if (serveurAJour) {
         try {
-          rows = _maps(await _db
-              .rpc('rapport_billets', params: {
-                'p_debut': d,
-                'p_fin': f,
-                'p_vendeur': soi ? null : vendeurId,
-                'p_gare_depart': gareDepartId,
-              })
-              .order('created_at', ascending: false)
-              .range(from, from + 999));
+          rows = _maps(
+            await _db
+                .rpc(
+                  'rapport_billets',
+                  params: {
+                    'p_debut': d,
+                    'p_fin': f,
+                    'p_vendeur': soi ? null : vendeurId,
+                    'p_gare_depart': gareDepartId,
+                  },
+                )
+                .order('created_at', ascending: false)
+                .range(from, from + 999),
+          );
         } on PostgrestException catch (e) {
-          if (e.code != 'PGRST202' && e.code != '42883' && !e.message.contains('rapport_billets')) rethrow;
+          if (e.code != 'PGRST202' &&
+              e.code != '42883' &&
+              !e.message.contains('rapport_billets'))
+            rethrow;
           serveurAJour = false;
           from -= 1000;
           continue;
@@ -1526,7 +1605,9 @@ class Repo {
         final moi = soi ? userId : vendeurId;
         if (moi != null) q = q.eq('vendeur_id', moi);
         if (gareDepartId != null) q = q.eq('gare_depart_id', gareDepartId);
-        rows = _maps(await q.order('created_at', ascending: false).range(from, from + 999));
+        rows = _maps(
+          await q.order('created_at', ascending: false).range(from, from + 999),
+        );
       }
       out.addAll(rows.map(Ticket.fromJson));
       if (rows.length < 1000) break;
@@ -1535,8 +1616,13 @@ class Repo {
   }
 
   /// Efface toutes les saisies de l'entreprise (colis, billets, clients, SMS…) ; réservé à l'administrateur.
-  static Future<Map<String, dynamic>> reinitialiserDonnees(String confirmation) async {
-    final r = await _db.rpc('reinitialiser_donnees', params: {'p_confirmation': confirmation});
+  static Future<Map<String, dynamic>> reinitialiserDonnees(
+    String confirmation,
+  ) async {
+    final r = await _db.rpc(
+      'reinitialiser_donnees',
+      params: {'p_confirmation': confirmation},
+    );
     // Cette copie locale ne doit plus montrer les données effacées.
     await LocalStore.viderDonneesMetier();
     return r is Map ? Map<String, dynamic>.from(r) : <String, dynamic>{};

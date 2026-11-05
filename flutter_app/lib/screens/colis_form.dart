@@ -116,7 +116,8 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
             ? null
             : double.parse(valeur.text.replaceAll(',', '.')),
         // N'est envoyé que s'il est renseigné : le serveur sans la migration 24 ne connaît pas cette colonne.
-        if (billet.text.trim().isNotEmpty) 'billet_numero': billet.text.trim().toUpperCase(),
+        if (billet.text.trim().isNotEmpty)
+          'billet_numero': billet.text.trim().toUpperCase(),
         'prix': double.parse(prix.text.replaceAll(',', '.')),
         // Envoyé seulement s'il n'est pas « espèces » (valeur par défaut du serveur).
         if (modePaiement != 'especes') 'mode_paiement': modePaiement,
@@ -243,95 +244,97 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
       builder: (context, box) {
         final clavier = box.maxHeight < 430;
         return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 680),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!clavier) ...[
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => context.pop(),
-                    icon: const Icon(Icons.arrow_back_rounded),
-                  ),
-                  const Expanded(
-                    child: PageHeader(
-                      'Nouveau colis',
-                      subtitle: 'Enregistrement d\'une expédition',
-                    ),
-                  ),
-                ],
-              ),
-              _Steps(_step),
-              const SizedBox(height: 18),
-            ],
-            Expanded(
-              child: gares.when(
-                loading: () => const SkeletonList(count: 3, height: 120),
-                error: (e, _) => Center(child: Text(errMsg(e))),
-                data: (gl) => SingleChildScrollView(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: const EdgeInsets.only(bottom: 24),
-                  child: AnimatedSwitcher(
-                    duration: 350.ms,
-                    switchInCurve: Curves.easeOutCubic,
-                    transitionBuilder: (child, anim) => FadeTransition(
-                      opacity: anim,
-                      child: SlideTransition(
-                        position: Tween(
-                          begin: const Offset(.06, 0),
-                          end: Offset.zero,
-                        ).animate(anim),
-                        child: child,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 680),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!clavier) ...[
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => context.pop(),
+                        icon: const Icon(Icons.arrow_back_rounded),
                       ),
-                    ),
-                    child: KeyedSubtree(
-                      key: ValueKey(_step),
-                      child: _stepBody(gl, lockDepart),
+                      const Expanded(
+                        child: PageHeader(
+                          'Nouveau colis',
+                          subtitle: 'Enregistrement d\'une expédition',
+                        ),
+                      ),
+                    ],
+                  ),
+                  _Steps(_step),
+                  const SizedBox(height: 18),
+                ],
+                Expanded(
+                  child: gares.when(
+                    loading: () => const SkeletonList(count: 3, height: 120),
+                    error: (e, _) => Center(child: Text(errMsg(e))),
+                    data: (gl) => SingleChildScrollView(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: const EdgeInsets.only(bottom: 24),
+                      child: AnimatedSwitcher(
+                        duration: 350.ms,
+                        switchInCurve: Curves.easeOutCubic,
+                        transitionBuilder: (child, anim) => FadeTransition(
+                          opacity: anim,
+                          child: SlideTransition(
+                            position: Tween(
+                              begin: const Offset(.06, 0),
+                              end: Offset.zero,
+                            ).animate(anim),
+                            child: child,
+                          ),
+                        ),
+                        child: KeyedSubtree(
+                          key: ValueKey(_step),
+                          child: _stepBody(gl, lockDepart),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Row(
-                children: [
-                  if (_step > 0) ...[
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => setState(() => _step--),
-                        child: const Text('Retour'),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Row(
+                    children: [
+                      if (_step > 0) ...[
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => setState(() => _step--),
+                            child: const Text('Retour'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        flex: 2,
+                        child: FilledButton(
+                          onPressed: _saving ? null : _next,
+                          child: _saving
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  _step < 2
+                                      ? 'Continuer'
+                                      : 'Enregistrer le colis',
+                                ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                  ],
-                  Expanded(
-                    flex: 2,
-                    child: FilledButton(
-                      onPressed: _saving ? null : _next,
-                      child: _saving
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text(
-                              _step < 2 ? 'Continuer' : 'Enregistrer le colis',
-                            ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
         );
       },
     );
@@ -456,7 +459,7 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
                 child: Column(
                   children: [
                     TextFormField(
- textInputAction: TextInputAction.next,
+                      textInputAction: TextInputAction.next,
                       controller: description,
                       textCapitalization: TextCapitalization.sentences,
                       decoration: const InputDecoration(
@@ -470,7 +473,7 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
                       children: [
                         Expanded(
                           child: TextFormField(
- textInputAction: TextInputAction.next,
+                            textInputAction: TextInputAction.next,
                             controller: nb,
                             keyboardType: TextInputType.number,
                             inputFormatters: [
@@ -486,7 +489,7 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: TextFormField(
- textInputAction: TextInputAction.next,
+                            textInputAction: TextInputAction.next,
                             controller: poids,
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
@@ -513,30 +516,36 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
                 title: 'Tarif',
                 icon: Icons.payments_rounded,
                 accent: const Color(0xFF16A34A),
-                child: Column(children: [
-                TextFormField(
- textInputAction: TextInputAction.next,
-                  controller: prix,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                  ),
-                  decoration: const InputDecoration(
-                    labelText: 'Prix (FCFA) *',
-                    suffixText: 'FCFA',
-                  ),
-                  validator: (v) =>
-                      (double.tryParse((v ?? '').replaceAll(',', '.')) ?? 0) <=
-                          0
-                      ? 'Le prix doit être supérieur à 0'
-                      : null,
+                child: Column(
+                  children: [
+                    TextFormField(
+                      textInputAction: TextInputAction.next,
+                      controller: prix,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Prix (FCFA) *',
+                        suffixText: 'FCFA',
+                      ),
+                      validator: (v) =>
+                          (double.tryParse((v ?? '').replaceAll(',', '.')) ??
+                                  0) <=
+                              0
+                          ? 'Le prix doit être supérieur à 0'
+                          : null,
+                    ),
+                    const SizedBox(height: 14),
+                    ModePaiementChoix(
+                      valeur: modePaiement,
+                      onChanged: (v) => setState(() => modePaiement = v),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 14),
-                ModePaiementChoix(valeur: modePaiement, onChanged: (v) => setState(() => modePaiement = v)),
-                ]),
               ),
               const SizedBox(height: 14),
               SectionCard(
@@ -544,7 +553,7 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
                 icon: Icons.diamond_rounded,
                 accent: const Color(0xFF7C3AED),
                 child: TextFormField(
- textInputAction: TextInputAction.next,
+                  textInputAction: TextInputAction.next,
                   controller: valeur,
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
@@ -568,7 +577,7 @@ class _ColisFormScreenState extends ConsumerState<ColisFormScreen> {
                 icon: Icons.confirmation_number_rounded,
                 accent: const Color(0xFF0EA5E9),
                 child: TextFormField(
- textInputAction: TextInputAction.next,
+                  textInputAction: TextInputAction.next,
                   controller: billet,
                   textCapitalization: TextCapitalization.characters,
                   decoration: InputDecoration(

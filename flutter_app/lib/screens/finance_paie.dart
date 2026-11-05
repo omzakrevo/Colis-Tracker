@@ -50,17 +50,30 @@ class _PaieState extends ConsumerState<FinancePaieScreen> {
   }
 
   Future<void> _generer(List<Employe> employes, IdentiteLegale id) async {
-    final existants = {for (final b in _bulletins ?? const <Bulletin>[]) b.employeId};
-    final manquants = employes.where((e) => e.actif && !existants.contains(e.id)).toList();
+    final existants = {
+      for (final b in _bulletins ?? const <Bulletin>[]) b.employeId,
+    };
+    final manquants = employes
+        .where((e) => e.actif && !existants.contains(e.id))
+        .toList();
     if (manquants.isEmpty) {
-      toast(context, 'Tous les employés actifs ont déjà un bulletin pour ce mois');
+      toast(
+        context,
+        'Tous les employés actifs ont déjà un bulletin pour ce mois',
+      );
       return;
     }
     try {
       for (final e in manquants) {
-        await FinanceRepo.enregistrerBulletin(Bulletin.pour(e, _mois, cnssTaux: id.cnssTaux));
+        await FinanceRepo.enregistrerBulletin(
+          Bulletin.pour(e, _mois, cnssTaux: id.cnssTaux),
+        );
       }
-      if (mounted) toast(context, '${manquants.length} bulletin${manquants.length > 1 ? 's' : ''} créé${manquants.length > 1 ? 's' : ''}');
+      if (mounted)
+        toast(
+          context,
+          '${manquants.length} bulletin${manquants.length > 1 ? 's' : ''} créé${manquants.length > 1 ? 's' : ''}',
+        );
       _recharger();
     } catch (e) {
       if (mounted) toast(context, errMsg(e), error: true);
@@ -68,21 +81,36 @@ class _PaieState extends ConsumerState<FinancePaieScreen> {
   }
 
   Future<void> _toutPayer(Map<int, Employe> parId) async {
-    final aPayer = (_bulletins ?? const <Bulletin>[]).where((b) => !b.paye).toList();
+    final aPayer = (_bulletins ?? const <Bulletin>[])
+        .where((b) => !b.paye)
+        .toList();
     if (aPayer.isEmpty) return;
     final total = aPayer.fold<double>(0, (a, b) => a + b.net);
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
         title: const Text('Marquer tous les salaires payés ?'),
-        content: Text('${aPayer.length} bulletin${aPayer.length > 1 ? 's' : ''}, ${fcfa(total)} au total, daté d\'aujourd\'hui.'),
-        actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Non')), FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Confirmer'))],
+        content: Text(
+          '${aPayer.length} bulletin${aPayer.length > 1 ? 's' : ''}, ${fcfa(total)} au total, daté d\'aujourd\'hui.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Non'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Confirmer'),
+          ),
+        ],
       ),
     );
     if (ok != true) return;
     try {
       for (final b in aPayer) {
-        await FinanceRepo.enregistrerBulletin(b.copyWith(statut: 'paye', datePaiement: DateTime.now()));
+        await FinanceRepo.enregistrerBulletin(
+          b.copyWith(statut: 'paye', datePaiement: DateTime.now()),
+        );
       }
       _recharger();
     } catch (e) {
@@ -97,7 +125,8 @@ class _PaieState extends ConsumerState<FinancePaieScreen> {
     await ouvrirEditeur<void>(
       context,
       titre: 'Bulletin de ${e.nom}',
-      contenu: (ctx) => _EditeurBulletin(employe: e, bulletin: base, co: co, identite: id),
+      contenu: (ctx) =>
+          _EditeurBulletin(employe: e, bulletin: base, co: co, identite: id),
     );
     _recharger();
   }
@@ -106,25 +135,56 @@ class _PaieState extends ConsumerState<FinancePaieScreen> {
   Widget build(BuildContext context) {
     final employes = ref.watch(employesProvider);
     final identite = ref.watch(identiteProvider);
-    final moisNom = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'][_mois.month - 1];
+    final moisNom = [
+      'janvier',
+      'février',
+      'mars',
+      'avril',
+      'mai',
+      'juin',
+      'juillet',
+      'août',
+      'septembre',
+      'octobre',
+      'novembre',
+      'décembre',
+    ][_mois.month - 1];
     return ListView(
       padding: const EdgeInsets.only(bottom: 100),
       children: [
         Row(
           children: [
-            IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back_rounded)),
-            const Expanded(child: PageHeader('Paie', subtitle: 'Bulletins de salaire, paiement et émargement.')),
+            IconButton(
+              onPressed: () => context.pop(),
+              icon: const Icon(Icons.arrow_back_rounded),
+            ),
+            const Expanded(
+              child: PageHeader(
+                'Paie',
+                subtitle: 'Bulletins de salaire, paiement et émargement.',
+              ),
+            ),
           ],
         ),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            IconButton(onPressed: () => _changerMois(-1), icon: const Icon(Icons.chevron_left_rounded)),
-            Text('${moisNom[0].toUpperCase()}${moisNom.substring(1)} ${_mois.year}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-            IconButton(onPressed: () => _changerMois(1), icon: const Icon(Icons.chevron_right_rounded)),
+            IconButton(
+              onPressed: () => _changerMois(-1),
+              icon: const Icon(Icons.chevron_left_rounded),
+            ),
+            Text(
+              '${moisNom[0].toUpperCase()}${moisNom.substring(1)} ${_mois.year}',
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+            ),
+            IconButton(
+              onPressed: () => _changerMois(1),
+              icon: const Icon(Icons.chevron_right_rounded),
+            ),
           ],
         ),
-        if (_erreur != null) Text(_erreur!, style: const TextStyle(color: Colors.red)),
+        if (_erreur != null)
+          Text(_erreur!, style: const TextStyle(color: Colors.red)),
         AsyncView<List<Employe>>(
           value: employes,
           onRetry: () => ref.invalidate(employesProvider),
@@ -133,14 +193,19 @@ class _PaieState extends ConsumerState<FinancePaieScreen> {
             final parId = {for (final e in liste) e.id!: e};
             final bs = _bulletins;
             if (bs == null) return const SkeletonList(count: 4, height: 64);
-            final lignes = [for (final e in liste.where((e) => e.actif)) (e, bs.where((b) => b.employeId == e.id).firstOrNull)];
+            final lignes = [
+              for (final e in liste.where((e) => e.actif))
+                (e, bs.where((b) => b.employeId == e.id).firstOrNull),
+            ];
             // bulletins d'anciens employés encore présents ce mois-là
             for (final b in bs) {
               final e = parId[b.employeId];
               if (e != null && !e.actif) lignes.add((e, b));
             }
             final totalNet = bs.fold<double>(0, (a, b) => a + b.net);
-            final totalPaye = bs.where((b) => b.paye).fold<double>(0, (a, b) => a + b.net);
+            final totalPaye = bs
+                .where((b) => b.paye)
+                .fold<double>(0, (a, b) => a + b.net);
             return Column(
               children: [
                 Wrap(
@@ -148,15 +213,36 @@ class _PaieState extends ConsumerState<FinancePaieScreen> {
                   spacing: 10,
                   runSpacing: 10,
                   children: [
-                    FilledButton.icon(onPressed: () => _generer(liste, id), icon: const Icon(Icons.auto_awesome_rounded), label: const Text('Générer les bulletins du mois')),
-                    OutlinedButton.icon(onPressed: bs.any((b) => !b.paye) ? () => _toutPayer(parId) : null, icon: const Icon(Icons.done_all_rounded), label: const Text('Tout marquer payé')),
+                    FilledButton.icon(
+                      onPressed: () => _generer(liste, id),
+                      icon: const Icon(Icons.auto_awesome_rounded),
+                      label: const Text('Générer les bulletins du mois'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: bs.any((b) => !b.paye)
+                          ? () => _toutPayer(parId)
+                          : null,
+                      icon: const Icon(Icons.done_all_rounded),
+                      label: const Text('Tout marquer payé'),
+                    ),
                     OutlinedButton.icon(
                       onPressed: bs.isEmpty
                           ? null
                           : () async {
-                              final co = await ref.read(settingsProvider.future);
-                              final l = [for (final b in bs) if (parId[b.employeId] != null) (parId[b.employeId]!, b)];
-                              if (context.mounted) await imprimerPdf(context, () => emargementPdf(l, _mois, co, id), 'emargement-${_mois.year}-${_mois.month}');
+                              final co = await ref.read(
+                                settingsProvider.future,
+                              );
+                              final l = [
+                                for (final b in bs)
+                                  if (parId[b.employeId] != null)
+                                    (parId[b.employeId]!, b),
+                              ];
+                              if (context.mounted)
+                                await imprimerPdf(
+                                  context,
+                                  () => emargementPdf(l, _mois, co, id),
+                                  'emargement-${_mois.year}-${_mois.month}',
+                                );
                             },
                       icon: const Icon(Icons.fact_check_rounded),
                       label: const Text('Fiche d\'émargement'),
@@ -168,19 +254,53 @@ class _PaieState extends ConsumerState<FinancePaieScreen> {
                   title: 'Masse salariale du mois : ${fcfa(totalNet)}',
                   icon: Icons.request_quote_rounded,
                   accent: const Color(0xFF16A34A),
-                  child: Text('Payé : ${fcfa(totalPaye)} · Reste à payer : ${fcfa(totalNet - totalPaye)}', style: const TextStyle(color: Brand.muted)),
+                  child: Text(
+                    'Payé : ${fcfa(totalPaye)} · Reste à payer : ${fcfa(totalNet - totalPaye)}',
+                    style: const TextStyle(color: Brand.muted),
+                  ),
                 ),
                 const SizedBox(height: 14),
-                if (lignes.isEmpty) const Padding(padding: EdgeInsets.all(24), child: EmptyState(icon: Icons.badge_rounded, text: 'Aucun employé. Ajoutez-les dans « Employés et contrats ».')),
+                if (lignes.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: EmptyState(
+                      icon: Icons.badge_rounded,
+                      text: 'Aucun employé. Ajoutez-les dans « Employés et contrats ».',
+                    ),
+                  ),
                 for (final (e, b) in lignes)
                   Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
                       onTap: () => _ouvrir(e, b, id),
-                      leading: Icon(b == null ? Icons.radio_button_unchecked_rounded : (b.paye ? Icons.check_circle_rounded : Icons.edit_note_rounded), color: b == null ? Brand.muted : (b.paye ? const Color(0xFF16A34A) : Brand.orange)),
-                      title: Text(e.nom, style: const TextStyle(fontWeight: FontWeight.w800)),
-                      subtitle: Text(b == null ? 'Pas de bulletin — touchez pour en créer un' : (b.paye ? 'Payé le ${b.datePaiement == null ? '' : dateFr(b.datePaiement!)}' : 'À payer')),
-                      trailing: Text(b == null ? fcfa(e.salaireBase) : fcfa(b.net), style: TextStyle(fontWeight: FontWeight.w800, color: b == null ? Brand.muted : null)),
+                      leading: Icon(
+                        b == null
+                            ? Icons.radio_button_unchecked_rounded
+                            : (b.paye
+                                  ? Icons.check_circle_rounded
+                                  : Icons.edit_note_rounded),
+                        color: b == null
+                            ? Brand.muted
+                            : (b.paye ? const Color(0xFF16A34A) : Brand.orange),
+                      ),
+                      title: Text(
+                        e.nom,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      subtitle: Text(
+                        b == null
+                            ? 'Pas de bulletin — touchez pour en créer un'
+                            : (b.paye
+                                  ? 'Payé le ${b.datePaiement == null ? '' : dateFr(b.datePaiement!)}'
+                                  : 'À payer'),
+                      ),
+                      trailing: Text(
+                        b == null ? fcfa(e.salaireBase) : fcfa(b.net),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: b == null ? Brand.muted : null,
+                        ),
+                      ),
                     ),
                   ),
               ],
@@ -194,13 +314,18 @@ class _PaieState extends ConsumerState<FinancePaieScreen> {
 
 class _LigneEdit {
   _LigneEdit(String l, String m)
-      : libelle = TextEditingController(text: l),
-        montant = TextEditingController(text: m);
+    : libelle = TextEditingController(text: l),
+      montant = TextEditingController(text: m);
   final TextEditingController libelle, montant;
 }
 
 class _EditeurBulletin extends StatefulWidget {
-  const _EditeurBulletin({required this.employe, required this.bulletin, required this.co, required this.identite});
+  const _EditeurBulletin({
+    required this.employe,
+    required this.bulletin,
+    required this.co,
+    required this.identite,
+  });
   final Employe employe;
   final Bulletin bulletin;
   final CompanySettings co;
@@ -211,10 +336,18 @@ class _EditeurBulletin extends StatefulWidget {
 }
 
 class _EditeurBulletinState extends State<_EditeurBulletin> {
-  late final _base = TextEditingController(text: '${widget.bulletin.salaireBase.round()}');
+  late final _base = TextEditingController(
+    text: '${widget.bulletin.salaireBase.round()}',
+  );
   late final _notes = TextEditingController(text: widget.bulletin.notes);
-  late final List<_LigneEdit> _primes = [for (final l in widget.bulletin.primes) _LigneEdit(l.libelle, '${l.montant.round()}')];
-  late final List<_LigneEdit> _retenues = [for (final l in widget.bulletin.retenues) _LigneEdit(l.libelle, '${l.montant.round()}')];
+  late final List<_LigneEdit> _primes = [
+    for (final l in widget.bulletin.primes)
+      _LigneEdit(l.libelle, '${l.montant.round()}'),
+  ];
+  late final List<_LigneEdit> _retenues = [
+    for (final l in widget.bulletin.retenues)
+      _LigneEdit(l.libelle, '${l.montant.round()}'),
+  ];
   late String _mode = widget.bulletin.modePaiement;
   late bool _paye = widget.bulletin.paye;
   late DateTime _datePaiement = widget.bulletin.datePaiement ?? DateTime.now();
@@ -226,8 +359,22 @@ class _EditeurBulletinState extends State<_EditeurBulletin> {
     employeId: widget.bulletin.employeId,
     mois: widget.bulletin.mois,
     salaireBase: lireMontant(_base),
-    primes: [for (final l in _primes) if (l.libelle.text.trim().isNotEmpty || lireMontant(l.montant) > 0) LigneMontant(l.libelle.text.trim().isEmpty ? 'Prime' : l.libelle.text.trim(), lireMontant(l.montant))],
-    retenues: [for (final l in _retenues) if (l.libelle.text.trim().isNotEmpty || lireMontant(l.montant) > 0) LigneMontant(l.libelle.text.trim().isEmpty ? 'Retenue' : l.libelle.text.trim(), lireMontant(l.montant))],
+    primes: [
+      for (final l in _primes)
+        if (l.libelle.text.trim().isNotEmpty || lireMontant(l.montant) > 0)
+          LigneMontant(
+            l.libelle.text.trim().isEmpty ? 'Prime' : l.libelle.text.trim(),
+            lireMontant(l.montant),
+          ),
+    ],
+    retenues: [
+      for (final l in _retenues)
+        if (l.libelle.text.trim().isNotEmpty || lireMontant(l.montant) > 0)
+          LigneMontant(
+            l.libelle.text.trim().isEmpty ? 'Retenue' : l.libelle.text.trim(),
+            lireMontant(l.montant),
+          ),
+    ],
     statut: _paye ? 'paye' : 'brouillon',
     datePaiement: _paye ? _datePaiement : null,
     modePaiement: _mode,
@@ -259,14 +406,35 @@ class _EditeurBulletinState extends State<_EditeurBulletin> {
           padding: const EdgeInsets.only(bottom: 8),
           child: Row(
             children: [
-              Expanded(flex: 3, child: TextFormField(controller: l[i].libelle, decoration: const InputDecoration(labelText: 'Libellé'))),
+              Expanded(
+                flex: 3,
+                child: TextFormField(
+                  controller: l[i].libelle,
+                  decoration: const InputDecoration(labelText: 'Libellé'),
+                ),
+              ),
               const SizedBox(width: 8),
-              Expanded(flex: 2, child: TextFormField(controller: l[i].montant, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Montant'), onChanged: (_) => setState(() {}))),
-              IconButton(onPressed: () => setState(() => l.removeAt(i)), icon: const Icon(Icons.remove_circle_outline_rounded)),
+              Expanded(
+                flex: 2,
+                child: TextFormField(
+                  controller: l[i].montant,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Montant'),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              IconButton(
+                onPressed: () => setState(() => l.removeAt(i)),
+                icon: const Icon(Icons.remove_circle_outline_rounded),
+              ),
             ],
           ),
         ),
-      TextButton.icon(onPressed: () => setState(() => l.add(_LigneEdit('', ''))), icon: const Icon(Icons.add_rounded), label: Text(vide)),
+      TextButton.icon(
+        onPressed: () => setState(() => l.add(_LigneEdit('', ''))),
+        icon: const Icon(Icons.add_rounded),
+        label: Text(vide),
+      ),
     ],
   );
 
@@ -276,34 +444,104 @@ class _EditeurBulletinState extends State<_EditeurBulletin> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        champMontant(_base, 'Salaire de base', onChanged: (_) => setState(() {})),
+        champMontant(
+          _base,
+          'Salaire de base',
+          onChanged: (_) => setState(() {}),
+        ),
         const SizedBox(height: 14),
         _lignes('Primes et indemnités', _primes, 'Ajouter une prime'),
         const SizedBox(height: 10),
-        _lignes('Retenues (CNSS, impôt, avances…)', _retenues, 'Ajouter une retenue'),
+        _lignes(
+          'Retenues (CNSS, impôt, avances…)',
+          _retenues,
+          'Ajouter une retenue',
+        ),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: Brand.orangeSoft, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+            color: Brand.orangeSoft,
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Column(
             children: [
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Salaire brut'), Text(fcfa(b.brut), style: const TextStyle(fontWeight: FontWeight.w700))]),
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Retenues'), Text('- ${fcfa(b.totalRetenues)}', style: const TextStyle(fontWeight: FontWeight.w700))]),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Salaire brut'),
+                  Text(
+                    fcfa(b.brut),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Retenues'),
+                  Text(
+                    '- ${fcfa(b.totalRetenues)}',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
               const Divider(),
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Net à payer', style: TextStyle(fontWeight: FontWeight.w800)), Text(fcfa(b.net), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17))]),
-              Align(alignment: Alignment.centerLeft, child: Text(montantEnLettres(b.net), style: const TextStyle(color: Brand.muted, fontStyle: FontStyle.italic, fontSize: 12.5))),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Net à payer',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  Text(
+                    fcfa(b.net),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 17,
+                    ),
+                  ),
+                ],
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  montantEnLettres(b.net),
+                  style: const TextStyle(
+                    color: Brand.muted,
+                    fontStyle: FontStyle.italic,
+                    fontSize: 12.5,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
-          initialValue: modesPaiement.contains(_mode) ? _mode : modesPaiement.first,
+          initialValue: modesPaiement.contains(_mode)
+              ? _mode
+              : modesPaiement.first,
           decoration: const InputDecoration(labelText: 'Mode de paiement'),
-          items: [for (final m in modesPaiement) DropdownMenuItem(value: m, child: Text(m))],
+          items: [
+            for (final m in modesPaiement)
+              DropdownMenuItem(value: m, child: Text(m)),
+          ],
           onChanged: (v) => setState(() => _mode = v ?? _mode),
         ),
-        SwitchListTile(contentPadding: EdgeInsets.zero, value: _paye, onChanged: (v) => setState(() => _paye = v), title: const Text('Salaire payé')),
-        if (_paye) ChampDate(libelle: 'Date de paiement', valeur: _datePaiement, onChanged: (d) => setState(() => _datePaiement = d ?? _datePaiement)),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: _paye,
+          onChanged: (v) => setState(() => _paye = v),
+          title: const Text('Salaire payé'),
+        ),
+        if (_paye)
+          ChampDate(
+            libelle: 'Date de paiement',
+            valeur: _datePaiement,
+            onChanged: (d) =>
+                setState(() => _datePaiement = d ?? _datePaiement),
+          ),
         const SizedBox(height: 12),
         champTexte(_notes, 'Observations', lignes: 2),
         const SizedBox(height: 16),
@@ -311,8 +549,21 @@ class _EditeurBulletinState extends State<_EditeurBulletin> {
           spacing: 10,
           runSpacing: 10,
           children: [
-            FilledButton.icon(onPressed: _saving ? null : _enregistrer, icon: const Icon(Icons.check_rounded), label: const Text('Enregistrer')),
-            BoutonsPdf(construire: () => bulletinPdf(_compose(), widget.employe, widget.co, widget.identite), nom: 'bulletin-${widget.employe.nom}-${widget.bulletin.mois.year}-${widget.bulletin.mois.month}'),
+            FilledButton.icon(
+              onPressed: _saving ? null : _enregistrer,
+              icon: const Icon(Icons.check_rounded),
+              label: const Text('Enregistrer'),
+            ),
+            BoutonsPdf(
+              construire: () => bulletinPdf(
+                _compose(),
+                widget.employe,
+                widget.co,
+                widget.identite,
+              ),
+              nom:
+                  'bulletin-${widget.employe.nom}-${widget.bulletin.mois.year}-${widget.bulletin.mois.month}',
+            ),
             if (widget.bulletin.id != null && !_enregistre)
               TextButton.icon(
                 onPressed: () async {
@@ -324,7 +575,10 @@ class _EditeurBulletinState extends State<_EditeurBulletin> {
                   }
                 },
                 icon: const Icon(Icons.delete_rounded, color: Colors.red),
-                label: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+                label: const Text(
+                  'Supprimer',
+                  style: TextStyle(color: Colors.red),
+                ),
               ),
           ],
         ),

@@ -34,7 +34,7 @@ Future<Uint8List> _document(
   PdfPageFormat format,
   pw.Widget Function(double k, double kv, String? bande) construire, {
   List<String?> exemplaires = const [null],
-  double hauteurRef = 560,
+  double hauteurRef = 650,
 }) {
   final doc = pw.Document();
   if (format.width < 300) {
@@ -91,19 +91,30 @@ Future<Uint8List> recuPdf(Colis c, CompanySettings co, PdfPageFormat format) {
 }
 
 /// Étiquette autocollante à coller sur le colis.
-Future<Uint8List> etiquettePdf(Colis c, CompanySettings co, PdfPageFormat format) {
+Future<Uint8List> etiquettePdf(
+  Colis c,
+  CompanySettings co,
+  PdfPageFormat format,
+) {
   final logo = pdfImage(co.logo);
   return _document(
     format,
     (k, kv, bande) => etiquetteColis(c, co, logo, k, kv: kv, bande: bande),
-    hauteurRef: 430,
+    hauteurRef: 520,
   );
 }
 
 /// Ticket de voyage : un seul ticket, y compris sur feuille A4.
-Future<Uint8List> billetPdf(Ticket t, CompanySettings co, PdfPageFormat format) {
+Future<Uint8List> billetPdf(
+  Ticket t,
+  CompanySettings co,
+  PdfPageFormat format,
+) {
   final logo = pdfImage(co.logo);
-  return _document(format, (k, kv, bande) => ticketVoyage(t, co, logo, k, kv: kv));
+  return _document(
+    format,
+    (k, kv, bande) => ticketVoyage(t, co, logo, k, kv: kv),
+  );
 }
 
 /// Imprime le ticket client du colis : directement sur l'imprimante « clients » si elle est réglée
@@ -119,6 +130,7 @@ Future<void> imprimerRecu(
         'Ticket-${c.numero}',
         (format) => recuPdf(c, co, format),
         texte: (g, cols) => ticketColisTexte(g, cols, c, co),
+        logo: co.logo,
       )) {
     return;
   }
@@ -136,6 +148,7 @@ Future<void> imprimerEtiquette(Colis c, CompanySettings co) async {
     'Etiquette-${c.numero}',
     (format) => etiquettePdf(c, co, format),
     texte: (g, cols) => etiquetteTexte(g, cols, c, co),
+    logo: co.logo,
   )) {
     return;
   }
