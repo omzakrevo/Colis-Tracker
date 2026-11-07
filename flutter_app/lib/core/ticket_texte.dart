@@ -131,11 +131,31 @@ class _Doc {
     }
   }
 
+  /// Numéro de téléphone en double taille (lisible), précédé d'un libellé s'il tient sur la ligne.
+  void telGrand(String tel, {String libelle = ''}) {
+    final t = sansAccents(tel).trim();
+    if (t.isEmpty) return;
+    final avec = libelle.isEmpty ? t : '$libelle $t';
+    ligne(avec.length <= cols ~/ 2 ? avec : t, taille: PosTextSize.size2);
+  }
+
+  /// Mention personnalisée de l'entreprise, en bas du ticket.
+  void mention(CompanySettings co) {
+    if (co.mentionTicket.trim().isEmpty) return;
+    centre(co.mentionTicket.trim());
+  }
+
   void entete(CompanySettings co, String activite) {
     nomGrand(co.nom);
     centre(activite);
     if (co.slogan.isNotEmpty) centre(co.slogan, gras: false);
-    if (co.telephone.isNotEmpty) centre('Tel : ${co.telephone}');
+    if (co.telephone.isNotEmpty) {
+      final t = sansAccents(co.telephone).trim();
+      centre(
+        ('Tel : $t').length <= cols ~/ 2 ? 'Tel : $t' : t,
+        taille: PosTextSize.size2,
+      );
+    }
     trait();
   }
 
@@ -200,6 +220,7 @@ List<int> ticketVoyageTexte(
   );
   d.trait();
   d.centre('MERCI ET BON VOYAGE !');
+  d.mention(co);
 });
 
 /// Ticket remis à l'expéditeur lors de l'enregistrement d'un colis.
@@ -216,8 +237,10 @@ List<int> ticketColisTexte(
   d.champ('DATE', dateFr(c.dateEnvoi));
   d.champ('DEPART', c.gareDepartNom ?? '-');
   d.champ('ARRIVEE', c.gareArriveeNom ?? '-');
-  d.champ('EXPEDITEUR', '${c.expediteurNom}\n${c.expediteurTelephone}');
-  d.champ('DESTINATAIRE', '${c.destinataireNom}\n${c.destinataireTelephone}');
+  d.champ('EXPEDITEUR', c.expediteurNom);
+  d.telGrand(c.expediteurTelephone);
+  d.champ('DESTINATAIRE', c.destinataireNom);
+  d.telGrand(c.destinataireTelephone);
   d.champ(
     'COLIS',
     '${c.nombre} x ${c.description}${c.poids != null ? ' (${c.poids} kg)' : ''}',
@@ -235,6 +258,7 @@ List<int> ticketColisTexte(
   );
   d.trait();
   d.centre('MERCI DE VOTRE CONFIANCE !');
+  d.mention(co);
 });
 
 /// Étiquette à coller sur le colis (sans prix) : destination en grand.
@@ -246,11 +270,10 @@ List<int> etiquetteTexte(Generator g, int cols, Colis c, CompanySettings co) =>
       d.centre(c.gareArriveeNom ?? '-', taille: PosTextSize.size2);
       d.centre('DE : ${c.gareDepartNom ?? '-'}');
       d.trait();
-      d.champ(
-        'DESTINATAIRE',
-        '${c.destinataireNom}\n${c.destinataireTelephone}',
-      );
-      d.champ('EXPEDITEUR', '${c.expediteurNom}\n${c.expediteurTelephone}');
+      d.champ('DESTINATAIRE', c.destinataireNom);
+      d.telGrand(c.destinataireTelephone);
+      d.champ('EXPEDITEUR', c.expediteurNom);
+      d.telGrand(c.expediteurTelephone);
       d.champ('COLIS', '${c.nombre} x ${c.description}');
       d.champ('DATE', dateFr(c.dateEnvoi));
       d.trait();

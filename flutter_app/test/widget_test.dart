@@ -29,7 +29,10 @@ void testsIdentifiant() {
   test('identifiant : téléphone ou nom', () {
     expect(normaliserIdentifiant('+226 70 11-22.33'), '22670112233');
     expect(normaliserIdentifiant('  Admin '), 'admin');
-    expect(emailDepuisIdentifiant('+226 70 11 22 33'), '22670112233@vipcolis.app');
+    expect(
+      emailDepuisIdentifiant('+226 70 11 22 33'),
+      '22670112233@vipcolis.app',
+    );
     expect(estTelephone('70112233'), isTrue);
     expect(estTelephone('12'), isFalse);
     expect(estErreurReseau(Exception('Failed host lookup: x')), isTrue);

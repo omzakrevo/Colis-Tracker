@@ -30,10 +30,12 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
       'adresse',
       'ville',
       'pays',
+      'mention',
     ])
       k: TextEditingController(),
   };
   String? _logo;
+  String _mentionInitiale = '';
   bool _loaded = false, _saving = false;
 
   @override
@@ -54,6 +56,8 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
     _c['adresse']!.text = s.adresse;
     _c['ville']!.text = s.ville;
     _c['pays']!.text = s.pays;
+    _c['mention']!.text = s.mentionTicket;
+    _mentionInitiale = s.mentionTicket;
     _logo = s.logo;
   }
 
@@ -79,11 +83,29 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
       final cid = ref.read(profilProvider).value?.companyId;
       if (cid == null) throw 'Entreprise introuvable';
       await Repo.saveSettings(cid, {
-        for (final e in _c.entries) e.key: e.value.text.trim(),
+        for (final e in _c.entries)
+          if (e.key != 'mention') e.key: e.value.text.trim(),
         'logo': _logo,
       });
+      // La mention est enregistrée à part : si la migration 32 n'est pas encore installée, le reste est sauvegardé quand même.
+      final mention = _c['mention']!.text.trim();
+      String? alerte;
+      if (mention != _mentionInitiale) {
+        try {
+          await Repo.saveSettings(cid, {'mention_ticket': mention});
+          _mentionInitiale = mention;
+        } catch (_) {
+          alerte = 'Mention non enregistrée : installez d\'abord la migration 32 (installation_complete.sql) sur le serveur.';
+        }
+      }
       ref.invalidate(settingsProvider);
-      if (mounted) toast(context, 'Paramètres enregistrés');
+      if (mounted) {
+        toast(
+          context,
+          alerte ?? 'Paramètres enregistrés',
+          error: alerte != null,
+        );
+      }
     } catch (e) {
       if (mounted) toast(context, errMsg(e), error: true);
     } finally {
@@ -184,6 +206,20 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
                 ],
               ),
             ).reveal(1),
+            const SizedBox(height: 14),
+            SectionCard(
+              title: 'Mention sur les tickets',
+              icon: Icons.notes_rounded,
+              child: TextField(
+                controller: _c['mention'],
+                maxLines: 3,
+                maxLength: 160,
+                decoration: const InputDecoration(
+                  labelText: 'Texte imprimé en bas des tickets',
+                  hintText: 'Ex. : Bagages sous la responsabilité du voyageur',
+                ),
+              ),
+            ).reveal(2),
             const SizedBox(height: 18),
             FilledButton.icon(
               onPressed: _saving ? null : _save,

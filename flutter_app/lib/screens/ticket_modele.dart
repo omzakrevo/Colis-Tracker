@@ -126,7 +126,7 @@ class _Modele {
       ? pw.SizedBox()
       : pw.Padding(
           padding: pw.EdgeInsets.only(top: v(2)),
-          child: pw.Center(child: texte('Tél. : ${co.telephone}', 9)),
+          child: pw.Center(child: texte('Tél. : ${co.telephone}', 15)),
         );
 
   pw.Widget titre(String s, String numero, {String? note}) => pw.Column(
@@ -145,6 +145,7 @@ class _Modele {
     String libelle,
     String valeur, {
     double taille = 11,
+    String? tel,
   }) => pw.Padding(
     padding: pw.EdgeInsets.symmetric(vertical: v(2.2)),
     child: pw.Row(
@@ -161,7 +162,14 @@ class _Modele {
           child: texte(libelle, libelle.length >= 11 ? taille * .8 : taille),
         ),
         pw.SizedBox(width: f(6), child: texte(':', taille)),
-        pw.Expanded(child: texte(valeur, taille)),
+        pw.Expanded(
+          child: tel == null || tel.isEmpty
+              ? texte(valeur, taille)
+              : pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [texte(valeur, taille), texte(tel, 17)],
+                ),
+        ),
       ],
     ),
   );
@@ -187,14 +195,19 @@ class _Modele {
     ),
   );
 
-  pw.Widget pied(String message, {String? consigne}) => pw.Column(
-    children: [
-      if (consigne != null)
-        texte(consigne, 8.5, gras: true, align: pw.TextAlign.center),
-      trait(),
-      centreAjuste(message, 15),
-    ],
-  );
+  pw.Widget pied(String message, {String? consigne, String mention = ''}) =>
+      pw.Column(
+        children: [
+          if (consigne != null)
+            texte(consigne, 8.5, gras: true, align: pw.TextAlign.center),
+          trait(),
+          centreAjuste(message, 15),
+          if (mention.trim().isNotEmpty) ...[
+            pw.SizedBox(height: v(4)),
+            texte(mention.trim(), 11, align: pw.TextAlign.center),
+          ],
+        ],
+      );
 }
 
 /// Ticket de voyage (billet de transport).
@@ -252,7 +265,7 @@ pw.Widget ticketVoyage(
         gras: true,
         align: pw.TextAlign.center,
       ),
-      m.pied('MERCI ET BON VOYAGE !'),
+      m.pied('MERCI ET BON VOYAGE !', mention: co.mentionTicket),
     ],
   );
 }
@@ -289,12 +302,14 @@ pw.Widget ticketColisClient(
       m.ligne(
         _svgPersonne,
         'EXPÉDITEUR',
-        '${c.expediteurNom.toUpperCase()}\n${c.expediteurTelephone}',
+        c.expediteurNom.toUpperCase(),
+        tel: c.expediteurTelephone,
       ),
       m.ligne(
         _svgPersonne,
         'DESTINATAIRE',
-        '${c.destinataireNom.toUpperCase()}\n${c.destinataireTelephone}',
+        c.destinataireNom.toUpperCase(),
+        tel: c.destinataireTelephone,
       ),
       m.ligne(
         _svgColis,
@@ -327,7 +342,7 @@ pw.Widget ticketColisClient(
         gras: true,
         align: pw.TextAlign.center,
       ),
-      m.pied('MERCI DE VOTRE CONFIANCE !'),
+      m.pied('MERCI DE VOTRE CONFIANCE !', mention: co.mentionTicket),
     ],
   );
 }
@@ -360,12 +375,14 @@ pw.Widget etiquetteColis(
       m.ligne(
         _svgPersonne,
         'DESTINATAIRE',
-        '${c.destinataireNom.toUpperCase()}\n${c.destinataireTelephone}',
+        c.destinataireNom.toUpperCase(),
+        tel: c.destinataireTelephone,
       ),
       m.ligne(
         _svgPersonne,
         'EXPÉDITEUR',
-        '${c.expediteurNom.toUpperCase()}\n${c.expediteurTelephone}',
+        c.expediteurNom.toUpperCase(),
+        tel: c.expediteurTelephone,
       ),
       m.ligne(_svgColis, 'COLIS', '${c.nombre} × ${c.description}'),
       m.ligne(_svgCalendrier, 'DATE', dateFr(c.dateEnvoi)),

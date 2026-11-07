@@ -602,6 +602,7 @@ class CompanySettings {
     this.clotureMontants = false,
     this.fideliteActif = true,
     this.fideliteSeuil = 10,
+    this.mentionTicket = '',
   });
 
   final String nom, slogan, telephone, email, adresse, ville, pays;
@@ -613,6 +614,9 @@ class CompanySettings {
   /// Fidélité : après [fideliteSeuil] voyages payés par la même personne, le voyage suivant est gratuit.
   final bool fideliteActif;
   final int fideliteSeuil;
+
+  /// Mention personnalisée imprimée en bas des tickets (voyage et colis).
+  final String mentionTicket;
 
   factory CompanySettings.fromJson(Map<String, dynamic> j) => CompanySettings(
     nom: j['nom'] as String,
@@ -626,6 +630,7 @@ class CompanySettings {
     clotureMontants: j['cloture_montants'] as bool? ?? false,
     fideliteActif: j['fidelite_actif'] as bool? ?? true,
     fideliteSeuil: (j['fidelite_seuil'] as num?)?.toInt() ?? 10,
+    mentionTicket: j['mention_ticket'] as String? ?? '',
   );
 
   Map<String, dynamic> toJson() => {
@@ -640,6 +645,7 @@ class CompanySettings {
     'cloture_montants': clotureMontants,
     'fidelite_actif': fideliteActif,
     'fidelite_seuil': fideliteSeuil,
+    'mention_ticket': mentionTicket,
   };
 
   static CompanySettings get defaults => CompanySettings(

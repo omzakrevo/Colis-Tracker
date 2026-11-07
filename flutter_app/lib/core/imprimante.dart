@@ -180,9 +180,12 @@ img.Image? logoVersImage(String? dataUrl, int points, int seuil) {
     if (largeur / source.width * source.height > points * .4) {
       largeur = (points * .4 / source.height * source.width).round();
     }
+    // La bibliothèque ESC/POS échoue (« Cannot add to a fixed-length list ») si la largeur n'est pas un multiple de 8.
+    largeur = (largeur ~/ 8) * 8;
+    if (largeur < 16) largeur = 16;
     final reduit = img.copyResize(
       source,
-      width: largeur < 16 ? 16 : largeur,
+      width: largeur,
       interpolation: img.Interpolation.average,
     );
     return versNoirEtBlanc(reduit, seuil: seuil);
