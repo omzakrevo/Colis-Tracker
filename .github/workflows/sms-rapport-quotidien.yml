@@ -1,0 +1,27 @@
+name: SMS rapport quotidien
+
+# Déclenche l'envoi du SMS de recettes quotidien (une fois par jour et par entreprise, à l'heure choisie dans l'application).
+# À utiliser SEULEMENT si pg_cron n'est pas disponible sur votre serveur Supabase (la migration l'active si elle le peut).
+# Secrets requis (les mêmes que pour la publication de l'APK) : SUPABASE_URL (sans /rest/v1) et SUPABASE_SERVICE_KEY.
+# Sans ces secrets, cette tâche ne fait rien.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Envoi du rapport s'il est l'heure
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_KEY" ]; then
+            echo "Secrets SUPABASE_URL / SUPABASE_SERVICE_KEY absents : rien à faire."
+            exit 0
+          fi
+          curl -sS --fail-with-body -X POST "${SUPABASE_URL%/}/rest/v1/rpc/sms_rapport_tick" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" -H "apikey: $SUPABASE_SERVICE_KEY" \
+            -H "Content-Type: application/json" -d '{}'

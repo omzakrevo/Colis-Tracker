@@ -34,7 +34,7 @@ jobs:
           cache: true
       - run: flutter pub get
       - name: Construire le web
-        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/" --no-web-resources-cdn
       - uses: actions/upload-artifact@v4
         with:
           name: vip-colis-web

@@ -1,7 +1,16 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Clé de signature stable : sans elle, chaque compilation est signée avec une clé différente et Android refuse
+// de mettre à jour l'application déjà installée (« incompatible »). Fournie par le workflow GitHub (secrets).
+val cleProps = Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
 }
 
 android {
@@ -10,6 +19,8 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // Requis par le plugin de mise à jour intégrée (ota_update).
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -29,13 +40,28 @@ android {
         versionName = flutter.versionName
     }
 
-    buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+    signingConfigs {
+        create("tchi") {
+            if (cleProps.getProperty("storeFile") != null) {
+                storeFile = rootProject.file(cleProps.getProperty("storeFile"))
+                storePassword = cleProps.getProperty("storePassword")
+                keyAlias = cleProps.getProperty("keyAlias")
+                keyPassword = cleProps.getProperty("keyPassword")
+            }
         }
     }
+
+    buildTypes {
+        release {
+            // Clé stable si fournie, sinon clé de debug (compilation locale).
+            signingConfig = if (cleProps.getProperty("storeFile") != null)
+                signingConfigs.getByName("tchi") else signingConfigs.getByName("debug")
+        }
+    }
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 kotlin {

@@ -1,0 +1,348 @@
+import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
+
+import '../data/journal.dart';
+import '../data/models.dart';
+import 'format.dart';
+
+/// Tickets en TEXTE ESC/POS : quelques centaines d'octets seulement, imprimés avec les polices et le QR code
+/// de l'imprimante elle-même. C'est le mode le plus fiable sur les petites imprimantes Bluetooth, qui n'arrivent
+/// pas à recevoir une image assez vite (bandes blanches, lignes coupées). Pas d'accents ni de pictogrammes.
+
+/// Texte sans accents ni caractères spéciaux (les polices d'imprimante n'ont pas tous les accents).
+String sansAccents(String s) {
+  const de = 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿÀÂÄÁÃÅÇÉÈÊËÍÌÎÏÑÓÒÔÖÕÚÙÛÜÝœŒ';
+  const vers = 'aaaaaaceeeeiiiinooooouuuuyyAAAAAACEEEEIIIINOOOOOUUUUYoO';
+  final b = StringBuffer();
+  for (final r in s.runes) {
+    final c = String.fromCharCode(r);
+    final i = de.indexOf(c);
+    if (i >= 0) {
+      b.write(vers[i]);
+    } else if (r == 0x2019 || r == 0x2018) {
+      b.write("'");
+    } else if (r == 0x2013 || r == 0x2014) {
+      b.write('-');
+    } else if (r == 0xA0 || r == 0x202F || r == 0x2009) {
+      b.write(' ');
+    } else if (r == 0xD7) {
+      b.write('x');
+    } else if (r == 0xB0) {
+      b.write('o');
+    } else if (r < 32 || r > 126) {
+      b.write('');
+    } else {
+      b.write(c);
+    }
+  }
+  return b.toString();
+}
+
+String _fcfa(double v) => sansAccents(fcfa(v)).replaceAll('FCFA', 'F CFA');
+
+/// Coupe un texte en lignes de `largeur` caractères au plus (à l'espace si possible).
+List<String> _lignes(String texte, int largeur) {
+  final sortie = <String>[];
+  for (final bloc in texte.split('\n')) {
+    var reste = bloc.trim();
+    if (reste.isEmpty) continue;
+    while (reste.length > largeur) {
+      var coupe = reste.lastIndexOf(' ', largeur);
+      if (coupe <= 0) coupe = largeur;
+      sortie.add(reste.substring(0, coupe).trimRight());
+      reste = reste.substring(coupe).trimLeft();
+    }
+    sortie.add(reste);
+  }
+  return sortie;
+}
+
+class _Doc {
+  _Doc(this.g, this.cols);
+  final Generator g;
+  final int cols;
+  final List<int> octets = [];
+
+  void ligne(
+    String s, {
+    bool gras = true,
+    PosAlign align = PosAlign.left,
+    PosTextSize taille = PosTextSize.size1,
+  }) {
+    // En double (triple…) largeur, une ligne contient deux (trois…) fois moins de caractères.
+    final largeur = cols ~/ taille.value;
+    for (final l in _lignes(sansAccents(s), largeur)) {
+      octets.addAll(
+        g.text(
+          l,
+          styles: PosStyles(
+            bold: gras,
+            align: align,
+            width: taille,
+            height: taille,
+          ),
+        ),
+      );
+    }
+  }
+
+  void centre(
+    String s, {
+    bool gras = true,
+    PosTextSize taille = PosTextSize.size1,
+  }) => ligne(s, gras: gras, align: PosAlign.center, taille: taille);
+
+  void trait() => octets.addAll(g.hr(ch: '-'));
+
+  void vide([int n = 1]) => octets.addAll(g.emptyLines(n));
+
+  /// « LIBELLE : valeur » ; la valeur passe à la ligne, légèrement décalée, si elle est trop longue.
+  void champ(String libelle, String valeur) {
+    final prefixe = '${sansAccents(libelle)} : ';
+    final largeur = cols - prefixe.length;
+    final l = _lignes(sansAccents(valeur), largeur < 8 ? cols : largeur);
+    if (l.isEmpty) return;
+    if (largeur < 8) {
+      ligne(prefixe.trimRight());
+      for (final x in l) {
+        ligne('  $x');
+      }
+      return;
+    }
+    ligne('$prefixe${l.first}');
+    for (final x in l.skip(1)) {
+      ligne('${' ' * prefixe.length}$x');
+    }
+  }
+
+  /// Nom de l'entreprise le plus grand possible : triple taille s'il est court, sinon double taille
+  /// sur plusieurs lignes (un mot par ligne si besoin) plutôt que petit sur une seule.
+  void nomGrand(String nom) {
+    final n = sansAccents(nom).toUpperCase().trim();
+    if (n.isEmpty) return;
+    if (n.length <= cols ~/ 3) {
+      centre(n, taille: PosTextSize.size3);
+      return;
+    }
+    for (final l in _lignes(n, cols ~/ 2)) {
+      centre(
+        l,
+        taille: l.length <= cols ~/ 2 ? PosTextSize.size2 : PosTextSize.size1,
+      );
+    }
+  }
+
+  /// Numéro de téléphone en double taille (lisible), précédé d'un libellé s'il tient sur la ligne.
+  void telGrand(String tel, {String libelle = ''}) {
+    final t = sansAccents(tel).trim();
+    if (t.isEmpty) return;
+    final avec = libelle.isEmpty ? t : '$libelle $t';
+    ligne(avec.length <= cols ~/ 2 ? avec : t, taille: PosTextSize.size2);
+  }
+
+  /// Mention personnalisée de l'entreprise, en bas du ticket.
+  void mention(CompanySettings co) {
+    if (co.mentionTicket.trim().isEmpty) return;
+    centre(co.mentionTicket.trim());
+  }
+
+  void entete(CompanySettings co, String activite) {
+    nomGrand(co.nom);
+    centre(activite);
+    if (co.slogan.isNotEmpty) centre(co.slogan, gras: false);
+    if (co.telephone.isNotEmpty) {
+      final t = sansAccents(co.telephone).trim();
+      centre(
+        ('Tel : $t').length <= cols ~/ 2 ? 'Tel : $t' : t,
+        taille: PosTextSize.size2,
+      );
+    }
+    trait();
+  }
+
+  void prix(double montant) {
+    centre('PRIX PAYE');
+    centre(_fcfa(montant), taille: PosTextSize.size2);
+    trait();
+  }
+
+  void qr(String donnees, {QRSize taille = QRSize.size6}) {
+    octets.addAll(g.qrcode(donnees, size: taille));
+    centre(donnees, taille: PosTextSize.size1);
+  }
+}
+
+List<int> _doc(Generator g, int cols, void Function(_Doc d) corps) {
+  final d = _Doc(g, cols);
+  corps(d);
+  d.octets.addAll(g.feed(4));
+  return d.octets;
+}
+
+/// Ticket de voyage.
+List<int> ticketVoyageTexte(
+  Generator g,
+  int cols,
+  Ticket t,
+  CompanySettings co,
+) => _doc(g, cols, (d) {
+  d.entete(co, 'TRANSPORT DE VOYAGEURS');
+  d.centre(
+    t.annule ? 'TICKET ANNULE' : 'TICKET DE VOYAGE',
+    taille: PosTextSize.size2,
+  );
+  d.centre('N° ${t.numero}');
+  d.trait();
+  d.champ('DATE', dateFr(t.dateVoyage));
+  d.champ('DEPART', t.gareDepartNom ?? '-');
+  d.champ('ARRIVEE', t.gareArriveeNom ?? '-');
+  if ((t.heureDepart ?? '').isNotEmpty)
+    d.champ('HEURE', t.heureDepart!.replaceFirst(':', 'H'));
+  if ((t.siege ?? '').isNotEmpty) d.champ('SIEGE', t.siege!);
+  d.champ('PASSAGER', t.clientNom);
+  if ((t.vendeurNom ?? '').isNotEmpty) d.champ('AGENT', t.vendeurNom!);
+  d.champ(
+    'PAIEMENT',
+    t.gratuit ? 'GRATUIT (FIDELITE)' : libelleModePaiement(t.modePaiement),
+  );
+  d.trait();
+  if (t.gratuit) {
+    d.centre('VOYAGE GRATUIT', taille: PosTextSize.size2);
+    d.centre('Merci pour votre fidelite !');
+    d.trait();
+  } else {
+    d.prix(t.prix);
+  }
+  d.qr(t.numero);
+  d.ligne(
+    'Scannez ce QR code pour verifier le ticket a l\'embarquement.',
+    gras: false,
+    align: PosAlign.center,
+  );
+  d.trait();
+  d.centre('MERCI ET BON VOYAGE !');
+  d.mention(co);
+});
+
+/// Ticket remis à l'expéditeur lors de l'enregistrement d'un colis.
+List<int> ticketColisTexte(
+  Generator g,
+  int cols,
+  Colis c,
+  CompanySettings co,
+) => _doc(g, cols, (d) {
+  d.entete(co, 'TRANSPORT DE COLIS');
+  d.centre('TICKET DE COLIS', taille: PosTextSize.size2);
+  d.centre('N° ${c.numero}');
+  d.trait();
+  d.champ('DATE', dateFr(c.dateEnvoi));
+  d.champ('DEPART', c.gareDepartNom ?? '-');
+  d.champ('ARRIVEE', c.gareArriveeNom ?? '-');
+  d.champ('EXPEDITEUR', c.expediteurNom);
+  d.telGrand(c.expediteurTelephone);
+  d.champ('DESTINATAIRE', c.destinataireNom);
+  d.telGrand(c.destinataireTelephone);
+  d.champ(
+    'COLIS',
+    '${c.nombre} x ${c.description}${c.poids != null ? ' (${c.poids} kg)' : ''}',
+  );
+  if (c.valeur != null) d.champ('VALEUR', _fcfa(c.valeur!));
+  if ((c.agentNom ?? '').isNotEmpty) d.champ('AGENT', c.agentNom!);
+  d.champ('PAIEMENT', libelleModePaiement(c.modePaiement));
+  d.trait();
+  d.prix(c.prix);
+  d.qr(c.numero);
+  d.ligne(
+    'Conservez ce ticket : il sera demande pour le retrait du colis.',
+    gras: false,
+    align: PosAlign.center,
+  );
+  d.trait();
+  d.centre('MERCI DE VOTRE CONFIANCE !');
+  d.mention(co);
+});
+
+/// Étiquette à coller sur le colis (sans prix) : destination en grand.
+List<int> etiquetteTexte(Generator g, int cols, Colis c, CompanySettings co) =>
+    _doc(g, cols, (d) {
+      d.nomGrand(co.nom);
+      d.trait();
+      d.centre('DESTINATION');
+      d.centre(c.gareArriveeNom ?? '-', taille: PosTextSize.size2);
+      d.centre('DE : ${c.gareDepartNom ?? '-'}');
+      d.trait();
+      d.champ('DESTINATAIRE', c.destinataireNom);
+      d.telGrand(c.destinataireTelephone);
+      d.champ('EXPEDITEUR', c.expediteurNom);
+      d.telGrand(c.expediteurTelephone);
+      d.champ('COLIS', '${c.nombre} x ${c.description}');
+      d.champ('DATE', dateFr(c.dateEnvoi));
+      d.trait();
+      d.qr(c.numero);
+    });
+
+/// Ticket d'essai.
+List<int> testTexte(
+  Generator g,
+  int cols,
+  CompanySettings co,
+  String role,
+  String imprimante,
+) => _doc(g, cols, (d) {
+  d.nomGrand(co.nom);
+  d.centre('TEST - ${role.toUpperCase()}');
+  d.trait();
+  d.qr('TCHI-TEST');
+  d.centre('Imprimante : $imprimante');
+});
+
+/// Rapport de fin de journée d'une personne (billets vendus, colis enregistrés, colis réceptionnés).
+/// `montants` : affiche les prix et les totaux par mode de paiement (choix de l'administrateur).
+List<int> clotureTexte(
+  Generator g,
+  int cols,
+  CompanySettings co, {
+  required String nom,
+  required DateTime jour,
+  required List<JournalLigne> lignes,
+  required bool montants,
+}) => _doc(g, cols, (d) {
+  final t = JournalTotaux(lignes);
+  d.entete(co, 'RAPPORT DE FIN DE JOURNEE');
+  d.champ('AGENT', nom);
+  d.champ('DATE', dateFr(jour));
+  d.trait();
+  if (lignes.isEmpty) d.centre('Aucune operation ce jour');
+  for (final l in lignes) {
+    final h =
+        '${l.quand.hour.toString().padLeft(2, '0')}:${l.quand.minute.toString().padLeft(2, '0')}';
+    final genre = switch (l.type) {
+      'billet' => 'BILLET',
+      'colis_envoye' => 'COLIS ENVOYE',
+      _ => 'COLIS RECU',
+    };
+    d.ligne('$h $genre ${l.numero}');
+    d.ligne('  ${l.libelle}', gras: false);
+    if (montants && l.encaisse)
+      d.ligne(
+        '  ${_fcfa(l.montant!)} - ${libelleModePaiement(l.modePaiement)}',
+        gras: false,
+      );
+  }
+  d.trait();
+  d.champ('BILLETS VENDUS', '${t.billets}');
+  d.champ('COLIS ENVOYES', '${t.colisEnvoyes}');
+  d.champ('COLIS RECUS', '${t.colisRecus}');
+  if (montants) {
+    d.trait();
+    d.champ('BILLETS', _fcfa(t.montantBillets));
+    d.champ('COLIS', _fcfa(t.montantColis));
+    d.champ('ESPECES', _fcfa(t.especes));
+    d.champ('ORANGE MONEY', _fcfa(t.orangeMoney));
+    d.centre('TOTAL');
+    d.centre(_fcfa(t.total), taille: PosTextSize.size2);
+  }
+  d.trait();
+  d.vide(2);
+  d.ligne('Signature :');
+  d.vide(2);
+});

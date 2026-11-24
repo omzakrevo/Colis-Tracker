@@ -56,8 +56,43 @@ class Profil {
   /// Super administrateur de la plateforme.
   bool get isSuper => role == 'superadmin';
 
+  /// Comptable : voit les rapports et tout le financier, sans créer ni scanner.
+  bool get isComptable => role == 'comptable';
+
+  /// Voit toutes les données de l'entreprise (administrateur ou comptable).
+  bool get voitToutLeReseau => isAdmin || isComptable;
+
+  /// Rapports de tout le périmètre (administrateur, comptable, chef de gare) ; les autres ne voient que les leurs.
+  bool get voitRapportsGlobaux => isAdmin || isComptable || role == 'chef_gare';
+
   /// Barragiste : ne peut que scanner (embarquement / déchargement).
   bool get isBarragiste => role == 'barragiste';
+
+  /// Guichet : travaille dans une gare (colis) et vend les billets de cette gare.
+  bool get isGuichet => role == 'guichet';
+
+  /// Convoyeur : vend des billets à bord et scanne les colis ; aucun accès aux données des clients.
+  bool get isConvoyeur => role == 'convoyeur';
+
+  /// Ne fait que scanner (modes embarquement / déchargement, sans consultation).
+  bool get scanRestreint => isBarragiste || isConvoyeur;
+
+  /// Peut créer des billets de transport.
+  bool get peutVendreBillets => isAdmin || isGuichet || isConvoyeur;
+
+  /// Peut consulter la liste des billets (vendeurs, administrateur et chef de gare).
+  bool get voitBillets => peutVendreBillets || role == 'chef_gare';
+
+  /// Accède aux écrans de colis (liste, saisie, recherche, rapports).
+  /// Vérifie les billets à l'embarquement (facultatif).
+  bool get peutVerifierBillets =>
+      isAdmin ||
+      isGuichet ||
+      isConvoyeur ||
+      role == 'chef_gare' ||
+      role == 'agent';
+
+  bool get voitColis => !isSuper && !scanRestreint && !isComptable;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -99,7 +134,11 @@ class Company {
     this.adminNom,
     this.adminIdentifiant,
     this.statutEffectif,
+    this.moduleFinance = false,
   });
+
+  /// Module Comptabilité ouvert pour cette entreprise (réglé par le super administrateur).
+  final bool moduleFinance;
 
   final int id, maxUtilisateurs;
   final String nom, statut, plan;
@@ -122,6 +161,7 @@ class Company {
     'statut': statut,
     'plan': plan,
     'max_utilisateurs': maxUtilisateurs,
+    'module_finance': moduleFinance,
     'created_at': createdAt.toIso8601String(),
     'telephone': telephone,
     'ville': ville,
@@ -148,6 +188,7 @@ class Company {
     adminNom: j['admin_nom'] as String?,
     adminIdentifiant: j['admin_identifiant'] as String?,
     statutEffectif: j['statut_effectif'] as String?,
+    moduleFinance: j['module_finance'] as bool? ?? false,
   );
 }
 
@@ -190,7 +231,11 @@ class Colis {
     this.gareDepartNom,
     this.gareArriveeNom,
     this.poids,
+    this.valeur,
+    this.billetNumero,
+    this.modePaiement = 'especes',
     this.agentNom,
+    this.agentId,
     this.retraitNom,
     this.retraitTelephone,
     this.retraitPieceIdentite,
@@ -211,10 +256,19 @@ class Colis {
   final int id, gareDepartId, gareArriveeId, nombre;
   final String numero, expediteurNom, expediteurTelephone;
   final String destinataireNom, destinataireTelephone, description, statut;
-  final String? gareDepartNom, gareArriveeNom, agentNom;
+  final String? gareDepartNom, gareArriveeNom, agentNom, agentId;
   final String? retraitNom, retraitTelephone, retraitPieceIdentite;
   final String? retraitSignature, photo, notes;
   final double? poids;
+
+  /// Valeur déclarée du colis (FCFA).
+  final double? valeur;
+
+  /// Numéro du billet de voyage auquel le colis est rattaché.
+  final String? billetNumero;
+
+  /// 'especes' ou 'orange_money'.
+  final String modePaiement;
   final double prix;
   final DateTime dateEnvoi, createdAt;
   final DateTime? retraitDate;
@@ -233,10 +287,14 @@ class Colis {
     description: j['description'] as String,
     nombre: j['nombre'] as int,
     poids: j['poids'] == null ? null : _d(j['poids']),
+    valeur: j['valeur'] == null ? null : _d(j['valeur']),
+    billetNumero: j['billet_numero'] as String?,
+    modePaiement: (j['mode_paiement'] as String?) ?? 'especes',
     prix: _d(j['prix']),
     statut: j['statut'] as String,
     dateEnvoi: DateTime.parse(j['date_envoi'] as String),
     agentNom: j['agent_nom'] as String?,
+    agentId: j['agent_id'] as String?,
     retraitNom: j['retrait_nom'] as String?,
     retraitTelephone: j['retrait_telephone'] as String?,
     retraitPieceIdentite: j['retrait_piece_identite'] as String?,
@@ -267,10 +325,14 @@ class Colis {
     'description': description,
     'nombre': nombre,
     'poids': poids,
+    'valeur': valeur,
+    'billet_numero': billetNumero,
+    'mode_paiement': modePaiement,
     'prix': prix,
     'statut': statut,
     'date_envoi': dateEnvoi.toIso8601String(),
     'agent_nom': agentNom,
+    'agent_id': agentId,
     'retrait_nom': retraitNom,
     'retrait_telephone': retraitTelephone,
     'retrait_piece_identite': retraitPieceIdentite,
@@ -305,10 +367,14 @@ class Colis {
     description: description,
     nombre: nombre,
     poids: poids,
+    valeur: valeur,
+    billetNumero: billetNumero,
+    modePaiement: modePaiement,
     prix: prix,
     statut: statut ?? this.statut,
     dateEnvoi: dateEnvoi,
     agentNom: agentNom,
+    agentId: agentId,
     retraitNom: retraitNom ?? this.retraitNom,
     retraitTelephone: retraitTelephone ?? this.retraitTelephone,
     retraitPieceIdentite: retraitPieceIdentite ?? this.retraitPieceIdentite,
@@ -320,6 +386,176 @@ class Colis {
     enAttente: enAttente ?? this.enAttente,
     clientRef: clientRef,
   );
+}
+
+/// Billet de transport vendu à un passager.
+class Ticket {
+  Ticket({
+    required this.id,
+    required this.numero,
+    required this.clientNom,
+    required this.clientTelephone,
+    required this.gareDepartId,
+    required this.gareArriveeId,
+    required this.dateVoyage,
+    required this.prix,
+    required this.statut,
+    required this.createdAt,
+    this.gareDepartNom,
+    this.gareArriveeNom,
+    this.heureDepart,
+    this.siege,
+    this.vendeurNom,
+    this.vendeurId,
+    this.notes,
+    this.modePaiement = 'especes',
+    this.gratuit = false,
+    this.clientRef,
+    this.enAttente = false,
+  });
+
+  final int id, gareDepartId, gareArriveeId;
+  final String numero, clientNom, clientTelephone, statut;
+  final String? gareDepartNom,
+      gareArriveeNom,
+      heureDepart,
+      siege,
+      vendeurNom,
+      vendeurId,
+      notes;
+  final DateTime dateVoyage, createdAt;
+  final double prix;
+
+  /// 'especes' ou 'orange_money'.
+  final String modePaiement;
+
+  /// Voyage offert (récompense de fidélité) : prix 0.
+  final bool gratuit;
+
+  /// Identifiant client d'un billet créé hors ligne (numéro provisoire LOC-…).
+  final String? clientRef;
+
+  /// Créé hors connexion, pas encore envoyé au serveur.
+  final bool enAttente;
+
+  bool get annule => statut == 'annule';
+
+  factory Ticket.fromJson(Map<String, dynamic> j) => Ticket(
+    id: j['id'] as int,
+    numero: j['numero'] as String,
+    clientNom: j['client_nom'] as String,
+    clientTelephone: j['client_telephone'] as String,
+    gareDepartId: j['gare_depart_id'] as int,
+    gareArriveeId: j['gare_arrivee_id'] as int,
+    gareDepartNom: j['gare_depart_nom'] as String?,
+    gareArriveeNom: j['gare_arrivee_nom'] as String?,
+    dateVoyage: DateTime.parse(j['date_voyage'] as String),
+    heureDepart: j['heure_depart'] as String?,
+    siege: j['siege'] as String?,
+    prix: _d(j['prix']),
+    statut: (j['statut'] as String?) ?? 'emis',
+    vendeurNom: j['vendeur_nom'] as String?,
+    vendeurId: j['vendeur_id'] as String?,
+    notes: j['notes'] as String?,
+    modePaiement: (j['mode_paiement'] as String?) ?? 'especes',
+    gratuit: j['gratuit'] as bool? ?? false,
+    createdAt: DateTime.parse(j['created_at'] as String),
+    clientRef: j['client_ref'] as String?,
+    enAttente: j['en_attente'] as bool? ?? false,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'numero': numero,
+    'client_nom': clientNom,
+    'client_telephone': clientTelephone,
+    'gare_depart_id': gareDepartId,
+    'gare_arrivee_id': gareArriveeId,
+    'gare_depart_nom': gareDepartNom,
+    'gare_arrivee_nom': gareArriveeNom,
+    'date_voyage': dateVoyage.toIso8601String(),
+    'heure_depart': heureDepart,
+    'siege': siege,
+    'prix': prix,
+    'statut': statut,
+    'vendeur_nom': vendeurNom,
+    'vendeur_id': vendeurId,
+    'notes': notes,
+    'mode_paiement': modePaiement,
+    'gratuit': gratuit,
+    'created_at': createdAt.toIso8601String(),
+    'client_ref': clientRef,
+    'en_attente': enAttente,
+  };
+
+  Ticket copyWith({String? statut, bool? enAttente}) => Ticket(
+    id: id,
+    numero: numero,
+    clientNom: clientNom,
+    clientTelephone: clientTelephone,
+    gareDepartId: gareDepartId,
+    gareArriveeId: gareArriveeId,
+    gareDepartNom: gareDepartNom,
+    gareArriveeNom: gareArriveeNom,
+    dateVoyage: dateVoyage,
+    heureDepart: heureDepart,
+    siege: siege,
+    prix: prix,
+    statut: statut ?? this.statut,
+    vendeurNom: vendeurNom,
+    vendeurId: vendeurId,
+    notes: notes,
+    modePaiement: modePaiement,
+    gratuit: gratuit,
+    createdAt: createdAt,
+    clientRef: clientRef,
+    enAttente: enAttente ?? this.enAttente,
+  );
+}
+
+/// Client déjà connu (retrouvé par téléphone ou par nom pendant la saisie).
+class ClientSuggestion {
+  ClientSuggestion({
+    required this.nom,
+    required this.telephone,
+    this.nbColis = 0,
+    this.nbTickets = 0,
+    this.dernierDepartId,
+    this.dernierArriveeId,
+  });
+
+  final String nom, telephone;
+  final int nbColis, nbTickets;
+  final int? dernierDepartId, dernierArriveeId;
+
+  factory ClientSuggestion.fromJson(Map<String, dynamic> j) => ClientSuggestion(
+    nom: j['nom'] as String,
+    telephone: j['telephone'] as String,
+    nbColis: (j['nb_colis'] as num?)?.toInt() ?? 0,
+    nbTickets: (j['nb_tickets'] as num?)?.toInt() ?? 0,
+    dernierDepartId: (j['dernier_depart_id'] as num?)?.toInt(),
+    dernierArriveeId: (j['dernier_arrivee_id'] as num?)?.toInt(),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'nom': nom,
+    'telephone': telephone,
+    'nb_colis': nbColis,
+    'nb_tickets': nbTickets,
+    'dernier_depart_id': dernierDepartId,
+    'dernier_arrivee_id': dernierArriveeId,
+  };
+
+  /// « 70 12 34 56 » (groupes de 2 chiffres).
+  String get telephoneAffiche {
+    final d = telephone;
+    final reste = d.length.isOdd ? d.substring(0, 1) : '';
+    final pairs = RegExp(r'..')
+        .allMatches(d.substring(reste.length))
+        .map((m) => m.group(0)!)
+        .toList();
+    return [if (reste.isNotEmpty) reste, ...pairs].join(' ');
+  }
 }
 
 class Historique {
@@ -363,10 +599,24 @@ class CompanySettings {
     required this.ville,
     required this.pays,
     this.logo,
+    this.clotureMontants = false,
+    this.fideliteActif = true,
+    this.fideliteSeuil = 10,
+    this.mentionTicket = '',
   });
 
   final String nom, slogan, telephone, email, adresse, ville, pays;
   final String? logo;
+
+  /// Le rapport de fin de journée des guichets affiche les montants (choix de l'administrateur).
+  final bool clotureMontants;
+
+  /// Fidélité : après [fideliteSeuil] voyages payés par la même personne, le voyage suivant est gratuit.
+  final bool fideliteActif;
+  final int fideliteSeuil;
+
+  /// Mention personnalisée imprimée en bas des tickets (voyage et colis).
+  final String mentionTicket;
 
   factory CompanySettings.fromJson(Map<String, dynamic> j) => CompanySettings(
     nom: j['nom'] as String,
@@ -377,6 +627,10 @@ class CompanySettings {
     ville: j['ville'] as String,
     pays: j['pays'] as String,
     logo: j['logo'] as String?,
+    clotureMontants: j['cloture_montants'] as bool? ?? false,
+    fideliteActif: j['fidelite_actif'] as bool? ?? true,
+    fideliteSeuil: (j['fidelite_seuil'] as num?)?.toInt() ?? 10,
+    mentionTicket: j['mention_ticket'] as String? ?? '',
   );
 
   Map<String, dynamic> toJson() => {
@@ -388,6 +642,10 @@ class CompanySettings {
     'ville': ville,
     'pays': pays,
     'logo': logo,
+    'cloture_montants': clotureMontants,
+    'fidelite_actif': fideliteActif,
+    'fidelite_seuil': fideliteSeuil,
+    'mention_ticket': mentionTicket,
   };
 
   static CompanySettings get defaults => CompanySettings(
@@ -449,5 +707,345 @@ class AppVersion {
     obligatoire: j['obligatoire'] as bool? ?? false,
     actif: j['actif'] as bool? ?? true,
     createdAt: DateTime.parse(j['created_at'] as String),
+  );
+}
+
+/// Configuration SMS SMSBUS de l'entreprise (le mot de passe n'est jamais renvoyé par le serveur).
+class SmsConfig {
+  SmsConfig({
+    this.actif = false,
+    this.username = '',
+    this.sender = '',
+    this.port = 7170,
+    this.indicatif = '226',
+    this.colisEnvoi = true,
+    this.colisArrive = true,
+    this.colisRetire = true,
+    this.billet = true,
+    this.tplEnvoiExp = '',
+    this.tplEnvoiDest = '',
+    this.tplArrive = '',
+    this.tplRetire = '',
+    this.tplBillet = '',
+    this.terminalId = '',
+    this.source = 'global',
+    this.bloque = false,
+    this.rapportActif = false,
+    this.rapportHeure = '22:00',
+    this.rapportNumeros = '',
+    this.soldeTexte,
+    this.soldeLe,
+  });
+
+  final bool actif,
+      colisEnvoi,
+      colisArrive,
+      colisRetire,
+      billet,
+      bloque,
+      rapportActif;
+  final String username,
+      sender,
+      indicatif,
+      terminalId,
+      source,
+      rapportHeure,
+      rapportNumeros;
+
+  /// Compte SMSBUS propre à l'entreprise (sinon : celui de la plateforme).
+  bool get comptePropre => source == 'propre';
+  final String? soldeTexte;
+  final DateTime? soldeLe;
+  final int port;
+  final String tplEnvoiExp, tplEnvoiDest, tplArrive, tplRetire, tplBillet;
+
+  factory SmsConfig.fromJson(Map<String, dynamic> j) => SmsConfig(
+    actif: j['actif'] as bool? ?? false,
+    username: j['username'] as String? ?? '',
+    sender: j['sender'] as String? ?? '',
+    port: (j['port'] as num?)?.toInt() ?? 7170,
+    indicatif: j['indicatif'] as String? ?? '226',
+    colisEnvoi: j['sms_colis_envoi'] as bool? ?? true,
+    colisArrive: j['sms_colis_arrive'] as bool? ?? true,
+    colisRetire: j['sms_colis_retire'] as bool? ?? true,
+    billet: j['sms_billet'] as bool? ?? true,
+    tplEnvoiExp: j['tpl_envoi_exp'] as String? ?? '',
+    tplEnvoiDest: j['tpl_envoi_dest'] as String? ?? '',
+    tplArrive: j['tpl_arrive'] as String? ?? '',
+    tplRetire: j['tpl_retire'] as String? ?? '',
+    tplBillet: j['tpl_billet'] as String? ?? '',
+    terminalId: j['terminal_id'] as String? ?? '',
+    source: j['source'] as String? ?? 'global',
+    bloque: j['bloque'] as bool? ?? false,
+    rapportActif: j['rapport_actif'] as bool? ?? false,
+    rapportHeure: j['rapport_heure'] as String? ?? '22:00',
+    rapportNumeros: j['rapport_numeros'] as String? ?? '',
+    soldeTexte: j['solde_texte'] as String?,
+    soldeLe: j['solde_le'] == null
+        ? null
+        : DateTime.parse(j['solde_le'] as String).toLocal(),
+  );
+}
+
+/// Compte SMSBUS de la plateforme (superadmin) ; le mot de passe n'est jamais relu.
+class SmsGlobal {
+  SmsGlobal({
+    this.actif = false,
+    this.username = '',
+    this.sender = '',
+    this.port = 7170,
+    this.indicatif = '226',
+    this.terminalId = '',
+    this.motDePasseDefini = false,
+    this.soldeTexte,
+    this.soldeLe,
+  });
+
+  final bool actif, motDePasseDefini;
+  final String username, sender, indicatif, terminalId;
+  final int port;
+  final String? soldeTexte;
+  final DateTime? soldeLe;
+
+  factory SmsGlobal.fromJson(Map<String, dynamic> j) => SmsGlobal(
+    actif: j['actif'] as bool? ?? false,
+    username: j['username'] as String? ?? '',
+    sender: j['sender'] as String? ?? '',
+    port: (j['port'] as num?)?.toInt() ?? 7170,
+    indicatif: j['indicatif'] as String? ?? '226',
+    terminalId: j['terminal_id'] as String? ?? '',
+    motDePasseDefini: j['mot_de_passe_defini'] as bool? ?? false,
+    soldeTexte: j['solde_texte'] as String?,
+    soldeLe: j['solde_le'] == null
+        ? null
+        : DateTime.parse(j['solde_le'] as String).toLocal(),
+  );
+}
+
+/// Situation SMS d'une entreprise, vue du superadmin.
+class SmsEntreprise {
+  SmsEntreprise({
+    required this.companyId,
+    required this.nom,
+    required this.actif,
+    required this.bloque,
+    required this.source,
+    required this.envoyes,
+    required this.echecs,
+  });
+
+  final int companyId, envoyes, echecs;
+  final String nom, source;
+  final bool actif, bloque;
+
+  factory SmsEntreprise.fromJson(Map<String, dynamic> j) => SmsEntreprise(
+    companyId: (j['company_id'] as num).toInt(),
+    nom: j['nom'] as String,
+    actif: j['actif'] as bool? ?? true,
+    bloque: j['bloque'] as bool? ?? false,
+    source: j['source'] as String? ?? 'global',
+    envoyes: (j['nb_envoyes'] as num?)?.toInt() ?? 0,
+    echecs: (j['nb_echecs'] as num?)?.toInt() ?? 0,
+  );
+}
+
+/// Une ligne du journal des SMS envoyés.
+class SmsLigne {
+  SmsLigne({
+    required this.id,
+    required this.type,
+    required this.telephone,
+    required this.message,
+    required this.statut,
+    required this.createdAt,
+    this.reponse,
+  });
+
+  final int id;
+  final String type, telephone, message, statut;
+  final String? reponse;
+  final DateTime createdAt;
+
+  factory SmsLigne.fromJson(Map<String, dynamic> j) => SmsLigne(
+    id: j['id'] as int,
+    type: j['type'] as String,
+    telephone: j['telephone'] as String,
+    message: j['message'] as String,
+    statut: j['statut'] as String,
+    reponse: j['reponse'] as String?,
+    createdAt: DateTime.parse(j['created_at'] as String).toLocal(),
+  );
+
+  String get typeLabel => switch (type) {
+    'envoi_exp' => 'Envoi (expéditeur)',
+    'envoi_dest' => 'Envoi (destinataire)',
+    'arrive' => 'Arrivée',
+    'retire' => 'Retrait',
+    'billet' => 'Billet',
+    _ => 'Test',
+  };
+}
+
+/// Trajet : prix et heures de départ fixés par l'administrateur entre deux gares.
+class Trajet {
+  Trajet({
+    required this.id,
+    required this.gareDepartId,
+    required this.gareArriveeId,
+    required this.prix,
+    this.horaires = const [],
+    this.capacite = 50,
+  });
+
+  final int id, gareDepartId, gareArriveeId;
+  final double prix;
+  final List<String> horaires;
+
+  /// Nombre de places du bus (50 par défaut).
+  final int capacite;
+
+  factory Trajet.fromJson(Map<String, dynamic> j) => Trajet(
+    id: j['id'] as int,
+    gareDepartId: j['gare_depart_id'] as int,
+    gareArriveeId: j['gare_arrivee_id'] as int,
+    prix: _d(j['prix']),
+    horaires: [for (final h in (j['horaires'] as List? ?? const [])) '$h'],
+    capacite: (j['capacite'] as num?)?.toInt() ?? 50,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'gare_depart_id': gareDepartId,
+    'gare_arrivee_id': gareArriveeId,
+    'prix': prix,
+    'horaires': horaires,
+    'capacite': capacite,
+  };
+}
+
+/// Places d'un voyage : capacité du bus et numéros déjà attribués.
+class PlacesVoyage {
+  PlacesVoyage(this.capacite, this.prises);
+  final int capacite;
+  final Set<int> prises;
+
+  int get libres => capacite - prises.length;
+  bool get plein => libres <= 0;
+
+  /// Plus petit numéro libre (celui que le serveur attribue automatiquement), sinon null si le bus est plein.
+  int? get suivante {
+    for (var i = 1; i <= capacite; i++) {
+      if (!prises.contains(i)) return i;
+    }
+    return null;
+  }
+}
+
+/// Billet vu par la vérification (copie gardée sur le téléphone pour fonctionner sans internet).
+class BilletVerif {
+  BilletVerif({
+    required this.id,
+    required this.numero,
+    required this.clientNom,
+    required this.clientTelephone,
+    required this.dateVoyage,
+    required this.statut,
+    this.gareDepartNom,
+    this.gareArriveeNom,
+    this.heureDepart,
+    this.siege,
+    this.nbVerifications = 0,
+  });
+
+  final int id, nbVerifications;
+  final String numero, clientNom, clientTelephone, statut;
+  final String? gareDepartNom, gareArriveeNom, heureDepart, siege;
+  final DateTime dateVoyage;
+
+  bool get annule => statut == 'annule';
+
+  /// Le billet est-il pour un autre jour que `jour` ?
+  bool autreJour(DateTime jour) =>
+      DateTime(dateVoyage.year, dateVoyage.month, dateVoyage.day) !=
+      DateTime(jour.year, jour.month, jour.day);
+
+  BilletVerif avecVerifications(int n) => BilletVerif(
+    id: id,
+    numero: numero,
+    clientNom: clientNom,
+    clientTelephone: clientTelephone,
+    dateVoyage: dateVoyage,
+    statut: statut,
+    gareDepartNom: gareDepartNom,
+    gareArriveeNom: gareArriveeNom,
+    heureDepart: heureDepart,
+    siege: siege,
+    nbVerifications: n,
+  );
+
+  factory BilletVerif.fromJson(Map<String, dynamic> j) => BilletVerif(
+    id: (j['id'] as num).toInt(),
+    numero: j['numero'] as String,
+    clientNom: j['client_nom'] as String,
+    clientTelephone: j['client_telephone'] as String,
+    gareDepartNom: j['gare_depart_nom'] as String?,
+    gareArriveeNom: j['gare_arrivee_nom'] as String?,
+    dateVoyage: DateTime.parse(j['date_voyage'] as String),
+    heureDepart: j['heure_depart'] as String?,
+    siege: j['siege'] as String?,
+    statut: (j['statut'] as String?) ?? 'emis',
+    nbVerifications: (j['nb_verifications'] as num?)?.toInt() ?? 0,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'numero': numero,
+    'client_nom': clientNom,
+    'client_telephone': clientTelephone,
+    'gare_depart_nom': gareDepartNom,
+    'gare_arrivee_nom': gareArriveeNom,
+    'date_voyage': dateVoyage.toIso8601String(),
+    'heure_depart': heureDepart,
+    'siege': siege,
+    'statut': statut,
+    'nb_verifications': nbVerifications,
+  };
+}
+
+/// Résultat d'une vérification de billet.
+class VerifResultat {
+  VerifResultat({this.billet, this.horsLigne = false, this.message});
+  final BilletVerif? billet;
+
+  /// Vérifié sans internet : sera enregistré au retour du réseau.
+  final bool horsLigne;
+  final String? message;
+}
+
+/// Modes de paiement acceptés au guichet.
+const modesPaiementGuichet = {
+  'especes': 'Espèces',
+  'orange_money': 'Orange Money',
+};
+String libelleModePaiement(String? m) => modesPaiementGuichet[m] ?? 'Espèces';
+
+/// Situation d'un client dans le programme de fidélité.
+class FideliteStatut {
+  FideliteStatut({
+    required this.actif,
+    required this.seuil,
+    required this.voyages,
+    required this.gratuit,
+  });
+  final bool actif, gratuit;
+  final int seuil, voyages;
+
+  int get restant => (seuil - voyages) < 0 ? 0 : seuil - voyages;
+
+  factory FideliteStatut.fromJson(Map<String, dynamic> j) => FideliteStatut(
+    actif: j['actif'] as bool? ?? true,
+    seuil: (j['seuil'] as num?)?.toInt() ?? 10,
+    voyages: (j['voyages'] as num?)?.toInt() ?? 0,
+    gratuit: j['gratuit'] as bool? ?? false,
   );
 }

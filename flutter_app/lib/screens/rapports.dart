@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/format.dart';
 import '../core/theme.dart';
@@ -38,7 +39,9 @@ class RapportsScreen extends ConsumerWidget {
       final pdf = await rapportPdf(
         co: co,
         me: me,
-        perimetre: me.isAdmin ? 'Toutes les gares' : (gare?.nom ?? 'Ma gare'),
+        perimetre: me.voitToutLeReseau
+            ? 'Toutes les gares'
+            : (gare?.nom ?? 'Ma gare'),
         debut: p.debut,
         fin: p.fin,
         colis: colis,
@@ -156,6 +159,8 @@ class RapportsScreen extends ConsumerWidget {
       children: [
         PageHeader('Rapports', subtitle: 'Activité et recettes du réseau.'),
         Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
           spacing: 10,
           runSpacing: 10,
           children: [
@@ -168,6 +173,14 @@ class RapportsScreen extends ConsumerWidget {
               onPressed: () => pick(false),
               icon: const Icon(Icons.event_rounded, size: 18),
               label: Text('Au ${p.fin == null ? '…' : dateFr(p.fin!)}'),
+            ),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF16A34A),
+              ),
+              onPressed: () => context.push('/rapports/detail'),
+              icon: const Icon(Icons.table_chart_rounded, size: 18),
+              label: const Text('Rapports détaillés (PDF / Excel)'),
             ),
             FilledButton.icon(
               onPressed: () => _telecharger(context, ref),

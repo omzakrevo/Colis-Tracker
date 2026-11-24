@@ -10,6 +10,9 @@ import '../core/format.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../data/providers.dart';
+import '../data/reseau.dart';
+import 'common.dart';
+import 'mot_de_passe.dart';
 import 'update_dialog.dart';
 import 'sync_banner.dart';
 
@@ -26,19 +29,82 @@ const _principaux = [
   _Item('/recherche', 'Recherche', Icons.search_rounded),
 ];
 
-List<_Item> _menu(Profil me) => me.isBarragiste
-    ? const [_Item('/scanner', 'Scanner', Icons.qr_code_scanner_rounded)]
+const _billets = _Item(
+  '/billets',
+  'Billets',
+  Icons.confirmation_number_rounded,
+);
+const _verifier = _Item(
+  '/billets/verifier',
+  'Vérifier',
+  Icons.fact_check_rounded,
+);
+const _compta = _Item(
+  '/finance',
+  'Comptabilité',
+  Icons.account_balance_rounded,
+);
+const _cloture = _Item(
+  '/cloture',
+  'Fin de journée',
+  Icons.receipt_long_rounded,
+);
+const _imprimante = _Item('/imprimante', 'Imprimante', Icons.print_rounded);
+const _scanner = _Item('/scanner', 'Scanner', Icons.qr_code_scanner_rounded);
+
+/// Onglets du bas (téléphone) selon le rôle.
+List<_Item> _onglets(Profil me, [bool finance = false]) => me.isConvoyeur
+    ? const [_billets, _verifier, _scanner]
+    : me.isComptable
+    ? [
+        if (finance) _compta,
+        const _Item('/rapports', 'Rapports', Icons.insights_rounded),
+        const _Item('/rapports/detail', 'Détaillés', Icons.table_chart_rounded),
+      ]
+    : me.isGuichet
+    ? [..._principaux.take(2), _billets, ..._principaux.skip(2)]
+    : _principaux;
+
+List<_Item> _menu(Profil me, [bool finance = false]) => me.isBarragiste
+    ? const [_scanner]
+    : me.isComptable
+    ? [
+        if (finance) _compta,
+        const _Item('/rapports', 'Rapports', Icons.insights_rounded),
+        const _Item(
+          '/rapports/detail',
+          'Rapports détaillés',
+          Icons.table_chart_rounded,
+        ),
+      ]
+    : me.isConvoyeur
+    ? const [_billets, _verifier, _scanner, _cloture, _imprimante]
     : me.isSuper
     ? const [
         _Item('/entreprises', 'Entreprises', Icons.business_rounded),
+        _Item('/sms-plateforme', 'SMS', Icons.sms_rounded),
         _Item('/mises-a-jour', 'Mises à jour', Icons.system_update_rounded),
       ]
     : [
-        ..._principaux,
-        const _Item('/rapports', 'Rapports', Icons.insights_rounded),
+        ..._onglets(me, finance),
+        if (me.voitBillets && !me.isGuichet) _billets,
+        if (me.peutVerifierBillets) _verifier,
+        _cloture,
+        _imprimante,
+        if (me.voitRapportsGlobaux)
+          const _Item('/rapports', 'Rapports', Icons.insights_rounded),
+        if (!me.voitRapportsGlobaux)
+          const _Item(
+            '/rapports/detail',
+            'Mes rapports',
+            Icons.table_chart_rounded,
+          ),
+        if (me.isAdmin && finance) _compta,
         if (me.isAdmin) ...const [
           _Item('/gares', 'Gares', Icons.location_city_rounded),
+          _Item('/trajets', 'Trajets et prix', Icons.route_rounded),
           _Item('/utilisateurs', 'Utilisateurs', Icons.groups_rounded),
+          _Item('/sms', 'SMS', Icons.sms_rounded),
           _Item('/parametres', 'Paramètres', Icons.tune_rounded),
         ],
       ];
@@ -78,17 +144,28 @@ class AppShell extends ConsumerWidget {
   final Widget child;
   final String location;
 
-  bool _active(String path) =>
-      path == '/' ? location == '/' : location.startsWith(path);
+  bool _active(String path) => path == '/'
+      ? location == '/'
+      : path == '/billets'
+      ? location.startsWith('/billets') &&
+            !location.startsWith('/billets/verifier')
+      : path == '/rapports'
+      ? location == '/rapports' ||
+            (location.startsWith('/rapports/') &&
+                !location.startsWith('/rapports/detail'))
+      : location.startsWith(path);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(realtimeProvider);
+    ref.watch(verifMiseAJourProvider);
     final me = ref.watch(profilProvider).value;
     if (me == null) return const SizedBox.shrink();
     final settings = me.isSuper ? null : ref.watch(settingsProvider).value;
     final wide = MediaQuery.sizeOf(context).width >= 900;
-    final menu = _menu(me);
+    final finance =
+        ref.watch(authProvider).value?.company?.moduleFinance ?? false;
+    final menu = _menu(me, finance);
     final offline = ref.watch(sessionProvider).offline;
     ref.listen(miseAJourProvider, (_, next) {
       final v = next.value;
@@ -100,7 +177,10 @@ class AppShell extends ConsumerWidget {
     });
     final body = Column(
       children: [
-        SyncBanner(offline: offline),
+        ValueListenableBuilder<bool>(
+          valueListenable: Reseau.enLigne,
+          builder: (_, enLigne, _) => SyncBanner(offline: offline || !enLigne),
+        ),
         Expanded(child: child),
       ],
     );
@@ -136,25 +216,35 @@ class AppShell extends ConsumerWidget {
       );
     }
 
-    final bottomIdx = _principaux.indexWhere((i) => _active(i.path));
+    final onglets = _onglets(me, finance);
+    // Clavier ouvert : barre du bas et bouton flottant masqués, sinon l'écran des petits téléphones est mangé.
+    final clavier = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final bottomIdx = onglets.indexWhere((i) => _active(i.path));
     return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 0,
-        title: Row(
-          children: [
-            Logo(size: 30, data: settings?.logo),
-            const SizedBox(width: 10),
-            Text(
-              settings?.nom.toUpperCase() ?? AppConfig.appName.toUpperCase(),
-              style: const TextStyle(
-                fontWeight: FontWeight.w800,
-                letterSpacing: .5,
-                fontSize: 17,
+      appBar: clavier
+          // Clavier ouvert : toute la hauteur sert à la saisie.
+          ? const PreferredSize(
+              preferredSize: Size.zero,
+              child: SizedBox.shrink(),
+            )
+          : AppBar(
+              titleSpacing: 0,
+              title: Row(
+                children: [
+                  Logo(size: 30, data: settings?.logo),
+                  const SizedBox(width: 10),
+                  Text(
+                    settings?.nom.toUpperCase() ??
+                        AppConfig.appName.toUpperCase(),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: .5,
+                      fontSize: 17,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
       drawer: Drawer(
         backgroundColor: Brand.emerald,
         child: _Sidebar(
@@ -172,10 +262,21 @@ class AppShell extends ConsumerWidget {
         child: body,
       ),
       floatingActionButton:
-          (location.startsWith('/scanner') || me.isSuper || me.isBarragiste)
+          (clavier ||
+              location.startsWith('/scanner') ||
+              location.endsWith('/nouveau') ||
+              location.startsWith('/billets/verifier') ||
+              me.isSuper ||
+              me.isComptable ||
+              me.isBarragiste ||
+              (location.startsWith('/billets') && !me.peutVendreBillets))
           ? null
           : FloatingActionButton.extended(
-              onPressed: () => context.push('/colis/nouveau'),
+              onPressed: () => context.push(
+                (me.isConvoyeur || location.startsWith('/billets'))
+                    ? '/billets/nouveau'
+                    : '/colis/nouveau',
+              ),
               backgroundColor: Brand.orange,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.add_rounded),
@@ -188,15 +289,15 @@ class AppShell extends ConsumerWidget {
               duration: 500.ms,
               curve: Curves.easeOutBack,
             ),
-      bottomNavigationBar: (me.isSuper || me.isBarragiste)
+      bottomNavigationBar: (me.isSuper || me.isBarragiste || clavier)
           ? null
           : NavigationBar(
               selectedIndex: bottomIdx < 0 ? 0 : bottomIdx,
               backgroundColor: Colors.white,
               indicatorColor: Brand.orangeSoft,
-              onDestinationSelected: (i) => context.go(_principaux[i].path),
+              onDestinationSelected: (i) => context.go(onglets[i].path),
               destinations: [
-                for (final i in _principaux)
+                for (final i in onglets)
                   NavigationDestination(icon: Icon(i.icon), label: i.label),
               ],
             ),
@@ -303,6 +404,41 @@ class _Sidebar extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 10),
+                  InkWell(
+                    onTap: () async {
+                      if (await changerMotDePasseDialog(context)) {
+                        if (context.mounted)
+                          toast(
+                            context,
+                            'Mot de passe changé : reconnectez-vous avec le nouveau.',
+                          );
+                        onLogout();
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.lock_reset_rounded,
+                            size: 16,
+                            color: Colors.white.withValues(alpha: .85),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Changer mon mot de passe',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: .85),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
                   InkWell(
                     onTap: onLogout,
                     borderRadius: BorderRadius.circular(10),

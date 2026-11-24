@@ -11,6 +11,7 @@ import '../core/local_auth.dart';
 import 'models.dart';
 import 'offline.dart';
 import 'repo.dart';
+import 'reseau.dart';
 
 String errMsg(Object e) {
   if (estErreurReseau(e))
@@ -284,15 +285,21 @@ class SyncNotifier extends Notifier<SyncState> {
     final conn = Connectivity().onConnectivityChanged.listen((r) {
       if (!r.contains(ConnectivityResult.none)) sync();
     });
+    // Le serveur répond de nouveau : on envoie tout de suite ce qui attendait sur l'appareil.
+    final retour = Reseau.retour.listen((_) => sync());
     final timer = Timer.periodic(const Duration(seconds: 45), (_) => sync());
+    // Billets à vérifier : copie mise à jour sur le téléphone à chaque changement et régulièrement.
+    ref.listen(tickProvider, (_, _) => _majVerif());
     ref.listen(authProvider, (_, next) {
       _refresh();
+      if (next.value?.profil != null) _majVerif();
       final d = next.value;
       if (d?.profil != null && !d!.offline) sync();
     });
     ref.onDispose(() {
       Outbox.changes.removeListener(onChange);
       conn.cancel();
+      retour.cancel();
       timer.cancel();
     });
     Future.microtask(() async {
@@ -300,6 +307,12 @@ class SyncNotifier extends Notifier<SyncState> {
       await sync();
     });
     return const SyncState();
+  }
+
+  Future<void> _majVerif() async {
+    final me = ref.read(profilProvider).value;
+    if (me == null || !me.peutVerifierBillets || !Repo.aUneSession) return;
+    await Repo.rafraichirBilletsAVerifier();
   }
 
   Future<void> _refresh() async {
@@ -313,12 +326,16 @@ class SyncNotifier extends Notifier<SyncState> {
     if (_busy || !Repo.aUneSession) return;
     final me = ref.read(profilProvider).value;
     if (me == null || me.isSuper) return;
-    if ((await Outbox.pending()).isEmpty) return;
+    if ((await Outbox.pending()).isEmpty) {
+      await _majVerif();
+      return;
+    }
     _busy = true;
     await _refresh();
     try {
       final n = await Repo.synchroniser();
       if (n > 0 && ref.mounted) ref.read(tickProvider.notifier).bump();
+      await _majVerif();
     } catch (_) {
       // réseau ou session : on réessaiera au prochain passage
     } finally {
@@ -347,7 +364,7 @@ final realtimeProvider = Provider<void>((ref) {
   final client = Supabase.instance.client;
   Timer? debounce;
   final channel = client.channel('vip-colis-live');
-  for (final table in ['colis', 'historique_colis']) {
+  for (final table in ['colis', 'historique_colis', 'tickets']) {
     channel.onPostgresChanges(
       event: PostgresChangeEvent.all,
       schema: 'public',
@@ -399,6 +416,27 @@ final historiqueProvider = FutureProvider.family<List<Historique>, int>((
   return Repo.historique(id);
 });
 
+final ticketsProvider = FutureProvider<List<Ticket>>((ref) {
+  ref.watch(tickProvider);
+  return Repo.listTickets();
+});
+
+final ticketProvider = FutureProvider.family<Ticket, int>((ref, id) {
+  ref.watch(tickProvider);
+  return Repo.getTicket(id);
+});
+
+final trajetsProvider = FutureProvider<List<Trajet>>((ref) {
+  ref.watch(tickProvider);
+  return Repo.trajets();
+});
+
+final smsConfigProvider = FutureProvider<SmsConfig?>((ref) => Repo.smsConfig());
+final smsGlobalProvider = FutureProvider<SmsGlobal>((ref) => Repo.smsGlobal());
+final smsEntreprisesProvider = FutureProvider<List<SmsEntreprise>>(
+  (ref) => Repo.smsEntreprises(),
+);
+
 final garesProvider = FutureProvider<List<Gare>>((ref) => Repo.gares());
 final profilsProvider = FutureProvider<List<Profil>>((ref) => Repo.profils());
 final settingsProvider = FutureProvider<CompanySettings>(
@@ -408,6 +446,11 @@ final settingsProvider = FutureProvider<CompanySettings>(
 final dashboardProvider = FutureProvider<DashboardStats>((ref) {
   ref.watch(tickProvider);
   return Repo.dashboard();
+});
+
+final monActiviteProvider = FutureProvider<Map<String, int>>((ref) {
+  ref.watch(tickProvider);
+  return Repo.monActivite();
 });
 
 final recentColisProvider = FutureProvider<List<Colis>>((ref) {
@@ -456,6 +499,15 @@ final statutsProvider = FutureProvider<Map<String, int>>((ref) {
 });
 
 // ── Mise à jour de l'application (Android) ────────────────
+
+/// Revérifie toutes les 20 minutes si une nouvelle version est en ligne (sans attendre un redémarrage).
+final verifMiseAJourProvider = Provider<void>((ref) {
+  final t = Timer.periodic(
+    const Duration(minutes: 20),
+    (_) => ref.invalidate(miseAJourProvider),
+  );
+  ref.onDispose(t.cancel);
+});
 
 /// Version plus récente que celle installée, sinon null. Ne s'applique qu'à l'application Android.
 final miseAJourProvider = FutureProvider<AppVersion?>((ref) async {

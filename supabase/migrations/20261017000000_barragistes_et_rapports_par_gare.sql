@@ -3,7 +3,7 @@
 
 alter table public.vip_profiles drop constraint if exists vip_profiles_role_check;
 alter table public.vip_profiles add constraint vip_profiles_role_check
-  check (role in ('superadmin', 'admin', 'chef_gare', 'agent', 'barragiste'));
+  check (role in ('superadmin', 'admin', 'chef_gare', 'agent', 'barragiste', 'guichet', 'convoyeur', 'comptable'));
 
 -- Création de compte : le barragiste est autorisé (la gare est facultative pour lui).
 create or replace function public.admin_creer_utilisateur(

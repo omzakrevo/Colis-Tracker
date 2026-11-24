@@ -32,21 +32,34 @@ void main() {
   final co = CompanySettings.defaults;
 
   test('reçu : ticket 80 mm, A4 et A5 se génèrent', () async {
-    for (final f in [PdfPageFormat.roll80, PdfPageFormat.a4, PdfPageFormat.a5]) {
+    for (final f in [
+      PdfPageFormat.roll80,
+      PdfPageFormat.a4,
+      PdfPageFormat.a5,
+    ]) {
       final bytes = await recuPdf(_c(1, 'enregistre'), co, f);
       expect(bytes.length, greaterThan(1000), reason: '$f');
     }
   });
 
   test('rapport PDF avec retraits sans signature', () async {
-    final me = Profil(id: 'u', nom: 'Chef', username: 'chef', role: 'chef_gare', actif: true, gareId: 1);
+    final me = Profil(
+      id: 'u',
+      nom: 'Chef',
+      username: 'chef',
+      role: 'chef_gare',
+      actif: true,
+      gareId: 1,
+    );
     final bytes = await rapportPdf(
       co: co,
       me: me,
       perimetre: 'Ouagadougou',
       debut: DateTime(2026, 10, 1),
       fin: DateTime(2026, 10, 31),
-      colis: [for (var i = 0; i < 60; i++) _c(i, i.isEven ? 'retire' : 'arrive')],
+      colis: [
+        for (var i = 0; i < 60; i++) _c(i, i.isEven ? 'retire' : 'arrive'),
+      ],
       gares: [LigneStat('Ouagadougou', 60, 900000)],
       agents: [LigneStat('Agent', 60, 900000)],
     );

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../widgets/torche.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -71,8 +74,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   String? _lastCode;
   DateTime _lastAt = DateTime.fromMillisecondsSinceEpoch(0);
 
-  /// Le barragiste ne fait que l'embarquement et le déchargement (pas de consultation).
-  bool get _barragiste => ref.read(profilProvider).value?.isBarragiste ?? false;
+  /// Barragiste et convoyeur ne font que l'embarquement et le déchargement (pas de consultation).
+  bool get _barragiste =>
+      ref.read(profilProvider).value?.scanRestreint ?? false;
 
   List<ScanMode> get _modes => _barragiste
       ? const [ScanMode.embarquement, ScanMode.dechargement]
@@ -225,6 +229,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           ),
         ),
         _Overlay(color: _mode.color),
+        BoutonTorche(controller: _ctl),
         if (_busy)
           Container(
             color: Colors.black38,
@@ -277,9 +282,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         for (final m in _modes)
           Expanded(
             child: Padding(
-              padding: EdgeInsets.only(
-                right: m == _modes.last ? 0 : 8,
-              ),
+              padding: EdgeInsets.only(right: m == _modes.last ? 0 : 8),
               child: GestureDetector(
                 onTap: () => _setMode(m),
                 child: AnimatedContainer(
@@ -323,7 +326,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     ),
   );
 
-  Widget _list() {
+  Widget _list({bool defile = false}) {
     if (_items.isEmpty) {
       return EmptyState(
         icon: _mode.icon,
@@ -333,7 +336,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       );
     }
     return ListView.separated(
-      padding: const EdgeInsets.only(bottom: 100),
+      // Écran étroit : la liste fait partie de la page qui défile (sinon elle est écrasée sous la caméra).
+      shrinkWrap: defile,
+      physics: defile ? const NeverScrollableScrollPhysics() : null,
+      padding: EdgeInsets.only(bottom: defile ? 12 : 100),
       itemCount: _items.length,
       separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (_, i) {
@@ -465,55 +471,82 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       );
     }
 
+    // Écran court (terminal POS) : caméra réduite pour laisser voir la liste des colis scannés.
+    final hauteur = MediaQuery.sizeOf(context).height;
     final camera = ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: wide ? 420 : 230),
+      constraints: BoxConstraints(
+        maxHeight: wide ? 420 : (hauteur < 700 ? 130 : 200),
+      ),
       child: AspectRatio(aspectRatio: wide ? 1 : 16 / 9, child: _camera()),
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        header,
-        _modeSelector(),
-        const SizedBox(height: 12),
-        Expanded(
-          child: wide
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 420,
-                      child: Column(
-                        children: [
-                          camera,
-                          const SizedBox(height: 12),
-                          _manualField(),
-                        ],
-                      ),
+    return LayoutBuilder(
+      builder: (context, box) {
+        final court = box.maxHeight < 430;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (wide || !court) header,
+            _modeSelector(),
+            const SizedBox(height: 12),
+            Expanded(
+              child: wide
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 420,
+                          child: Column(
+                            children: [
+                              camera,
+                              const SizedBox(height: 12),
+                              _manualField(),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Expanded(child: _list()),
+                              _validateBar(),
+                            ],
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        // Tout défile ensemble : on peut descendre voir les colis déjà scannés.
+                        Expanded(
+                          child: ListView(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            children: [
+                              Center(child: camera),
+                              const SizedBox(height: 10),
+                              _manualField(),
+                              const SizedBox(height: 10),
+                              if (_items.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Text(
+                                    '${_items.length} colis scanné${_items.length > 1 ? 's' : ''}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                              _list(defile: true),
+                            ],
+                          ),
+                        ),
+                        _validateBar(),
+                      ],
                     ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          Expanded(child: _list()),
-                          _validateBar(),
-                        ],
-                      ),
-                    ),
-                  ],
-                )
-              : Column(
-                  children: [
-                    Center(child: camera),
-                    const SizedBox(height: 10),
-                    _manualField(),
-                    const SizedBox(height: 10),
-                    Expanded(child: _list()),
-                    _validateBar(),
-                  ],
-                ),
-        ),
-      ],
+            ),
+          ],
+        );
+      },
     );
   }
 }

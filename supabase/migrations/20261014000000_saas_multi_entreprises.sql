@@ -57,7 +57,7 @@ alter table public.company_settings add primary key (company_id);
 -- Rôle « superadmin » autorisé.
 alter table public.vip_profiles drop constraint if exists vip_profiles_role_check;
 alter table public.vip_profiles add constraint vip_profiles_role_check
-  check (role in ('superadmin', 'admin', 'chef_gare', 'agent'));
+  check (role in ('superadmin', 'admin', 'chef_gare', 'agent', 'barragiste', 'guichet', 'convoyeur', 'comptable'));
 alter table public.vip_profiles drop constraint if exists vip_profiles_company_role_check;
 alter table public.vip_profiles add constraint vip_profiles_company_role_check
   check (role = 'superadmin' or company_id is not null);
