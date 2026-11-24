@@ -134,11 +134,14 @@ class SectionCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
               ],
-              Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14.5,
+              // Titre long sur petit écran : passe à la ligne au lieu de déborder.
+              Flexible(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14.5,
+                  ),
                 ),
               ),
             ],

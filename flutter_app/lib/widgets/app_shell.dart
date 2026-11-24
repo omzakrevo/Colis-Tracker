@@ -105,6 +105,11 @@ List<_Item> _menu(Profil me, [bool finance = false]) => me.isBarragiste
           _Item('/trajets', 'Trajets et prix', Icons.route_rounded),
           _Item('/utilisateurs', 'Utilisateurs', Icons.groups_rounded),
           _Item('/sms', 'SMS', Icons.sms_rounded),
+          _Item(
+            '/modele-tickets',
+            'Modèle des tickets',
+            Icons.design_services_rounded,
+          ),
           _Item('/parametres', 'Paramètres', Icons.tune_rounded),
         ],
       ];

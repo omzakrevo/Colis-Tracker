@@ -603,6 +603,7 @@ class CompanySettings {
     this.fideliteActif = true,
     this.fideliteSeuil = 10,
     this.mentionTicket = '',
+    this.modeleTickets,
   });
 
   final String nom, slogan, telephone, email, adresse, ville, pays;
@@ -618,6 +619,9 @@ class CompanySettings {
   /// Mention personnalisée imprimée en bas des tickets (voyage et colis).
   final String mentionTicket;
 
+  /// Modèle des tickets réglé par l'administrateur (JSON brut, lu par `ModelesTickets`). `null` = modèle par défaut.
+  final Map<String, dynamic>? modeleTickets;
+
   factory CompanySettings.fromJson(Map<String, dynamic> j) => CompanySettings(
     nom: j['nom'] as String,
     slogan: j['slogan'] as String,
@@ -631,6 +635,9 @@ class CompanySettings {
     fideliteActif: j['fidelite_actif'] as bool? ?? true,
     fideliteSeuil: (j['fidelite_seuil'] as num?)?.toInt() ?? 10,
     mentionTicket: j['mention_ticket'] as String? ?? '',
+    modeleTickets: j['modele_tickets'] is Map
+        ? Map<String, dynamic>.from(j['modele_tickets'] as Map)
+        : null,
   );
 
   Map<String, dynamic> toJson() => {
@@ -646,6 +653,7 @@ class CompanySettings {
     'fidelite_actif': fideliteActif,
     'fidelite_seuil': fideliteSeuil,
     'mention_ticket': mentionTicket,
+    'modele_tickets': modeleTickets,
   };
 
   static CompanySettings get defaults => CompanySettings(

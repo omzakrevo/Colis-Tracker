@@ -18,6 +18,7 @@ import 'screens/imprimante.dart';
 import 'screens/inscription.dart';
 import 'screens/login.dart';
 import 'screens/mises_a_jour.dart';
+import 'screens/modele_tickets.dart';
 import 'screens/parametres.dart';
 import 'screens/sms.dart';
 import 'screens/sms_plateforme.dart';
@@ -114,6 +115,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         '/gares',
         '/utilisateurs',
         '/parametres',
+        '/modele-tickets',
         '/trajets',
         '/sms',
       ];
@@ -247,6 +249,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/parametres',
             pageBuilder: (c, s) => _page(s, const ParametresScreen()),
+          ),
+          GoRoute(
+            path: '/modele-tickets',
+            pageBuilder: (c, s) => _page(s, const ModeleTicketsScreen()),
           ),
         ],
       ),

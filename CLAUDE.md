@@ -7,7 +7,7 @@ L'utilisateur parle français (dictée vocale), n'est pas technique : répondre 
 - App : `flutter_app/` (Riverpod, go_router, supabase_flutter, pdf/printing, esc_pos_utils_plus, print_bluetooth_thermal, flutter_blue_plus).
 - Base de données : `supabase/migrations/*.sql` ; installeurs à coller dans Supabase Studio > SQL Editor :
   `supabase/installation_complete.sql` (tout) et `supabase/rattrapage.sql`. Quand on ajoute une migration, l'ajouter AUSSI
-  à la fin de ces deux fichiers (marqueur `-- ═══ <nom> ═══`, puis `notify pgrst, 'reload schema';`). Dernière migration : 32 (mention_ticket).
+  à la fin de ces deux fichiers (marqueur `-- ═══ <nom> ═══`, puis `notify pgrst, 'reload schema';`). Dernière migration : 33 (modele_tickets).
 - Impression : `flutter_app/lib/core/imprimante.dart` (+ `imprimante_ble.dart` pour les mini-imprimantes MXW01), tickets texte `core/ticket_texte.dart`,
   tickets image/PDF `screens/ticket_modele.dart` et `screens/receipt.dart`. Piège connu : `esc_pos_utils_plus.imageRaster` plante
   (« Cannot add to a fixed-length list ») si la largeur de l'image n'est pas un multiple de 8.
@@ -27,7 +27,16 @@ L'utilisateur parle français (dictée vocale), n'est pas technique : répondre 
 - Dépôt public : jamais de secret, mot de passe, clé de signature, numéro de téléphone personnel dans le code.
 - Jamais la clé `service_role` dans l'application. Mot de passe SMSBUS côté serveur uniquement.
 - Branche de travail courante : `claude/ecstatic-lovelace-2iis86` (rien n'est fusionné dans `main` pour les dernières fonctions).
-- Les migrations SQL ne s'appliquent pas toutes seules : l'utilisateur les colle dans Studio. L'assistant n'a pas d'accès direct au VPS.
+- Les migrations SQL ne s'appliquent pas toutes seules. Depuis le PC de l'utilisateur (Claude Code desktop), l'assistant a un accès SSH au VPS ;
+  la base de Tchi est la base `postgres` du Supabase principal (conteneur `supabase-db`, adresse https://vps-ef39f3a3.vps.ovh.ca). Demander l'accord avant d'y écrire.
+- VPS : ne jamais nommer un service docker compose `auth`, `rest`, `storage`, `functions` sur le réseau `supabase_default` (alias DNS en double →
+  le Supabase de Tchi envoie des requêtes au mauvais conteneur : « No suitable key or wrong key type »).
+
+## Modèle des tickets (admin)
+- Écran `/modele-tickets` (`screens/modele_tickets.dart`), données `data/modele_ticket.dart`, colonne `company_settings.modele_tickets` (migration 33).
+- Le même modèle pilote l'impression image (`ticketSelonModele` dans `screens/ticket_modele.dart`) et texte (`_selonModele` dans `core/ticket_texte.dart`).
+- Hors imprimante directe, les tickets passent par la fenêtre d'impression au format ROULEAU (`formatRouleau`), jamais A4 (sinon texte minuscule).
+- Flutter local : la version du PC (3.38) est trop ancienne ; le projet exige 3.47.7 (comme le workflow).
 
 ## Fait mais pas confirmé par l'utilisateur sur le terrain
 Impression MXW01 en BLE, impression thermique avec logo/téléphones en grand/mention, envoi des SMS, pg_cron, scripts SQL

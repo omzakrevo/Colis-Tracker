@@ -7,6 +7,7 @@ import 'package:printing/printing.dart';
 
 import '../core/imprimante.dart';
 import '../core/ticket_texte.dart';
+import '../data/modele_ticket.dart';
 import '../data/models.dart';
 import 'ticket_modele.dart';
 
@@ -117,6 +118,33 @@ Future<Uint8List> billetPdf(
   );
 }
 
+/// Aperçu d'un modèle de ticket (écran « Modèle des tickets ») avec des données d'exemple.
+Future<Uint8List> apercuModelePdf(
+  SorteTicket sorte,
+  ModeleTicket modele,
+  CompanySettings co,
+  PdfPageFormat format,
+) {
+  final logo = pdfImage(co.logo);
+  final contenu = switch (sorte) {
+    SorteTicket.voyage => contenuVoyage(ticketExemple()),
+    SorteTicket.colis => contenuColis(colisExemple()),
+    SorteTicket.etiquette => contenuEtiquette(colisExemple()),
+  };
+  return _document(
+    format,
+    (k, kv, bande) => ticketSelonModele(contenu, modele, co, logo, k, kv: kv),
+  );
+}
+
+/// Format « rouleau » de l'imprimante à tickets réglée pour ce rôle (58 mm par défaut), hauteur ajustée au ticket.
+/// Utilisé même quand la fenêtre d'impression du téléphone propose A4 : sinon le ticket était dessiné sur une
+/// feuille A4 puis réduit à la largeur du rouleau (texte minuscule, ticket très long et plein de blanc).
+Future<PdfPageFormat> formatRouleau(RoleImprimante role) async {
+  final c = await Imprimante.lire(role);
+  return PdfPageFormat(c.largeurMm * PdfPageFormat.mm, double.infinity);
+}
+
 /// Imprime le ticket client du colis : directement sur l'imprimante « clients » si elle est réglée
 /// (écran Imprimante), sinon fenêtre d'impression. `ticket: false` = feuille A4.
 Future<void> imprimerRecu(
@@ -130,13 +158,22 @@ Future<void> imprimerRecu(
         'Ticket-${c.numero}',
         (format) => recuPdf(c, co, format),
         texte: (g, cols) => ticketColisTexte(g, cols, c, co),
-        logo: co.logo,
+        logo: logoAffiche(co, SorteTicket.colis) ? co.logo : null,
       )) {
+    return;
+  }
+  if (ticket) {
+    final rouleau = await formatRouleau(RoleImprimante.client);
+    await Printing.layoutPdf(
+      name: 'Ticket-${c.numero}',
+      format: rouleau,
+      onLayout: (_) => recuPdf(c, co, rouleau),
+    );
     return;
   }
   await Printing.layoutPdf(
     name: 'Ticket-${c.numero}',
-    format: ticket ? PdfPageFormat.roll80 : PdfPageFormat.a4,
+    format: PdfPageFormat.a4,
     onLayout: (format) => recuPdf(c, co, format),
   );
 }
@@ -148,13 +185,14 @@ Future<void> imprimerEtiquette(Colis c, CompanySettings co) async {
     'Etiquette-${c.numero}',
     (format) => etiquettePdf(c, co, format),
     texte: (g, cols) => etiquetteTexte(g, cols, c, co),
-    logo: co.logo,
+    logo: logoAffiche(co, SorteTicket.etiquette) ? co.logo : null,
   )) {
     return;
   }
+  final rouleau = await formatRouleau(RoleImprimante.colis);
   await Printing.layoutPdf(
     name: 'Etiquette-${c.numero}',
-    format: PdfPageFormat.roll80,
-    onLayout: (format) => etiquettePdf(c, co, format),
+    format: rouleau,
+    onLayout: (_) => etiquettePdf(c, co, rouleau),
   );
 }

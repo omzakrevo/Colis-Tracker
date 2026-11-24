@@ -1,6 +1,7 @@
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 
 import '../data/journal.dart';
+import '../data/modele_ticket.dart';
 import '../data/models.dart';
 import 'format.dart';
 
@@ -96,36 +97,57 @@ class _Doc {
   void vide([int n = 1]) => octets.addAll(g.emptyLines(n));
 
   /// « LIBELLE : valeur » ; la valeur passe à la ligne, légèrement décalée, si elle est trop longue.
-  void champ(String libelle, String valeur) {
+  void champ(
+    String libelle,
+    String valeur, {
+    PosTextSize taille = PosTextSize.size1,
+  }) {
+    // En double taille, une ligne contient deux fois moins de caractères.
+    final c = cols ~/ taille.value;
     final prefixe = '${sansAccents(libelle)} : ';
-    final largeur = cols - prefixe.length;
-    final l = _lignes(sansAccents(valeur), largeur < 8 ? cols : largeur);
+    final largeur = c - prefixe.length;
+    final l = _lignes(sansAccents(valeur), largeur < 8 ? c : largeur);
     if (l.isEmpty) return;
     if (largeur < 8) {
-      ligne(prefixe.trimRight());
+      ligne(prefixe.trimRight(), taille: taille);
       for (final x in l) {
-        ligne('  $x');
+        ligne('  $x', taille: taille);
       }
       return;
     }
-    ligne('$prefixe${l.first}');
+    ligne('$prefixe${l.first}', taille: taille);
     for (final x in l.skip(1)) {
-      ligne('${' ' * prefixe.length}$x');
+      ligne('${' ' * prefixe.length}$x', taille: taille);
     }
   }
 
   /// Nom de l'entreprise le plus grand possible : triple taille s'il est court, sinon double taille
   /// sur plusieurs lignes (un mot par ligne si besoin) plutôt que petit sur une seule.
-  void nomGrand(String nom) {
+  /// `s` < 0,8 : nom en taille normale ; `s` ≥ 1,25 : triple taille dès que possible.
+  void nomGrand(String nom, {double s = 1, PosAlign align = PosAlign.center}) {
     final n = sansAccents(nom).toUpperCase().trim();
     if (n.isEmpty) return;
-    if (n.length <= cols ~/ 3) {
-      centre(n, taille: PosTextSize.size3);
+    if (s < .8) {
+      ligne(n, align: align);
       return;
     }
+    if (n.length <= cols ~/ 3) {
+      ligne(n, align: align, taille: PosTextSize.size3);
+      return;
+    }
+    if (s >= 1.25) {
+      final mots = _lignes(n, cols ~/ 3);
+      if (mots.every((l) => l.length <= cols ~/ 3)) {
+        for (final l in mots) {
+          ligne(l, align: align, taille: PosTextSize.size3);
+        }
+        return;
+      }
+    }
     for (final l in _lignes(n, cols ~/ 2)) {
-      centre(
+      ligne(
         l,
+        align: align,
         taille: l.length <= cols ~/ 2 ? PosTextSize.size2 : PosTextSize.size1,
       );
     }
@@ -178,50 +200,134 @@ List<int> _doc(Generator g, int cols, void Function(_Doc d) corps) {
   return d.octets;
 }
 
+/// Taille de police d'imprimante (1 à 3 fois) pour une taille de base et le multiplicateur du modèle.
+PosTextSize _taille(int base, double s) {
+  final n = (base * s).round().clamp(1, 3);
+  return n == 1
+      ? PosTextSize.size1
+      : n == 2
+      ? PosTextSize.size2
+      : PosTextSize.size3;
+}
+
+PosAlign _align(Alignement a) => switch (a) {
+  Alignement.gauche => PosAlign.left,
+  Alignement.centre => PosAlign.center,
+  Alignement.droite => PosAlign.right,
+};
+
+/// Ticket texte selon le modèle de l'administrateur (même ordre, tailles et alignements que le ticket image ;
+/// le logo, s'il est affiché, est imprimé en tête par l'imprimante elle-même).
+void _selonModele(_Doc d, ContenuTicket c, ModeleTicket m, CompanySettings co) {
+  var premier = true;
+  for (final b in m.blocs) {
+    if (!b.visible || b.id == 'logo') continue;
+    final s = b.taille * m.echelle;
+    final al = _align(b.align);
+    final avant = d.octets.length;
+    if (!premier && m.espacement >= 1.3) d.vide();
+    final debut = d.octets.length;
+    switch (b.id) {
+      case 'nom':
+        d.nomGrand(co.nom, s: s, align: al);
+      case 'activite':
+        d.ligne(c.activite, align: al, taille: _taille(1, s));
+        if (co.slogan.isNotEmpty) d.ligne(co.slogan, gras: false, align: al);
+      case 'telephone':
+        if (co.telephone.isNotEmpty) {
+          final t = sansAccents(co.telephone).trim();
+          final tt = _taille(2, s);
+          d.ligne(
+            ('Tel : $t').length <= d.cols ~/ tt.value ? 'Tel : $t' : t,
+            align: al,
+            taille: tt,
+          );
+        }
+      case 'titre':
+        d.ligne(c.titre, align: al, taille: _taille(2, s));
+      case 'numero':
+        d.ligne('N° ${c.numero}', align: al, taille: _taille(1, s));
+      case 'destination':
+        if (c.destination != null) {
+          d.ligne('DESTINATION', align: al);
+          d.ligne(c.destination!, align: al, taille: _taille(2, s));
+          if (c.provenance != null) d.ligne(c.provenance!, align: al);
+        }
+      case 'infos':
+        for (final x in c.champs) {
+          if (m.masques.contains(x.id)) continue;
+          d.champ(x.libelle, x.valeur, taille: _taille(1, s));
+          if ((x.tel ?? '').isNotEmpty) d.telGrand(x.tel!);
+        }
+      case 'prix':
+        if (c.prix != null) {
+          // « À gauche » = libellé et montant sur une ligne en image ; en texte, montant centré en grand.
+          final al = b.align == Alignement.gauche
+              ? PosAlign.center
+              : _align(b.align);
+          if (c.gratuit) {
+            d.ligne('VOYAGE GRATUIT', align: al, taille: _taille(2, s));
+            d.ligne('Merci pour votre fidelite !', align: al);
+          } else {
+            d.ligne('PRIX PAYE', align: al, taille: _taille(1, s));
+            d.ligne(_fcfa(c.prix!), align: al, taille: _taille(2, s));
+          }
+        }
+      case 'qr':
+        final n = (6 * s).round().clamp(3, 8);
+        final taille = switch (n) {
+          3 => QRSize.size3,
+          4 => QRSize.size4,
+          5 => QRSize.size5,
+          6 => QRSize.size6,
+          7 => QRSize.size7,
+          _ => QRSize.size8,
+        };
+        d.octets.addAll(d.g.qrcode(c.numero, size: taille, align: al));
+      case 'qr_numero':
+        d.ligne(c.numero, align: al, taille: _taille(1, s));
+      case 'consigne':
+        if (c.consigne.isNotEmpty) {
+          d.ligne(c.consigne, gras: false, align: al, taille: _taille(1, s));
+        }
+      case 'merci':
+        if (c.merci.isNotEmpty) {
+          d.ligne(c.merci, align: al, taille: _taille(1, s));
+        }
+      case 'mention':
+        if (co.mentionTicket.trim().isNotEmpty) {
+          d.ligne(co.mentionTicket.trim(), align: al, taille: _taille(1, s));
+        }
+    }
+    if (d.octets.length == debut) {
+      // Rien d'imprimé pour ce bloc : on retire l'éventuelle ligne vide ajoutée avant.
+      d.octets.removeRange(avant, d.octets.length);
+      continue;
+    }
+    premier = false;
+    if (b.traitApres) d.trait();
+  }
+}
+
+ModeleTicket _modeleDe(CompanySettings co, SorteTicket s) =>
+    ModelesTickets.fromJson(co.modeleTickets).de(s);
+
+/// Le logo est-il affiché sur ce ticket (le mode texte l'imprime en tête) ?
+bool logoAffiche(CompanySettings co, SorteTicket s) =>
+    _modeleDe(co, s).bloc('logo')?.visible ?? true;
+
 /// Ticket de voyage.
 List<int> ticketVoyageTexte(
   Generator g,
   int cols,
   Ticket t,
   CompanySettings co,
-) => _doc(g, cols, (d) {
-  d.entete(co, 'TRANSPORT DE VOYAGEURS');
-  d.centre(
-    t.annule ? 'TICKET ANNULE' : 'TICKET DE VOYAGE',
-    taille: PosTextSize.size2,
-  );
-  d.centre('N° ${t.numero}');
-  d.trait();
-  d.champ('DATE', dateFr(t.dateVoyage));
-  d.champ('DEPART', t.gareDepartNom ?? '-');
-  d.champ('ARRIVEE', t.gareArriveeNom ?? '-');
-  if ((t.heureDepart ?? '').isNotEmpty)
-    d.champ('HEURE', t.heureDepart!.replaceFirst(':', 'H'));
-  if ((t.siege ?? '').isNotEmpty) d.champ('SIEGE', t.siege!);
-  d.champ('PASSAGER', t.clientNom);
-  if ((t.vendeurNom ?? '').isNotEmpty) d.champ('AGENT', t.vendeurNom!);
-  d.champ(
-    'PAIEMENT',
-    t.gratuit ? 'GRATUIT (FIDELITE)' : libelleModePaiement(t.modePaiement),
-  );
-  d.trait();
-  if (t.gratuit) {
-    d.centre('VOYAGE GRATUIT', taille: PosTextSize.size2);
-    d.centre('Merci pour votre fidelite !');
-    d.trait();
-  } else {
-    d.prix(t.prix);
-  }
-  d.qr(t.numero);
-  d.ligne(
-    'Scannez ce QR code pour verifier le ticket a l\'embarquement.',
-    gras: false,
-    align: PosAlign.center,
-  );
-  d.trait();
-  d.centre('MERCI ET BON VOYAGE !');
-  d.mention(co);
-});
+) => _doc(
+  g,
+  cols,
+  (d) =>
+      _selonModele(d, contenuVoyage(t), _modeleDe(co, SorteTicket.voyage), co),
+);
 
 /// Ticket remis à l'expéditeur lors de l'enregistrement d'un colis.
 List<int> ticketColisTexte(
@@ -229,56 +335,24 @@ List<int> ticketColisTexte(
   int cols,
   Colis c,
   CompanySettings co,
-) => _doc(g, cols, (d) {
-  d.entete(co, 'TRANSPORT DE COLIS');
-  d.centre('TICKET DE COLIS', taille: PosTextSize.size2);
-  d.centre('N° ${c.numero}');
-  d.trait();
-  d.champ('DATE', dateFr(c.dateEnvoi));
-  d.champ('DEPART', c.gareDepartNom ?? '-');
-  d.champ('ARRIVEE', c.gareArriveeNom ?? '-');
-  d.champ('EXPEDITEUR', c.expediteurNom);
-  d.telGrand(c.expediteurTelephone);
-  d.champ('DESTINATAIRE', c.destinataireNom);
-  d.telGrand(c.destinataireTelephone);
-  d.champ(
-    'COLIS',
-    '${c.nombre} x ${c.description}${c.poids != null ? ' (${c.poids} kg)' : ''}',
-  );
-  if (c.valeur != null) d.champ('VALEUR', _fcfa(c.valeur!));
-  if ((c.agentNom ?? '').isNotEmpty) d.champ('AGENT', c.agentNom!);
-  d.champ('PAIEMENT', libelleModePaiement(c.modePaiement));
-  d.trait();
-  d.prix(c.prix);
-  d.qr(c.numero);
-  d.ligne(
-    'Conservez ce ticket : il sera demande pour le retrait du colis.',
-    gras: false,
-    align: PosAlign.center,
-  );
-  d.trait();
-  d.centre('MERCI DE VOTRE CONFIANCE !');
-  d.mention(co);
-});
+) => _doc(
+  g,
+  cols,
+  (d) => _selonModele(d, contenuColis(c), _modeleDe(co, SorteTicket.colis), co),
+);
 
 /// Étiquette à coller sur le colis (sans prix) : destination en grand.
 List<int> etiquetteTexte(Generator g, int cols, Colis c, CompanySettings co) =>
-    _doc(g, cols, (d) {
-      d.nomGrand(co.nom);
-      d.trait();
-      d.centre('DESTINATION');
-      d.centre(c.gareArriveeNom ?? '-', taille: PosTextSize.size2);
-      d.centre('DE : ${c.gareDepartNom ?? '-'}');
-      d.trait();
-      d.champ('DESTINATAIRE', c.destinataireNom);
-      d.telGrand(c.destinataireTelephone);
-      d.champ('EXPEDITEUR', c.expediteurNom);
-      d.telGrand(c.expediteurTelephone);
-      d.champ('COLIS', '${c.nombre} x ${c.description}');
-      d.champ('DATE', dateFr(c.dateEnvoi));
-      d.trait();
-      d.qr(c.numero);
-    });
+    _doc(
+      g,
+      cols,
+      (d) => _selonModele(
+        d,
+        contenuEtiquette(c),
+        _modeleDe(co, SorteTicket.etiquette),
+        co,
+      ),
+    );
 
 /// Ticket d'essai.
 List<int> testTexte(

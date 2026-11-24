@@ -3,6 +3,7 @@ import 'package:printing/printing.dart';
 
 import '../core/imprimante.dart';
 import '../core/ticket_texte.dart';
+import '../data/modele_ticket.dart';
 import '../data/models.dart';
 import 'receipt.dart';
 
@@ -21,13 +22,23 @@ Future<void> imprimerBillet(
         'Billet-${t.numero}',
         (format) => billetPdf(t, co, format),
         texte: (g, cols) => ticketVoyageTexte(g, cols, t, co),
-        logo: co.logo,
+        logo: logoAffiche(co, SorteTicket.voyage) ? co.logo : null,
       )) {
+    return;
+  }
+  if (ticket) {
+    // Toujours au format du rouleau (58/80 mm), même si la fenêtre d'impression propose A4.
+    final rouleau = await formatRouleau(RoleImprimante.client);
+    await Printing.layoutPdf(
+      name: 'Billet-${t.numero}',
+      format: rouleau,
+      onLayout: (_) => billetPdf(t, co, rouleau),
+    );
     return;
   }
   await Printing.layoutPdf(
     name: 'Billet-${t.numero}',
-    format: ticket ? PdfPageFormat.roll80 : PdfPageFormat.a4,
+    format: PdfPageFormat.a4,
     onLayout: (format) => billetPdf(t, co, format),
   );
 }

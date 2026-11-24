@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../data/models.dart';
@@ -220,6 +221,17 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
                 ),
               ),
             ).reveal(2),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => context.push('/modele-tickets'),
+                icon: const Icon(Icons.design_services_rounded),
+                label: const Text(
+                  'Modèle des tickets : taille du texte, ordre, alignement…',
+                ),
+              ),
+            ),
             const SizedBox(height: 18),
             FilledButton.icon(
               onPressed: _saving ? null : _save,
